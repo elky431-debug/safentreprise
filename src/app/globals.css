@@ -1,0 +1,293 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Safentreprise — design tokens
+   Palette neutre froide, un seul bleu d'accent réservé aux actions.
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+
+  /* Fonds — noir profond façon atelier */
+  --background: #080808;
+  --surface: #111111;
+  --surface-2: #161616;
+  --surface-3: #1c1c1c;
+
+  /* Traits */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Texte */
+  --foreground: #f5f5f4;
+  --muted: #a1a1a1;
+  --faint: #6b6b6b;
+
+  /* Accent — bleu canard (actions) */
+  --accent: #0e8593;
+  --accent-hover: #0c717d;
+  --accent-text: #5ecad4;
+  --accent-soft: rgba(14, 133, 147, 0.16);
+  --accent-line: rgba(94, 202, 212, 0.35);
+
+  /* États */
+  --danger: #f0616d;
+  --danger-soft: rgba(240, 97, 109, 0.1);
+  --success: #3ec98a;
+  --success-soft: rgba(62, 201, 138, 0.1);
+  --warning: #e8b44a;
+  --warning-soft: rgba(232, 180, 74, 0.12);
+
+  /* Relief : liseré haut clair + ombre courte, appliqués aux cartes */
+  --relief:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 1px 2px rgba(0, 0, 0, 0.5);
+  --relief-haut:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 28px -12px rgba(0, 0, 0, 0.8);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
+  --font-sans: var(--font-jakarta);
+  --font-serif: var(--font-instrument);
+  --font-mono: var(--font-mono-stack);
+  --font-script: var(--font-sacramento);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Titres serifs — greetings et titres de widgets */
+.font-display {
+  font-family: var(--font-instrument), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* Canevas de l'espace connecté — noir uni, sans grille */
+.app-canvas {
+  position: relative;
+  isolation: isolate;
+  background: var(--background);
+}
+
+.app-canvas > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Carte atelier */
+.panel-relief {
+  box-shadow: none;
+}
+
+.panel-relief-lg {
+  box-shadow: none;
+}
+
+/* Titres : resserrage marqué sur les grandes tailles, léger en dessous */
+h1,
+h2 {
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+h3 {
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/* Chiffres alignés dans les tableaux et compteurs */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus visible cohérent partout */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Étiquettes techniques (petites capitales monospace)
+   -------------------------------------------------------------------------- */
+.eyebrow {
+  font-family: var(--font-mono-stack), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Cursive, réservée à une seule ligne de titre */
+.font-script {
+  font-family: var(--font-sacramento), cursive;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+/* --------------------------------------------------------------------------
+   Ciel étoilé — deux couches de tuiles de tailles premières
+   pour éviter un motif visiblement répété
+   -------------------------------------------------------------------------- */
+.starfield {
+  position: absolute;
+  inset: 0;
+  mask-image: linear-gradient(to bottom, black 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 72%, transparent 100%);
+}
+
+.starfield::before,
+.starfield::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+/* Couche lointaine : petites étoiles nombreuses */
+.starfield::before {
+  background-image:
+    radial-gradient(1px 1px at 14px 27px, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 88px 61px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 141px 19px, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1px 1px at 196px 88px, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 41px 104px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 118px 134px, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 231px 47px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 172px 163px, rgba(255, 255, 255, 0.52), transparent),
+    radial-gradient(1px 1px at 62px 182px, rgba(255, 255, 255, 0.62), transparent),
+    radial-gradient(1px 1px at 249px 121px, rgba(255, 255, 255, 0.44), transparent),
+    radial-gradient(1px 1px at 9px 148px, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 208px 196px, rgba(255, 255, 255, 0.48), transparent),
+    radial-gradient(1px 1px at 133px 217px, rgba(255, 255, 255, 0.68), transparent),
+    radial-gradient(1px 1px at 34px 236px, rgba(255, 255, 255, 0.42), transparent),
+    radial-gradient(1px 1px at 262px 228px, rgba(255, 255, 255, 0.58), transparent),
+    radial-gradient(1px 1px at 96px 258px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 181px 271px, rgba(255, 255, 255, 0.64), transparent),
+    radial-gradient(1px 1px at 24px 289px, rgba(255, 255, 255, 0.46), transparent);
+  background-size: 283px 307px;
+  animation: twinkle 6s ease-in-out infinite;
+}
+
+/* Couche proche : étoiles plus grosses, plus lumineuses */
+.starfield::after {
+  background-image:
+    radial-gradient(1.8px 1.8px at 47px 58px, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1.6px 1.6px at 163px 112px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.8px 1.8px at 271px 44px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 92px 189px, rgba(255, 255, 255, 0.72), transparent),
+    radial-gradient(1.8px 1.8px at 218px 233px, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1.6px 1.6px at 328px 156px, rgba(255, 255, 255, 0.78), transparent),
+    radial-gradient(1.5px 1.5px at 21px 271px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.8px 1.8px at 141px 318px, rgba(255, 255, 255, 0.88), transparent),
+    radial-gradient(1.6px 1.6px at 302px 297px, rgba(255, 255, 255, 0.75), transparent);
+  background-size: 419px 397px;
+  animation: twinkle 9s ease-in-out infinite reverse;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Fonds décoratifs — discrets, sans halo coloré
+   -------------------------------------------------------------------------- */
+.hairline-grid {
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent 75%);
+  -webkit-mask-image: radial-gradient(
+    ellipse 70% 60% at 50% 0%,
+    black,
+    transparent 75%
+  );
+}
+
+.top-glow {
+  background: radial-gradient(
+    ellipse 55% 45% at 50% -10%,
+    rgba(14, 127, 140, 0.2),
+    transparent 70%
+  );
+}
+
+/* --------------------------------------------------------------------------
+   Apparition au chargement (sans JS, reste visible si CSS bloqué)
+   -------------------------------------------------------------------------- */
+.rise {
+  animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rise-1 {
+  animation-delay: 0.06s;
+}
+
+.rise-2 {
+  animation-delay: 0.12s;
+}
+
+.rise-3 {
+  animation-delay: 0.18s;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .starfield::before,
+  .starfield::after {
+    animation: none;
+  }
+}
