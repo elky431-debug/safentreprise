@@ -1,0 +1,15 @@
+# Netlify — build Next.js (plugin @netlify/plugin-nextjs côté UI)
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Variables OBLIGATOIRES (à définir dans Netlify UI, pas ici) :
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   NEXT_PUBLIC_APP_URL=https://safentreprise.com
+# Recommandées :
+#   RESEND_API_KEY
+#   SIMULATION_FROM_EMAIL
+#   SUPABASE_SECRET_KEY
+#
+# Après ajout des NEXT_PUBLIC_* : redéployer (elles sont injectées au build).
