@@ -32,10 +32,17 @@ const METRICS = [
 
 /** Page d'accueil publique. */
 export default async function HomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Ne pas faire planter la landing si Supabase n'est pas configuré (Netlify).
+  let user: { id: string } | null = null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: sessionUser },
+    } = await supabase.auth.getUser();
+    user = sessionUser;
+  } catch {
+    user = null;
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
