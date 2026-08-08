@@ -125,7 +125,13 @@ export default async function CampaignPage({
       ];
     });
 
-    return <CampaignResults campaign={campaign} cibles={lignes} />;
+    return (
+      <CampaignResults
+        campaign={campaign}
+        cibles={lignes}
+        modeResultats={company.mode_resultats}
+      />
+    );
   }
 
   // ---- Aperçu / édition (brouillon ou prête) ----
