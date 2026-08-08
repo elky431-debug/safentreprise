@@ -155,7 +155,12 @@ export async function POST(
   let envoyes = 0;
   let echecs = 0;
   let smsIgnores = 0;
-  const details: { cibleId: string; ok: boolean; detail: string }[] = [];
+  const details: {
+    cibleId: string;
+    email?: string;
+    ok: boolean;
+    detail: string;
+  }[] = [];
 
   for (const cible of ciblesBrutes ?? []) {
     const employe = normaliserEmploye(cible.employees);
