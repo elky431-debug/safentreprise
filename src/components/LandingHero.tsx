@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { buttonPrimaryLg } from "@/components/ui";
-import { AppPreview } from "@/components/AppPreview";
 import { IconArrowRight } from "@/components/icons";
 
 type Props = {
   isLoggedIn: boolean;
 };
 
-/** Hero de la landing : ciel étoilé, annonce centrée, aperçu de l'application. */
+/** Hero de la landing : ciel étoilé, annonce centrée. */
 export function LandingHero({ isLoggedIn }: Props) {
   return (
     <section className="relative isolate overflow-hidden">
@@ -16,7 +15,7 @@ export function LandingHero({ isLoggedIn }: Props) {
         <div className="top-glow absolute inset-x-0 top-0 h-[520px]" />
       </div>
 
-      <div className="mx-auto max-w-5xl px-6 pt-16 text-center md:pt-24">
+      <div className="mx-auto max-w-5xl px-6 pt-16 pb-20 text-center md:pt-24 md:pb-28">
         <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-[12.5px] text-muted backdrop-blur-sm">
           <span className="h-1.5 w-1.5 rounded-full bg-accent-text" />
           Arnaque au président · faux fournisseur
@@ -55,10 +54,6 @@ export function LandingHero({ isLoggedIn }: Props) {
           <span aria-hidden>·</span>
           <span>Résultats nominatifs ou anonymisés</span>
         </p>
-      </div>
-
-      <div className="rise rise-3 mx-auto mt-16 max-w-6xl px-6 md:mt-20 lg:px-8">
-        <AppPreview />
       </div>
     </section>
   );

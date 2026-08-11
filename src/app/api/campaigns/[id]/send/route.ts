@@ -1,6 +1,8 @@
 /**
- * Envoi d'une campagne validée (emails via Resend).
- * Les cibles SMS sont ignorées côté email (stub sendSms, pas d'échec bloquant).
+ * Envoi d'une campagne validée.
+ * - canal email → Resend
+ * - canal SMS → SMS Partner
+ * Une campagne « les_deux » (legacy) peut mélanger les canaux cible par cible.
  *
  * POST /api/campaigns/[id]/send
  */
@@ -34,6 +36,14 @@ type CibleEnvoi = {
   } | null;
 };
 
+type DetailEnvoi = {
+  cibleId: string;
+  canal: "email" | "sms";
+  destinataire?: string;
+  ok: boolean;
+  detail: string;
+};
+
 function normaliserEmploye(
   raw: CibleEnvoi["employees"] | unknown,
 ): CibleEnvoi["employees"] {
@@ -42,15 +52,19 @@ function normaliserEmploye(
   return raw as CibleEnvoi["employees"];
 }
 
-/** Email si canal campagne email, ou legacy mixte avec HTML. */
-function estCanalEmail(
+/**
+ * Détermine le canal concret d'une cible.
+ * Campagne email/sms → canal unique ; legacy « les_deux » → heuristique contenu.
+ */
+function canalCible(
   canal: Campaign["canal"],
   html: string | null,
   objet: string | null,
-): boolean {
-  if (canal === "email") return true;
-  if (canal === "sms") return false;
-  return Boolean(objet) || /<\/?[a-z]/i.test(html ?? "");
+): "email" | "sms" {
+  if (canal === "email") return "email";
+  if (canal === "sms") return "sms";
+  // Legacy mixte : objet ou balises HTML → email, sinon SMS
+  return Boolean(objet) || /<\/?[a-z]/i.test(html ?? "") ? "email" : "sms";
 }
 
 export async function POST(
@@ -66,16 +80,6 @@ export async function POST(
 
   if (!user) {
     return Response.json({ erreur: "Session expirée." }, { status: 401 });
-  }
-
-  const fromEmail =
-    process.env.SIMULATION_FROM_EMAIL?.trim() || "onboarding@resend.dev";
-
-  if (!process.env.RESEND_API_KEY) {
-    return Response.json(
-      { erreur: "RESEND_API_KEY manquante côté serveur." },
-      { status: 500 },
-    );
   }
 
   const { data: campaign } = await supabase
@@ -95,7 +99,7 @@ export async function POST(
     );
   }
 
-  // Réessai possible si statut « envoyee » mais aucun email réellement parti
+  // Réessai possible si statut « envoyee » mais aucun message réellement parti
   if (campaign.statut === "envoyee") {
     const { count } = await supabase
       .from("campaign_targets")
@@ -105,7 +109,7 @@ export async function POST(
 
     if ((count ?? 0) > 0) {
       return Response.json(
-        { erreur: "Cette campagne a déjà des emails envoyés." },
+        { erreur: "Cette campagne a déjà des messages envoyés." },
         { status: 409 },
       );
     }
@@ -143,6 +147,39 @@ export async function POST(
       .returns<CibleEnvoi[]>(),
   ]);
 
+  const cibles = ciblesBrutes ?? [];
+
+  // Pré-calcule les canaux pour exiger uniquement les clés nécessaires
+  const canauxPrevus = cibles.map((c) =>
+    canalCible(campaign.canal, c.message_final_html, c.objet_final),
+  );
+  const besoinEmail = canauxPrevus.includes("email");
+  const besoinSms = canauxPrevus.includes("sms");
+
+  if (besoinEmail && !process.env.RESEND_API_KEY) {
+    return Response.json(
+      { erreur: "RESEND_API_KEY manquante côté serveur." },
+      { status: 500 },
+    );
+  }
+
+  if (besoinSms && !process.env.SMSPARTNER_API_KEY) {
+    return Response.json(
+      { erreur: "SMSPARTNER_API_KEY manquante côté serveur." },
+      { status: 500 },
+    );
+  }
+
+  if (besoinSms && !process.env.SMSPARTNER_SENDER?.trim()) {
+    return Response.json(
+      { erreur: "SMSPARTNER_SENDER manquant côté serveur." },
+      { status: 500 },
+    );
+  }
+
+  const fromEmail =
+    process.env.SIMULATION_FROM_EMAIL?.trim() || "onboarding@resend.dev";
+
   const typeFraude: TypeFraude =
     typesFraudeDeCampagne(campaign.type_fraude)[0] ?? "president";
   const from = formaterExpediteurResend(
@@ -152,56 +189,89 @@ export async function POST(
     fromEmail,
   );
 
-  let envoyes = 0;
-  let echecs = 0;
-  let smsIgnores = 0;
-  const details: {
-    cibleId: string;
-    email?: string;
-    ok: boolean;
-    detail: string;
-  }[] = [];
+  let emailsEnvoyes = 0;
+  let emailsEchecs = 0;
+  let smsEnvoyes = 0;
+  let smsEchecs = 0;
+  const details: DetailEnvoi[] = [];
 
-  for (const cible of ciblesBrutes ?? []) {
+  for (const cible of cibles) {
     const employe = normaliserEmploye(cible.employees);
 
-    if (
-      !cible.message_final_html?.trim() ||
-      !cible.token_unique ||
-      !employe
-    ) {
-      echecs += 1;
+    if (!cible.message_final_html?.trim() || !cible.token_unique || !employe) {
+      const canal = canalCible(
+        campaign.canal,
+        cible.message_final_html,
+        cible.objet_final,
+      );
+      if (canal === "sms") smsEchecs += 1;
+      else emailsEchecs += 1;
       details.push({
         cibleId: cible.id,
+        canal,
         ok: false,
         detail: "Message, token ou employé manquant.",
       });
       continue;
     }
 
-    const email = estCanalEmail(
+    const canal = canalCible(
       campaign.canal,
       cible.message_final_html,
       cible.objet_final,
     );
 
-    if (!email) {
-      // Canal SMS : stub, ne bloque pas l'envoi global
-      await sendSms({
+    // ---------- SMS ----------
+    if (canal === "sms") {
+      const resultat = await sendSms({
         id: cible.id,
         telephone: employe.telephone,
         message: cible.message_final_html,
         token: cible.token_unique,
       });
-      smsIgnores += 1;
+
+      if (!resultat.ok) {
+        smsEchecs += 1;
+        details.push({
+          cibleId: cible.id,
+          canal: "sms",
+          destinataire: employe.telephone ?? undefined,
+          ok: false,
+          detail: resultat.detail,
+        });
+        continue;
+      }
+
+      const messageAvecLien = preparerMessagePersiste(
+        cible.message_final_html,
+        cible.token_unique,
+      );
+
+      const { error: errUpdate } = await supabase
+        .from("campaign_targets")
+        .update({
+          message_final_html: messageAvecLien,
+          message_envoye: true,
+          envoye_at: new Date().toISOString(),
+        })
+        .eq("id", cible.id);
+
+      if (errUpdate) {
+        console.error("Maj message_envoye (SMS) :", errUpdate);
+      }
+
+      smsEnvoyes += 1;
       details.push({
         cibleId: cible.id,
+        canal: "sms",
+        destinataire: employe.telephone ?? undefined,
         ok: true,
-        detail: "SMS non implémenté — ignoré.",
+        detail: String(resultat.messageId),
       });
       continue;
     }
 
+    // ---------- Email ----------
     const lien = urlTracking(cible.token_unique);
     const lienSignaler = urlSignalement(cible.token_unique);
     const html = injecterLiensSuivi(
@@ -210,15 +280,15 @@ export async function POST(
       lienSignaler,
     );
 
-    // Sécurité : refuser l'envoi si des placeholders restent (lien mort)
     if (
       html.includes("{lien_tracking}") ||
       html.includes("{lien_signalement}")
     ) {
-      echecs += 1;
+      emailsEchecs += 1;
       details.push({
         cibleId: cible.id,
-        email: employe.email,
+        canal: "email",
+        destinataire: employe.email,
         ok: false,
         detail:
           "Liens de suivi non injectés (placeholders restants). Recomposez puis renvoyez.",
@@ -236,18 +306,21 @@ export async function POST(
     });
 
     if (!resultat.ok) {
-      echecs += 1;
-      console.error(`Envoi cible ${cible.id} → ${employe.email}:`, resultat.erreur);
+      emailsEchecs += 1;
+      console.error(
+        `Envoi email cible ${cible.id} → ${employe.email}:`,
+        resultat.erreur,
+      );
       details.push({
         cibleId: cible.id,
-        email: employe.email,
+        canal: "email",
+        destinataire: employe.email,
         ok: false,
         detail: resultat.erreur,
       });
       continue;
     }
 
-    // Persiste le HTML réellement envoyé (avec URLs) pour audit / debug
     const { error: errUpdate } = await supabase
       .from("campaign_targets")
       .update({
@@ -258,30 +331,39 @@ export async function POST(
       .eq("id", cible.id);
 
     if (errUpdate) {
-      console.error("Maj message_envoye :", errUpdate);
+      console.error("Maj message_envoye (email) :", errUpdate);
     }
 
-    envoyes += 1;
+    emailsEnvoyes += 1;
     details.push({
       cibleId: cible.id,
-      email: employe.email,
+      canal: "email",
+      destinataire: employe.email,
       ok: true,
       detail: resultat.id,
     });
   }
 
-  // Ne passe en « envoyee » que si au moins un email est parti
+  const envoyes = emailsEnvoyes + smsEnvoyes;
+  const echecs = emailsEchecs + smsEchecs;
+
+  const resume = {
+    envoyes,
+    echecs,
+    emails: { envoyes: emailsEnvoyes, echecs: emailsEchecs },
+    sms: { envoyes: smsEnvoyes, echecs: smsEchecs },
+    details,
+  };
+
   if (envoyes === 0) {
+    const premierEchec = details.find((d) => !d.ok)?.detail;
     return Response.json(
       {
         erreur:
           echecs > 0
-            ? `Aucun email envoyé. ${details.find((d) => !d.ok)?.detail ?? "Erreur Resend."}`
-            : "Aucune cible email à envoyer.",
-        envoyes,
-        echecs,
-        smsIgnores,
-        details,
+            ? `Aucun message envoyé. ${premierEchec ?? "Erreur d'envoi."}`
+            : "Aucune cible à envoyer.",
+        ...resume,
       },
       { status: 422 },
     );
@@ -300,16 +382,12 @@ export async function POST(
     return Response.json(
       {
         erreur: "Envois OK mais le statut n'a pas pu être mis à jour.",
-        envoyes,
-        echecs,
-        smsIgnores,
-        details,
+        ...resume,
       },
       { status: 500 },
     );
   }
 
-  // Point d'historique du score de risque (après envoi)
   try {
     const { persisterScoreHistory } = await import("@/lib/risk-dynamique");
     await persisterScoreHistory(supabase, campaign.company_id);
@@ -317,5 +395,20 @@ export async function POST(
     console.error("Snapshot score après envoi :", e);
   }
 
-  return Response.json({ envoyes, echecs, smsIgnores, details });
+  return Response.json(resume);
+}
+
+/** Version lisible du SMS avec lien injecté (audit / debug en base). */
+function preparerMessagePersiste(message: string, token: string): string {
+  const lien = urlTracking(token);
+  let texte = message;
+  if (texte.includes("{lien_tracking}")) {
+    texte = texte.split("{lien_tracking}").join(lien);
+  } else if (!texte.includes(lien)) {
+    texte = `${texte.trim()}\n${lien}`;
+  }
+  if (texte.includes("{lien_signalement}")) {
+    texte = texte.split("{lien_signalement}").join(`${lien}?action=signaler`);
+  }
+  return texte;
 }

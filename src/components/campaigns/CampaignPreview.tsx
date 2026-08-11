@@ -278,7 +278,7 @@ export function CampaignPreview({
 
   async function envoyerCampagne() {
     const confirme = window.confirm(
-      "Envoyer les emails de simulation aux collaborateurs ciblés ?\n\n" +
+      "Envoyer les messages de simulation aux collaborateurs ciblés ?\n\n" +
         "Cette action est définitive pour cette campagne.",
     );
     if (!confirme) return;
@@ -308,13 +308,26 @@ export function CampaignPreview({
       }
 
       setStatut("envoyee");
+      const emailsOk = corps.emails?.envoyes ?? 0;
+      const emailsKo = corps.emails?.echecs ?? 0;
+      const smsOk = corps.sms?.envoyes ?? 0;
+      const smsKo = corps.sms?.echecs ?? 0;
+      const parties: string[] = [];
+      if (emailsOk > 0 || emailsKo > 0) {
+        parties.push(
+          `${emailsOk} email(s) OK` +
+            (emailsKo > 0 ? `, ${emailsKo} échec(s)` : ""),
+        );
+      }
+      if (smsOk > 0 || smsKo > 0) {
+        parties.push(
+          `${smsOk} SMS OK` + (smsKo > 0 ? `, ${smsKo} échec(s)` : ""),
+        );
+      }
       setSuccess(
-        `Campagne envoyée : ${corps.envoyes} email(s) OK` +
-          (corps.echecs > 0 ? `, ${corps.echecs} échec(s)` : "") +
-          (corps.smsIgnores > 0
-            ? `, ${corps.smsIgnores} SMS ignoré(s) (non implémenté)`
-            : "") +
-          ".",
+        parties.length > 0
+          ? `Campagne envoyée : ${parties.join(" · ")}.`
+          : `Campagne envoyée : ${corps.envoyes} message(s).`,
       );
       router.refresh();
     } catch {
@@ -492,7 +505,7 @@ export function CampaignPreview({
               {statut === "envoyee"
                 ? "Campagne envoyée. Les clics et quiz sont suivis via le lien de tracking."
                 : statut === "prete"
-                  ? "La campagne est prête. L'envoi utilise Resend et injecte le lien de suivi."
+                  ? "La campagne est prête. L'envoi utilise Resend (email) ou SMS Partner (SMS) et injecte le lien de suivi."
                   : "La validation génère un jeton de suivi par cible. Aucun message n'est envoyé à ce stade."}
             </p>
             <div className="flex flex-wrap items-center gap-2">

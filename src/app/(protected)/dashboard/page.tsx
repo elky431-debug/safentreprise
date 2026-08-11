@@ -158,7 +158,7 @@ export default async function DashboardPage() {
         />
       </section>
 
-      {/* Courbe d'évolution + répartition dynamique */}
+      {/* Historique du score + répartition dynamique */}
       <section className="grid gap-3 lg:grid-cols-[1.35fr_1fr]">
         <article className="rounded-xl border border-border bg-surface">
           <div className="flex items-start justify-between gap-3 px-5 pt-5">
@@ -167,47 +167,53 @@ export default async function DashboardPage() {
                 Évolution
               </p>
               <h2 className="mt-1 text-[17px] font-semibold tracking-[-0.02em] text-foreground">
-                Score global dans le temps
+                Historique du score de risque
               </h2>
+              <p className="mt-1 text-[12.5px] text-faint">
+                0&nbsp;% = faible risque · 100&nbsp;% = risque élevé
+              </p>
             </div>
             {scores && (
-              <p className="tabular text-[12.5px] text-muted">
-                Actuel {scores.global}&nbsp;%
-              </p>
+              <div className="text-right">
+                <p className="text-[11px] text-muted">Actuel</p>
+                <p className="tabular text-[18px] font-semibold text-foreground">
+                  {scores.global}&nbsp;%
+                </p>
+              </div>
             )}
           </div>
 
-          <div className="px-2 pb-2 pt-3 sm:px-4">
+          <div className="px-5 pb-4 pt-4">
             {pointsCourbe.length >= 1 ? (
-              <ScoreHistoryChart points={pointsCourbe} />
+              <ScoreHistoryList points={pointsCourbe} />
             ) : (
-              <p className="px-3 py-16 text-center text-[13px] text-muted">
+              <p className="py-12 text-center text-[13px] text-muted">
                 Complétez le questionnaire ou lancez une campagne pour
                 historiser le score.
               </p>
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2 border-t border-border px-5 py-3.5">
-            <div>
-              <p className="text-[11px] text-muted">Humain (dyn.)</p>
-              <p className="tabular mt-0.5 text-[14px] font-semibold text-foreground">
-                {scores ? `${scores.humain}%` : "—"}
+          {pointsCourbe.length >= 2 && (
+            <div className="border-t border-border px-5 py-3.5">
+              <p className="text-[13px] text-muted">
+                Depuis le début :{" "}
+                <span className="font-medium text-foreground">
+                  {pointsCourbe[0].score_global}&nbsp;%
+                </span>
+                <span className="mx-1.5 text-faint">→</span>
+                <span className="font-medium text-foreground">
+                  {pointsCourbe[pointsCourbe.length - 1].score_global}&nbsp;%
+                </span>
+                <VariationBadge
+                  delta={
+                    pointsCourbe[pointsCourbe.length - 1].score_global -
+                    pointsCourbe[0].score_global
+                  }
+                />
               </p>
             </div>
-            <div>
-              <p className="text-[11px] text-muted">Inactivité</p>
-              <p className="tabular mt-0.5 text-[14px] font-semibold text-foreground">
-                {scoreDynamique.semainesInactivite} sem.
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] text-muted">Points historique</p>
-              <p className="tabular mt-0.5 text-[14px] font-semibold text-foreground">
-                {historique.length}
-              </p>
-            </div>
-          </div>
+          )}
         </article>
 
         <article className="rounded-xl border border-border bg-surface">
@@ -385,94 +391,99 @@ function Metric({
   );
 }
 
-/** Courbe du score global (score_history + point courant). */
-function ScoreHistoryChart({ points }: { points: ScoreHistory[] }) {
-  const largeur = 560;
-  const hauteur = 200;
-  const padX = 36;
-  const padY = 28;
-  const zoneW = largeur - padX * 2;
-  const zoneH = hauteur - padY * 2;
-
-  const coords = points.map((p, i) => {
-    const x =
-      points.length === 1
-        ? padX + zoneW / 2
-        : padX + (i / (points.length - 1)) * zoneW;
-    const y = padY + zoneH * (1 - Math.min(Math.max(p.score_global, 0), 100) / 100);
-    return { x, y, ...p };
-  });
-
-  const ligne = coords.map((p) => `${p.x},${p.y}`).join(" ");
-  const aire = [
-    `${coords[0].x},${padY + zoneH}`,
-    ...coords.map((p) => `${p.x},${p.y}`),
-    `${coords[coords.length - 1].x},${padY + zoneH}`,
-  ].join(" ");
-
+/**
+ * Historique lisible du score global (plus clair qu'une courbe SVG).
+ * Chaque ligne = une mesure : date, barre, score, variation vs la précédente.
+ */
+function ScoreHistoryList({ points }: { points: ScoreHistory[] }) {
   return (
-    <svg
-      viewBox={`0 0 ${largeur} ${hauteur}`}
-      className="h-[200px] w-full"
-      role="img"
-      aria-label="Évolution du score de risque global"
-    >
-      {[0, 50, 100].map((seuil) => {
-        const y = padY + zoneH * (1 - seuil / 100);
+    <ul className="space-y-3" aria-label="Historique du score de risque global">
+      {points.map((p, i) => {
+        const score = Math.min(Math.max(p.score_global, 0), 100);
+        const precedent = i > 0 ? points[i - 1].score_global : null;
+        const delta = precedent !== null ? score - precedent : null;
+        const actuel = i === points.length - 1;
+
         return (
-          <g key={seuil}>
-            <line
-              x1={padX}
-              x2={largeur - padX}
-              y1={y}
-              y2={y}
-              stroke="currentColor"
-              strokeWidth="1"
-              className="text-border"
-            />
-            <text
-              x={padX - 8}
-              y={y + 3}
-              textAnchor="end"
-              className="fill-faint text-[10px]"
-            >
-              {seuil}
-            </text>
-          </g>
+          <li key={p.id} className="flex items-center gap-3">
+            <div className="w-[5.5rem] shrink-0">
+              <p
+                className={`text-[12.5px] ${actuel ? "font-medium text-foreground" : "text-muted"}`}
+              >
+                {actuel && p.id === "courant"
+                  ? "Maintenant"
+                  : formatDateCourt(p.created_at)}
+              </p>
+              {besoinHeure(points, i) && (
+                <p className="tabular text-[11px] text-faint">
+                  {formatHeure(p.created_at)}
+                </p>
+              )}
+            </div>
+
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-3">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${Math.max(score, 2)}%` }}
+              />
+            </div>
+
+            <p className="tabular w-12 shrink-0 text-right text-[14px] font-semibold text-foreground">
+              {score}&nbsp;%
+            </p>
+
+            <div className="w-14 shrink-0 text-right">
+              {delta === null ? (
+                <span className="text-[11px] text-faint">début</span>
+              ) : (
+                <VariationBadge delta={delta} compact />
+              )}
+            </div>
+          </li>
         );
       })}
+    </ul>
+  );
+}
 
-      <polygon points={aire} className="fill-accent/15" />
-      <polyline
-        points={ligne}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        className="text-accent-text"
-      />
+/** Affiche +3 / −2 / = selon l'évolution du risque. */
+function VariationBadge({
+  delta,
+  compact,
+}: {
+  delta: number;
+  compact?: boolean;
+}) {
+  if (delta === 0) {
+    return (
+      <span
+        className={`tabular text-faint ${compact ? "text-[12px]" : "ml-2 text-[12.5px]"}`}
+      >
+        =
+      </span>
+    );
+  }
 
-      {coords.map((p) => (
-        <g key={p.id}>
-          <circle
-            cx={p.x}
-            cy={p.y}
-            r="4.5"
-            className="fill-background stroke-accent-text"
-            strokeWidth="2"
-          />
-          <text
-            x={p.x}
-            y={hauteur - 8}
-            textAnchor="middle"
-            className="fill-muted text-[10px]"
-          >
-            {formatDateCourt(p.created_at)}
-          </text>
-        </g>
-      ))}
-    </svg>
+  // Baisse du score = moins de risque (positif) ; hausse = plus de risque
+  const baisse = delta < 0;
+  return (
+    <span
+      className={`tabular font-medium ${compact ? "text-[12px]" : "ml-2 text-[12.5px]"} ${
+        baisse ? "text-success" : "text-danger"
+      }`}
+    >
+      {delta > 0 ? "+" : ""}
+      {delta}
+      {compact ? "" : " pts"}
+    </span>
+  );
+}
+
+/** Si plusieurs mesures le même jour, on affiche l'heure pour les distinguer. */
+function besoinHeure(points: ScoreHistory[], index: number): boolean {
+  const jour = formatDateCourt(points[index].created_at);
+  return points.some(
+    (p, i) => i !== index && formatDateCourt(p.created_at) === jour,
   );
 }
 
@@ -550,6 +561,13 @@ function formatDateCourt(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
+  }).format(new Date(iso));
+}
+
+function formatHeure(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(iso));
 }
 

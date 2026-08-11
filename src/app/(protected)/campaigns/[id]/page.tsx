@@ -17,6 +17,7 @@ import { typesFraudeDeCampagne } from "@/lib/campaigns";
 
 type CibleLue = {
   id: string;
+  employee_id: string;
   message_final_html: string | null;
   objet_final: string | null;
   a_clique: boolean;
@@ -82,12 +83,12 @@ export default async function CampaignPage({
     notFound();
   }
 
-  const [{ data: cibles }, { data: supplier }, { data: suppliers }] =
+  const [{ data: cibles }, { data: supplier }, { data: suppliers }, { data: certificat }] =
     await Promise.all([
       supabase
         .from("campaign_targets")
         .select(
-          "id, message_final_html, objet_final, a_clique, a_signale, quiz_complete, score_quiz, message_envoye, employees(prenom, email, telephone)",
+          "id, employee_id, message_final_html, objet_final, a_clique, a_signale, quiz_complete, score_quiz, message_envoye, employees(prenom, email, telephone)",
         )
         .eq("campaign_id", campaign.id)
         .returns<CibleLue[]>(),
@@ -104,6 +105,13 @@ export default async function CampaignPage({
         .eq("company_id", company.id)
         .order("nom", { ascending: true })
         .returns<Supplier[]>(),
+      supabase
+        .from("certificates")
+        .select("url_pdf")
+        .eq("campaign_id", campaign.id)
+        .order("date_emission", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   // ---- Résultats si campagne envoyée ----
@@ -114,6 +122,7 @@ export default async function CampaignPage({
       return [
         {
           id: cible.id,
+          employee_id: cible.employee_id,
           prenom: emp.prenom,
           email: emp.email,
           a_clique: cible.a_clique,
@@ -130,6 +139,7 @@ export default async function CampaignPage({
         campaign={campaign}
         cibles={lignes}
         modeResultats={company.mode_resultats}
+        certificatUrl={certificat?.url_pdf ?? null}
       />
     );
   }

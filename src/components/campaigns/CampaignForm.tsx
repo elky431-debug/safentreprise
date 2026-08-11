@@ -39,6 +39,13 @@ type Props = {
   employees: Employee[];
   brandingInitial: Branding | null;
   suppliersInitial: Supplier[];
+  /** Préremplissage depuis une relance (?cibles=&nom=&type=&canal=). */
+  prefill?: {
+    nom?: string;
+    typeFraude?: TypeFraude;
+    canal?: CanalMessage;
+    cibles?: string[];
+  };
 };
 
 /**
@@ -52,13 +59,16 @@ export function CampaignForm({
   employees,
   brandingInitial,
   suppliersInitial,
+  prefill,
 }: Props) {
   const router = useRouter();
 
   const [etape, setEtape] = useState<Etape>("infos");
-  const [nom, setNom] = useState("");
-  const [typeFraude, setTypeFraude] = useState<TypeFraude>("president");
-  const [canal, setCanal] = useState<CanalMessage>("email");
+  const [nom, setNom] = useState(prefill?.nom ?? "");
+  const [typeFraude, setTypeFraude] = useState<TypeFraude>(
+    prefill?.typeFraude ?? "president",
+  );
+  const [canal, setCanal] = useState<CanalMessage>(prefill?.canal ?? "email");
 
   const [suppliers, setSuppliers] = useState(suppliersInitial);
   const [supplierId, setSupplierId] = useState<string | null>(
@@ -77,7 +87,12 @@ export function CampaignForm({
   );
   const [uploadLogo, setUploadLogo] = useState(false);
 
-  const [cibles, setCibles] = useState<string[]>([]);
+  // Cibles préremplies (relance) — uniquement des IDs encore présents en base
+  const [cibles, setCibles] = useState<string[]>(() => {
+    const ids = prefill?.cibles ?? [];
+    const valides = new Set(employees.map((e) => e.id));
+    return ids.filter((id) => valides.has(id));
+  });
   const [error, setError] = useState<string | null>(null);
   const [soumission, setSoumission] = useState<
     "attente" | "creation" | "composition"
