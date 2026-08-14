@@ -215,3 +215,57 @@ export function IconDeliverability({ className }: IconProps) {
     </svg>
   );
 }
+
+/* --------------------------------------------------------------------------
+   Landing — triptyque tester / former / protéger
+   -------------------------------------------------------------------------- */
+
+/** Cible : phase de test (simulation). */
+export function IconTarget({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Bouclier validé : phase de protection (extension). */
+export function IconShieldCheck({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 3 19 5.7v5.6c0 4.1-2.9 7.6-7 8.7-4.1-1.1-7-4.6-7-8.7V5.7L12 3Z" />
+      <path d="M9 12.1l2.1 2.1 4-4.2" />
+    </svg>
+  );
+}
+
+/** Triangle d'alerte : bannière de détection. */
+export function IconAlertTriangle({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 4.2 2.9 19.3h18.2L12 4.2Z" />
+      <path d="M12 10v4M12 16.7v.2" />
+    </svg>
+  );
+}
+
+/** Pièce de puzzle : extension navigateur. */
+export function IconPuzzle({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M10.3 4.2a1.8 1.8 0 0 1 3.4 0c0 .5-.2.9-.4 1.3h3.2a1 1 0 0 1 1 1v3.2c.4-.3.8-.4 1.3-.4a1.8 1.8 0 0 1 0 3.4c-.5 0-.9-.2-1.3-.4v3.2a1 1 0 0 1-1 1h-3.2c.2.4.4.8.4 1.3a1.8 1.8 0 0 1-3.4 0c0-.5.2-.9.4-1.3H7.5a1 1 0 0 1-1-1v-3.2c-.4.2-.8.4-1.3.4a1.8 1.8 0 0 1 0-3.4c.5 0 .9.1 1.3.4V6.5a1 1 0 0 1 1-1h3.2c-.2-.4-.4-.8-.4-1.3Z" />
+    </svg>
+  );
+}
+
+/** Œil : surveillance en temps réel. */
+export function IconEye({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M2.5 12S5.9 6.5 12 6.5 21.5 12 21.5 12 18.1 17.5 12 17.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </svg>
+  );
+}

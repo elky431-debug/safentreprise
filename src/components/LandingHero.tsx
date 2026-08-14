@@ -6,7 +6,11 @@ type Props = {
   isLoggedIn: boolean;
 };
 
-/** Hero de la landing : ciel étoilé, annonce centrée. */
+/**
+ * Hero de la landing : ciel étoilé, annonce centrée.
+ * Le sous-titre annonce le triptyque tester → former → protéger,
+ * l'appel à l'action principal est la demande de démonstration.
+ */
 export function LandingHero({ isLoggedIn }: Props) {
   return (
     <section className="relative isolate overflow-hidden">
@@ -30,29 +34,36 @@ export function LandingHero({ isLoggedIn }: Props) {
           </span>
         </h1>
 
-        <p className="rise rise-2 mx-auto mt-7 max-w-md text-[15px] leading-relaxed text-muted">
-          Un faux message de fraude, envoyé à vos collaborateurs. Vous voyez qui
-          clique, qui signale, qui ne réagit pas. Puis vous les formez.
+        <p className="rise rise-2 mx-auto mt-7 max-w-xl text-[15px] leading-relaxed text-muted">
+          Une fausse tentative de fraude révèle qui clique et qui signale. Vous
+          formez ensuite les collaborateurs piégés, puis notre extension les
+          protège au quotidien : elle alerte dès qu&apos;un expéditeur usurpe
+          l&apos;identité d&apos;un dirigeant.
         </p>
 
-        <div className="rise rise-3 mt-9 flex justify-center">
-          <Link
-            href={isLoggedIn ? "/dashboard" : "/signup"}
-            className={buttonPrimaryLg}
-          >
-            {isLoggedIn ? "Ouvrir mon tableau de bord" : "Créer un compte"}
+        <div className="rise rise-3 mt-9 flex flex-col items-center gap-4">
+          <Link href="/demo" className={buttonPrimaryLg}>
+            Demander une démo
             <IconArrowRight />
+          </Link>
+
+          {/* Accès self-service conservé, volontairement discret */}
+          <Link
+            href={isLoggedIn ? "/dashboard" : "/login"}
+            className="text-[13px] text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            Accéder à mon tableau de bord
           </Link>
         </div>
 
-        <p className="rise rise-3 mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[12.5px] text-faint">
+        <p className="rise rise-3 mt-9 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[12.5px] text-faint">
           <span>Sans engagement</span>
           <span aria-hidden>·</span>
           <span className="rounded-[5px] border border-border bg-surface px-2 py-1 font-mono text-[11.5px] text-muted">
-            import prenom, email, telephone
+            tester · former · protéger
           </span>
           <span aria-hidden>·</span>
-          <span>Résultats nominatifs ou anonymisés</span>
+          <span>Mise en place accompagnée</span>
         </p>
       </div>
     </section>

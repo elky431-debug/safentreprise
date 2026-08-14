@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LandingHero } from "@/components/LandingHero";
+import { Triptyque } from "@/components/Triptyque";
+import { ProtectionExtension } from "@/components/ProtectionExtension";
 import { FraudEmailExample } from "@/components/FraudEmailExample";
 import { Logo } from "@/components/Logo";
 import { buttonPrimary, buttonPrimaryLg } from "@/components/ui";
@@ -67,6 +69,12 @@ export default async function HomePage() {
               >
                 Scénarios
               </a>
+              <a
+                href="#protection"
+                className="text-[13.5px] text-muted transition-colors hover:text-foreground"
+              >
+                Protection
+              </a>
             </nav>
           </div>
 
@@ -83,8 +91,8 @@ export default async function HomePage() {
                 >
                   Connexion
                 </Link>
-                <Link href="/signup" className={buttonPrimary}>
-                  Commencer
+                <Link href="/demo" className={buttonPrimary}>
+                  Demander une démo
                 </Link>
               </>
             )}
@@ -95,13 +103,20 @@ export default async function HomePage() {
       <main className="flex-1">
         <LandingHero isLoggedIn={Boolean(user)} />
 
+        {/* Positionnement : tester → former → protéger */}
+        <Triptyque />
+
         {/* Méthode */}
         <section
           id="methode"
           className="border-t border-border px-6 py-20 md:py-24 lg:px-8"
         >
           <div className="mx-auto max-w-6xl">
-            <h2 className="mx-auto max-w-lg text-center text-[clamp(1.6rem,3vw,2.35rem)] font-extrabold leading-tight text-foreground">
+            <p className="text-center">
+              <span className="eyebrow">Premier temps · la simulation</span>
+            </p>
+
+            <h2 className="mx-auto mt-5 max-w-lg text-center text-[clamp(1.6rem,3vw,2.35rem)] font-extrabold leading-tight text-foreground">
               Trois étapes, en boucle
             </h2>
 
@@ -152,6 +167,9 @@ export default async function HomePage() {
           </div>
         </section>
 
+        {/* Protection active : l'extension de détection */}
+        <ProtectionExtension />
+
         {/* Indicateurs */}
         <section className="border-t border-border px-6 py-20 md:py-24 lg:px-8">
           <div className="mx-auto max-w-6xl">
@@ -176,15 +194,27 @@ export default async function HomePage() {
         <section className="border-t border-border px-6 py-24 md:py-28 lg:px-8">
           <div className="mx-auto max-w-xl text-center">
             <h2 className="text-[clamp(1.7rem,3.2vw,2.5rem)] font-extrabold leading-tight text-foreground">
-              Lancez votre première simulation
+              Testez, formez, protégez vos équipes
             </h2>
-            <Link
-              href={user ? "/dashboard" : "/signup"}
-              className={`${buttonPrimaryLg} mt-8`}
-            >
-              {user ? "Ouvrir mon tableau de bord" : "Créer mon compte"}
-              <IconArrowRight />
-            </Link>
+            <p className="mx-auto mt-5 max-w-md text-[14px] leading-relaxed text-muted">
+              Trente minutes suffisent pour voir le dispositif complet sur votre
+              organisation. Nous vous accompagnons ensuite à la mise en place.
+            </p>
+
+            <div className="mt-9 flex flex-col items-center gap-4">
+              <Link href="/demo" className={buttonPrimaryLg}>
+                Demander une démo
+                <IconArrowRight />
+              </Link>
+
+              {/* Accès self-service conservé, volontairement discret */}
+              <Link
+                href={user ? "/dashboard" : "/signup"}
+                className="text-[13px] text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                {user ? "Ouvrir mon tableau de bord" : "Créer un compte"}
+              </Link>
+            </div>
           </div>
         </section>
       </main>

@@ -189,6 +189,22 @@ CREATE TABLE IF NOT EXISTS risk_assessments (
 );
 
 -- -----------------------------------------------------------------------------
+-- Table : demandes_demo (formulaire « Demander une démo » de la landing)
+-- Table publique en écriture : aucun lien avec companies / auth.users.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS demandes_demo (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nom TEXT NOT NULL,
+  entreprise TEXT NOT NULL,
+  email TEXT NOT NULL,
+  telephone TEXT,
+  message TEXT,
+  statut TEXT NOT NULL DEFAULT 'nouvelle'
+    CHECK (statut IN ('nouvelle', 'contactee', 'traitee', 'archivee')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- -----------------------------------------------------------------------------
 -- Index
 -- -----------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_employees_company ON employees(company_id);
@@ -204,6 +220,8 @@ CREATE INDEX IF NOT EXISTS idx_payments_company ON payments(company_id);
 CREATE INDEX IF NOT EXISTS idx_certificates_company ON certificates(company_id);
 CREATE INDEX IF NOT EXISTS idx_risk_assessments_company
   ON risk_assessments(company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_demandes_demo_date
+  ON demandes_demo(created_at DESC);
 
 -- =============================================================================
 -- Storage : bucket public pour logos de charte
@@ -236,6 +254,7 @@ ALTER TABLE campaign_targets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE risk_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE demandes_demo ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.get_my_company_id()
 RETURNS UUID
@@ -496,6 +515,17 @@ DROP POLICY IF EXISTS risk_assessments_delete_own ON risk_assessments;
 CREATE POLICY risk_assessments_delete_own
   ON risk_assessments FOR DELETE
   USING (company_id = public.get_my_company_id());
+
+-- ---------- demandes_demo ----------
+-- Écriture publique : le formulaire est ouvert aux visiteurs non connectés.
+DROP POLICY IF EXISTS demandes_demo_insert_public ON demandes_demo;
+CREATE POLICY demandes_demo_insert_public
+  ON demandes_demo FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+-- Aucune politique SELECT / UPDATE / DELETE : les demandes ne sont lisibles
+-- que depuis le back-office Supabase (Table Editor), jamais via l'API publique.
 
 -- ---------- storage.objects (logos branding/{company_id}/…) ----------
 DROP POLICY IF EXISTS branding_storage_select ON storage.objects;
