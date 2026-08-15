@@ -260,6 +260,16 @@ export function IconPuzzle({ className }: IconProps) {
   );
 }
 
+/** Bouclier alerté : onglet Menaces. */
+export function IconThreat({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 3 19 5.7v5.6c0 4.1-2.9 7.6-7 8.7-4.1-1.1-7-4.6-7-8.7V5.7L12 3Z" />
+      <path d="M12 8.4v3.4M12 14.6v.2" />
+    </svg>
+  );
+}
+
 /** Œil : surveillance en temps réel. */
 export function IconEye({ className }: IconProps) {
   return (

@@ -17,6 +17,8 @@ export type Company = {
   user_id: string;
   mode_resultats: ModeResultats;
   employes_informes: boolean;
+  /** Secret d'activation de l'extension Safentreprise Guard (ex. SAFE-A3X9K2). */
+  code_activation: string;
   created_at: string;
 };
 
@@ -157,5 +159,35 @@ export type Certificate = {
   campaign_id: string;
   date_emission: string;
   url_pdf: string | null;
+  created_at: string;
+};
+
+/* --------------------------------------------------------------------------
+   Extension Safentreprise Guard
+   -------------------------------------------------------------------------- */
+
+/** Gravité d'une tentative détectée par l'extension. */
+export type NiveauRisqueMenace = "faible" | "modere" | "eleve";
+
+/**
+ * Tentative d'usurpation remontée par l'extension.
+ * MÉTADONNÉES UNIQUEMENT : aucun contenu d'email n'est transmis ni stocké.
+ */
+export type MenaceDetectee = {
+  id: string;
+  company_id: string;
+  /** Nom affiché par l'expéditeur du message */
+  expediteur_nom: string | null;
+  expediteur_email: string;
+  /** Nom signé en bas du message — celui du dirigeant usurpé */
+  nom_signe: string | null;
+  objet: string | null;
+  niveau_risque: NiveauRisqueMenace;
+  score: number;
+  /** Libellés des signaux relevés par l'extension */
+  signaux: string[];
+  /** Destinataire de l'alerte ; nul en mode anonymisé */
+  employe_email: string | null;
+  detecte_at: string;
   created_at: string;
 };

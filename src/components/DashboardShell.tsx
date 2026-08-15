@@ -14,8 +14,10 @@ import {
   IconFormation,
   IconHelp,
   IconLogout,
+  IconPuzzle,
   IconSettings,
   IconTemplates,
+  IconThreat,
   IconUsers,
 } from "@/components/icons";
 
@@ -39,6 +41,7 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
     title: "Pilotage",
     items: [
       { href: "/dashboard", label: "Tableau de bord", Icon: IconDashboard },
+      { href: "/menaces", label: "Menaces", Icon: IconThreat },
     ],
   },
   {
@@ -67,6 +70,7 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
     id: "compte",
     title: "Compte",
     items: [
+      { href: "/settings/extension", label: "Extension", Icon: IconPuzzle },
       { href: "/settings/company", label: "Paramètres", Icon: IconSettings },
       { href: "/settings/billing", label: "Facturation", Icon: IconBilling },
       { href: "/help", label: "Aide", Icon: IconHelp },
