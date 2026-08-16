@@ -8,15 +8,12 @@ import { Logo } from "@/components/Logo";
 import {
   IconBilling,
   IconCampaign,
-  IconCertificate,
   IconDashboard,
   IconDeliverability,
   IconFormation,
-  IconHelp,
   IconLogout,
   IconPuzzle,
   IconSettings,
-  IconTemplates,
   IconThreat,
   IconUsers,
 } from "@/components/icons";
@@ -50,7 +47,6 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
     items: [
       { href: "/campaigns", label: "Campagnes", Icon: IconCampaign },
       { href: "/employees", label: "Employés", Icon: IconUsers },
-      { href: "/settings/templates", label: "Modèles", Icon: IconTemplates },
       { href: "/settings/formations", label: "Formations", Icon: IconFormation },
     ],
   },
@@ -58,7 +54,6 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
     id: "conformite",
     title: "Conformité",
     items: [
-      { href: "/certificates", label: "Certificats", Icon: IconCertificate },
       {
         href: "/settings/deliverability",
         label: "Délivrabilité",
@@ -73,7 +68,6 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
       { href: "/settings/extension", label: "Extension", Icon: IconPuzzle },
       { href: "/settings/company", label: "Paramètres", Icon: IconSettings },
       { href: "/settings/billing", label: "Facturation", Icon: IconBilling },
-      { href: "/help", label: "Aide", Icon: IconHelp },
     ],
   },
 ];
