@@ -76,13 +76,36 @@ export type Supplier = {
   created_at: string;
 };
 
-/** Gabarit HTML/SMS rédigé par l'opérateur Safentreprise. */
+/**
+ * Gabarit HTML/SMS.
+ * `company_id` à null = gabarit SYSTÈME fourni par l'opérateur : visible par
+ * toutes les sociétés, modifiable par aucune. Sinon, gabarit propre au client,
+ * qui a la priorité sur le gabarit système de même type et canal.
+ */
 export type MessageTemplate = {
   id: string;
+  company_id: string | null;
   type_fraude: TypeFraude;
   canal: CanalMessage;
   objet: string | null;
   contenu_html: string;
+  actif: boolean;
+  created_at: string;
+};
+
+/**
+ * Question du quiz post-simulation.
+ * `company_id` à null = question SYSTÈME. Les questions d'une société
+ * s'ajoutent aux questions système, elles ne les remplacent pas.
+ */
+export type QuizQuestion = {
+  id: string;
+  company_id: string | null;
+  type_fraude: TypeFraude | null;
+  question: string;
+  options: string[];
+  bonne_reponse: number;
+  ordre: number;
   actif: boolean;
   created_at: string;
 };

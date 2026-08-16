@@ -73,9 +73,12 @@ export default async function TrackingPage({
   const typeFraude: TypeFraude =
     cible.type_fraude === "fournisseur" ? "fournisseur" : "president";
 
-  // Questions depuis quiz_questions (RPC publique, champs minimaux)
+  // Questions depuis quiz_questions (RPC publique, champs minimaux).
+  // Le jeton sert à résoudre la société : le collaborateur reçoit les
+  // questions système ET celles ajoutées par son entreprise.
   const { data: quizRows } = await supabase.rpc("get_quiz_questions", {
     p_type_fraude: typeFraude,
+    p_token: token,
   });
   const questions = ((quizRows ?? []) as QuizRpcRow[]).map(mapQuizRow);
 

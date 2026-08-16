@@ -10,6 +10,54 @@ function baseAppUrl(): string {
   ).replace(/\/$/, "");
 }
 
+/** Message unique, réutilisé par l'API et affiché tel quel à l'utilisateur. */
+export const ERREUR_URL_PUBLIQUE =
+  "L'URL publique de l'application n'est pas configurée — les liens de suivi " +
+  "seraient invalides. Configurez NEXT_PUBLIC_APP_URL.";
+
+export type VerificationUrlPublique =
+  | { ok: true; url: string }
+  | { ok: false; erreur: string };
+
+/** Une URL locale n'est joignable que depuis la machine qui l'a émise. */
+function estAdresseLocale(url: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?(\/|$)/i.test(
+    url,
+  );
+}
+
+/**
+ * Contrôle que l'URL publique permet de construire des liens cliquables par un
+ * destinataire réel. À appeler AVANT tout envoi de campagne.
+ *
+ * Absente → refus systématique.
+ * Localhost → refus en production uniquement : en développement l'expéditeur
+ * teste sur sa propre machine, où le lien fonctionne réellement.
+ */
+export function verifierUrlPublique(): VerificationUrlPublique {
+  const brut = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "";
+
+  if (!brut) {
+    return { ok: false, erreur: ERREUR_URL_PUBLIQUE };
+  }
+
+  if (!/^https?:\/\//i.test(brut)) {
+    return {
+      ok: false,
+      erreur: `${ERREUR_URL_PUBLIQUE} Valeur actuelle : « ${brut} » (elle doit commencer par https://).`,
+    };
+  }
+
+  if (estAdresseLocale(brut) && process.env.NODE_ENV === "production") {
+    return {
+      ok: false,
+      erreur: `${ERREUR_URL_PUBLIQUE} Valeur actuelle : « ${brut} », inaccessible depuis la boîte mail d'un collaborateur.`,
+    };
+  }
+
+  return { ok: true, url: brut.replace(/\/$/, "") };
+}
+
 /** URL du lien « piège » (clic = a_clique). */
 export function urlTracking(token: string): string {
   return `${baseAppUrl()}/t/${token}`;

@@ -14,6 +14,7 @@ import {
   injecterLiensSuivi,
   urlSignalement,
   urlTracking,
+  verifierUrlPublique,
 } from "@/lib/send/tracking";
 import type {
   Campaign,
@@ -155,6 +156,14 @@ export async function POST(
   );
   const besoinEmail = canauxPrevus.includes("email");
   const besoinSms = canauxPrevus.includes("sms");
+
+  // Garde-fou : sans URL publique valable, tous les liens de suivi seraient
+  // morts et la campagne perdrait son objet. On refuse d'envoyer quoi que ce
+  // soit — email comme SMS embarquent ce lien.
+  const urlPublique = verifierUrlPublique();
+  if (!urlPublique.ok) {
+    return Response.json({ erreur: urlPublique.erreur }, { status: 500 });
+  }
 
   if (besoinEmail && !process.env.RESEND_API_KEY) {
     return Response.json(
