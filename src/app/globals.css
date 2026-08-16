@@ -291,9 +291,70 @@ h3 {
   .results-kpi,
   .results-row,
   .results-bar-fill,
-  .results-ring-arc {
+  .results-ring-arc,
+  .menace-card,
+  .menace-jauge,
+  .menace-row {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Page Menaces — entrées en cascade et relief de la carte en alerte
+   -------------------------------------------------------------------------- */
+
+/* Cartes d'indicateurs : montée douce, décalée par `animation-delay` */
+.menace-card {
+  animation: menace-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menace-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Carte en alerte : liseré rouge très diffus, sans halo criard */
+.menace-card--alerte {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(240, 97, 109, 0.06),
+    0 10px 34px -20px rgba(240, 97, 109, 0.55);
+}
+
+.menace-card--alerte:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(240, 97, 109, 0.1),
+    0 12px 38px -18px rgba(240, 97, 109, 0.7);
+}
+
+/* Jauge : la largeur se remplit après le montage, en même temps que le chiffre */
+.menace-jauge {
+  transition:
+    width 1s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s ease;
+}
+
+/* Lignes du tableau : apparition en cascade, décalée par `animation-delay` */
+.menace-row {
+  animation: menace-row-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menace-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

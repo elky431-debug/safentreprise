@@ -16,15 +16,24 @@ export const NIVEAU_LABELS: Record<NiveauRisqueMenace, string> = {
   faible: "Faible",
 };
 
-const NIVEAU_TONS: Record<NiveauRisqueMenace, string> = {
-  eleve: "border-danger/25 bg-danger-soft text-danger",
-  modere: "border-warning/25 bg-warning-soft text-warning",
-  faible: "border-border-strong bg-surface-2 text-muted",
+const NIVEAU_TONS: Record<NiveauRisqueMenace, { badge: string; point: string }> = {
+  eleve: {
+    badge: "border-danger/25 bg-danger-soft text-danger",
+    point: "bg-danger",
+  },
+  modere: {
+    badge: "border-warning/25 bg-warning-soft text-warning",
+    point: "bg-warning",
+  },
+  faible: {
+    badge: "border-border-strong bg-surface-2 text-muted",
+    point: "bg-muted",
+  },
 };
 
 /**
- * Badge du niveau de risque, score compris : « Élevé · 85 ».
- * Réunir les deux évite de disperser l'information sur deux lignes.
+ * Badge du niveau de risque, pastille et score compris : « ● Élevé · 85 ».
+ * Réunir les trois évite de disperser l'information sur deux lignes.
  */
 export function NiveauBadge({
   niveau,
@@ -33,17 +42,19 @@ export function NiveauBadge({
   niveau: NiveauRisqueMenace;
   score?: number;
 }) {
+  const ton = NIVEAU_TONS[niveau];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-[11.5px] font-semibold tracking-wide ${NIVEAU_TONS[niveau]}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-2 pr-2.5 text-[11.5px] font-semibold tracking-wide ${ton.badge}`}
     >
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${ton.point}`} />
       {NIVEAU_LABELS[niveau]}
       {score !== undefined && (
         <>
-          <span aria-hidden className="opacity-35">
+          <span aria-hidden className="opacity-30">
             ·
           </span>
-          <span className="tabular font-medium opacity-75">{score}</span>
+          <span className="tabular font-medium opacity-70">{score}</span>
         </>
       )}
     </span>
@@ -60,28 +71,59 @@ export function NiveauBadge({
  * ici à une étiquette de quelques mots ; la phrase complète reste lisible
  * dans le détail dépliable de la ligne.
  */
-const RESUMES_SIGNAUX: { motif: RegExp; label: string }[] = [
-  { motif: /aucune forme de ce nom|se présente au nom/i, label: "Nom ↔ adresse" },
-  { motif: /messagerie grand public/i, label: "Messagerie perso" },
-  { motif: /action sensible/i, label: "Demande sensible" },
-  { motif: /urgence|secret|indisponibilit/i, label: "Urgence · secret" },
-  { motif: /typosquatting|ressemble fortement/i, label: "Domaine sosie" },
-  { motif: /ne correspond pas au nom affich/i, label: "Adresse ↔ nom affiché" },
-  { motif: /sign(é|e) «/i, label: "Signature usurpée" },
+/** Familles de signaux, chacune avec sa teinte de fond. */
+type TonSignal = "identite" | "canal" | "action";
+
+const TONS_SIGNAL: Record<TonSignal, string> = {
+  // Incohérence d'identité — teinte de la marque
+  identite: "border-accent-line/40 bg-accent-soft text-accent-text",
+  // Canal d'envoi douteux — ambre
+  canal: "border-warning/20 bg-warning-soft text-warning",
+  // Passage à l'acte (argent, urgence) — rouge
+  action: "border-danger/20 bg-danger-soft text-danger",
+};
+
+const RESUMES_SIGNAUX: { motif: RegExp; label: string; ton: TonSignal }[] = [
+  { motif: /aucune forme de ce nom|se présente au nom/i, label: "Nom ↔ adresse", ton: "identite" },
+  { motif: /ne correspond pas au nom affich/i, label: "Adresse ↔ nom affiché", ton: "identite" },
+  { motif: /sign(é|e) «/i, label: "Signature usurpée", ton: "identite" },
+  { motif: /messagerie grand public/i, label: "Messagerie perso", ton: "canal" },
+  { motif: /typosquatting|ressemble fortement/i, label: "Domaine sosie", ton: "canal" },
+  { motif: /action sensible/i, label: "Demande sensible", ton: "action" },
+  { motif: /urgence|secret|indisponibilit/i, label: "Urgence · secret", ton: "action" },
 ];
 
-function resumerSignal(signal: string): string {
+function resumerSignal(signal: string): { label: string; ton: TonSignal | null } {
   const connu = RESUMES_SIGNAUX.find((r) => r.motif.test(signal));
-  if (connu) return connu.label;
+  if (connu) return { label: connu.label, ton: connu.ton };
 
   // Repli — anciens formats techniques (« incoherence_nom_adresse ») ou
-  // libellés inconnus : on nettoie et on tronque proprement.
+  // libellés inconnus : on nettoie, on tronque, et on reste en neutre.
   const nettoye = signal.replace(/[_-]+/g, " ").trim();
-  if (!nettoye) return "Signal";
+  if (!nettoye) return { label: "Signal", ton: null };
   const capitalise = nettoye.charAt(0).toUpperCase() + nettoye.slice(1);
-  return capitalise.length <= 26
-    ? capitalise
-    : `${capitalise.slice(0, 25).trimEnd()}…`;
+  return {
+    label:
+      capitalise.length <= 26
+        ? capitalise
+        : `${capitalise.slice(0, 25).trimEnd()}…`,
+    ton: null,
+  };
+}
+
+/** Pastille d'un signal — fond teinté selon la famille. */
+function SignalBadge({ signal }: { signal: string }) {
+  const { label, ton } = resumerSignal(signal);
+  return (
+    <li
+      title={signal}
+      className={`rounded-full border px-2 py-[3px] text-[11px] font-medium leading-none transition-colors duration-150 ${
+        ton ? TONS_SIGNAL[ton] : "border-border bg-surface-2 text-muted"
+      }`}
+    >
+      {label}
+    </li>
+  );
 }
 
 /* --------------------------------------------------------------------------
@@ -122,11 +164,15 @@ function formaterDateComplete(iso: string): string {
 
 type Filtre = NiveauRisqueMenace | "tous";
 
-const FILTRES: { cle: Filtre; label: string }[] = [
-  { cle: "tous", label: "Tous" },
-  { cle: "eleve", label: "Élevé" },
-  { cle: "modere", label: "Modéré" },
-  { cle: "faible", label: "Faible" },
+/**
+ * Chaque filtre s'active dans SA couleur plutôt qu'un bleu uniforme :
+ * le segment sélectionné rappelle ainsi le niveau qu'il isole.
+ */
+const FILTRES: { cle: Filtre; label: string; actif: string }[] = [
+  { cle: "tous", label: "Tous", actif: "bg-accent-soft text-accent-text ring-accent-line/50" },
+  { cle: "eleve", label: "Élevé", actif: "bg-danger-soft text-danger ring-danger/25" },
+  { cle: "modere", label: "Modéré", actif: "bg-warning-soft text-warning ring-warning/25" },
+  { cle: "faible", label: "Faible", actif: "bg-surface-3 text-foreground ring-border-strong" },
 ];
 
 /* --------------------------------------------------------------------------
@@ -167,10 +213,11 @@ export function MenacesTable({ menaces }: Props) {
         title="Tentatives détectées"
         description="Remontées par l'extension installée sur les postes de vos collaborateurs."
         action={
+          /* Segmented control : un rail creux, un seul segment en relief */
           <div
             role="group"
             aria-label="Filtrer par niveau de risque"
-            className="flex flex-wrap gap-1.5"
+            className="inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-surface-2/70 p-1"
           >
             {FILTRES.map((f) => {
               const actif = filtre === f.cle;
@@ -181,16 +228,20 @@ export function MenacesTable({ menaces }: Props) {
                   type="button"
                   onClick={() => setFiltre(f.cle)}
                   aria-pressed={actif}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12.5px] font-medium transition-colors ${
+                  className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-[background-color,color,box-shadow] duration-200 ${
                     actif
-                      ? "border-accent-line bg-accent-soft text-accent-text"
-                      : "border-border text-muted hover:bg-surface-2 hover:text-foreground"
+                      ? `${f.actif} ring-1`
+                      : "text-muted hover:bg-white/[0.04] hover:text-foreground"
                   }`}
                 >
                   {f.label}
                   <span
-                    className={`tabular text-[11.5px] ${
-                      actif ? "text-accent-text/70" : vide ? "text-faint/50" : "text-faint"
+                    className={`tabular text-[11px] ${
+                      actif
+                        ? "opacity-60"
+                        : vide
+                          ? "text-faint/40"
+                          : "text-faint"
                     }`}
                   >
                     {compteurs[f.cle]}
@@ -228,53 +279,59 @@ export function MenacesTable({ menaces }: Props) {
             </thead>
 
             <tbody>
-              {visibles.map((menace) => {
+              {visibles.map((menace, rang) => {
                 const estOuverte = ouverte === menace.id;
                 const idDetail = `menace-detail-${menace.id}`;
 
                 return (
                   <Fragment key={menace.id}>
                     <tr
-                      className={`border-b border-border align-top transition-colors last:border-0 ${
-                        estOuverte ? "bg-surface-2/50" : "hover:bg-surface-2/30"
+                      className={`menace-row group border-b border-border align-top transition-colors duration-200 last:border-0 ${
+                        estOuverte ? "bg-surface-2/60" : "hover:bg-white/[0.022]"
                       }`}
+                      /* Cascade plafonnée : au-delà de 12 lignes, plus de délai */
+                      style={{ animationDelay: `${Math.min(rang, 12) * 35}ms` }}
                     >
                       {/* Date — jour et heure empilés, chiffres alignés */}
-                      <td className="whitespace-nowrap py-4 pl-6 pr-3">
+                      <td className="whitespace-nowrap py-[18px] pl-6 pr-3">
                         <p className="tabular text-[12.5px] text-foreground">
                           {formaterJour(menace.detecte_at)}
                         </p>
-                        <p className="tabular mt-0.5 text-[11.5px] text-faint">
+                        <p className="tabular mt-1 text-[11.5px] text-faint">
                           {formaterHeure(menace.detecte_at)}
                         </p>
                       </td>
 
-                      {/* Expéditeur — nom, adresse, puis nom signé */}
-                      <td className="max-w-[240px] px-3 py-4">
+                      {/* Expéditeur — nom en évidence, adresse en mono, nom signé en appui */}
+                      <td className="max-w-[240px] px-3 py-[18px]">
                         {menace.expediteur_nom && (
                           <p
-                            className="truncate text-[13px] font-medium text-foreground"
+                            className="truncate text-[13px] font-medium tracking-[-0.01em] text-foreground"
                             title={menace.expediteur_nom}
                           >
                             {menace.expediteur_nom}
                           </p>
                         )}
                         <p
-                          className="truncate font-mono text-[11.5px] text-muted"
+                          className="mt-0.5 truncate font-mono text-[11.5px] text-muted"
                           title={menace.expediteur_email}
                         >
                           {menace.expediteur_email}
                         </p>
                         {menace.nom_signe && (
-                          <p className="mt-1.5 truncate text-[11.5px] text-faint">
-                            <span className="text-faint/70">signé</span>{" "}
-                            {menace.nom_signe}
+                          <p className="mt-2 flex items-baseline gap-1.5 truncate">
+                            <span className="shrink-0 font-mono text-[9.5px] uppercase tracking-[0.12em] text-faint/60">
+                              signé
+                            </span>
+                            <span className="truncate text-[11.5px] text-muted">
+                              {menace.nom_signe}
+                            </span>
                           </p>
                         )}
                       </td>
 
                       {/* Objet — et destinataire en appui */}
-                      <td className="max-w-0 px-3 py-4">
+                      <td className="max-w-0 px-3 py-[18px]">
                         <p
                           className="truncate text-[13px] text-foreground"
                           title={menace.objet ?? undefined}
@@ -291,35 +348,32 @@ export function MenacesTable({ menaces }: Props) {
                         )}
                       </td>
 
-                      {/* Niveau — badge et score réunis */}
-                      <td className="px-3 py-4">
+                      {/* Niveau — pastille, libellé et score réunis */}
+                      <td className="px-3 py-[18px]">
                         <NiveauBadge
                           niveau={menace.niveau_risque}
                           score={menace.score}
                         />
                       </td>
 
-                      {/* Signaux — étiquettes courtes, détail au dépliage */}
-                      <td className="px-3 py-4">
+                      {/* Signaux — pastilles teintées par famille */}
+                      <td className="px-3 py-[18px]">
                         {menace.signaux.length === 0 ? (
                           <span className="text-[12.5px] text-faint">—</span>
                         ) : (
                           <ul className="flex flex-wrap gap-1.5">
                             {menace.signaux.map((signal, index) => (
-                              <li
+                              <SignalBadge
                                 key={`${menace.id}-${index}`}
-                                title={signal}
-                                className="rounded-[5px] border border-border bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted"
-                              >
-                                {resumerSignal(signal)}
-                              </li>
+                                signal={signal}
+                              />
                             ))}
                           </ul>
                         )}
                       </td>
 
-                      {/* Dépliage */}
-                      <td className="py-4 pl-1 pr-6 text-right">
+                      {/* Dépliage — le chevron se révèle au survol de la ligne */}
+                      <td className="py-[18px] pl-1 pr-6 text-right">
                         <button
                           type="button"
                           onClick={() =>
@@ -327,7 +381,11 @@ export function MenacesTable({ menaces }: Props) {
                           }
                           aria-expanded={estOuverte}
                           aria-controls={idDetail}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-faint transition-colors hover:border-border hover:bg-surface-2 hover:text-foreground"
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-[background-color,border-color,color,opacity] duration-200 focus-visible:opacity-100 ${
+                            estOuverte
+                              ? "border-border-strong bg-surface-3 text-foreground"
+                              : "border-transparent text-faint opacity-45 hover:border-border hover:bg-surface-2 hover:text-foreground group-hover:opacity-100"
+                          }`}
                         >
                           <span className="sr-only">
                             {estOuverte
