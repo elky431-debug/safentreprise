@@ -2,9 +2,15 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { buttonPrimary, buttonSecondary } from "@/components/ui";
 import {
+  ActiviteExtension,
+  type MenacePourGraphique,
+} from "@/components/dashboard/ActiviteExtension";
+import { NiveauBadge } from "@/components/menaces/MenacesTable";
+import {
   IconArrowRight,
   IconCampaign,
   IconPlus,
+  IconShieldCheck,
   IconUsers,
 } from "@/components/icons";
 import {
@@ -15,10 +21,14 @@ import {
   riskLevel,
 } from "@/lib/risk";
 import { chargerScoreDynamique } from "@/lib/risk-dynamique";
-import type { Campaign, Company, ScoreHistory } from "@/lib/types";
+import { appliquerExtensionAuScore } from "@/lib/risk-extension";
+import type { Campaign, Company, MenaceDetectee } from "@/lib/types";
 import { STATUT_LABELS } from "@/lib/campaigns";
 
-/** Tableau de bord — score dynamique + activité. */
+/** Menaces chargées pour alimenter la courbe (les plus récentes). */
+const LIMITE_MENACES = 2000;
+
+/** Tableau de bord — activité de l'extension, score dynamique, campagnes. */
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -38,8 +48,8 @@ export default async function DashboardPage() {
   const [
     { data: employeeRows },
     { data: campaignRows },
-    { data: envoisRows },
-    { data: historyRows },
+    { data: menaceRows },
+    { data: activationRows },
     scoreDynamique,
   ] = await Promise.all([
     supabase.from("employees").select("id").eq("company_id", company.id),
@@ -49,64 +59,62 @@ export default async function DashboardPage() {
       .eq("company_id", company.id)
       .order("created_at", { ascending: false }),
     supabase
-      .from("campaign_targets")
-      .select("envoye_at")
-      .eq("message_envoye", true)
-      .gte("envoye_at", debutSemaineIso()),
-    supabase
-      .from("score_history")
-      .select("id, company_id, score_global, score_humain, created_at")
+      .from("menaces_detectees")
+      .select(
+        "id, detecte_at, niveau_risque, score, expediteur_nom, expediteur_email, objet",
+      )
       .eq("company_id", company.id)
-      .order("created_at", { ascending: true })
-      .returns<ScoreHistory[]>(),
+      .order("detecte_at", { ascending: false })
+      .limit(LIMITE_MENACES),
+    // La RLS restreint déjà à la société ; le filtre garde l'index utilisable.
+    supabase
+      .from("activations_extension")
+      .select("employe_email")
+      .eq("company_id", company.id),
     chargerScoreDynamique(supabase, company.id),
   ]);
 
   type CampagneListe = Pick<Campaign, "id" | "nom" | "statut" | "created_at"> & {
     campaign_targets: { id: string; message_final_html: string | null }[] | null;
   };
+  type MenaceListe = Pick<
+    MenaceDetectee,
+    | "id"
+    | "detecte_at"
+    | "niveau_risque"
+    | "score"
+    | "expediteur_nom"
+    | "expediteur_email"
+    | "objet"
+  >;
 
   const campaigns = (campaignRows ?? []) as CampagneListe[];
-  const employees = employeeRows?.length ?? 0;
-  const campaignCount = campaigns.length;
-  const pretes = campaigns.filter((c) => c.statut === "prete").length;
-  const brouillons = campaigns.filter((c) => c.statut === "brouillon").length;
+  const menaces = (menaceRows ?? []) as MenaceListe[];
+  const employes = employeeRows?.length ?? 0;
+  const activations = activationRows?.length ?? 0;
 
-  const envoisSemaine = agregerEnvoisParJour(
-    (envoisRows ?? [])
-      .map((r) => r.envoye_at as string | null)
-      .filter((d): d is string => Boolean(d)),
-  );
-  const totalEnvoisSemaine = envoisSemaine.reduce((s, j) => s + j.count, 0);
+  // Le graphique n'a besoin que de la date et du niveau : on n'envoie pas le
+  // reste au client.
+  const menacesGraphique: MenacePourGraphique[] = menaces.map((m) => ({
+    id: m.id,
+    detecte_at: m.detecte_at,
+    niveau_risque: m.niveau_risque,
+  }));
 
-  // Score affiché = dynamique (humain recalculé) ; null si aucun questionnaire
+  // Score : l'axe technique est allégé à proportion du déploiement.
   const scores = scoreDynamique.aQuestionnaire
-    ? {
+    ? appliquerExtensionAuScore({
         procedures: scoreDynamique.procedures,
         humain: scoreDynamique.humain,
-        technique: scoreDynamique.technique,
-        global: scoreDynamique.global,
-      }
+        techniqueBase: scoreDynamique.technique,
+        activations,
+        employes,
+      })
     : null;
 
-  // Courbe : historique + point courant (non persisté si déjà le dernier)
-  const historique = historyRows ?? [];
-  const pointsCourbe = [...historique];
-  const dernier = pointsCourbe[pointsCourbe.length - 1];
-  if (
-    scores &&
-    (!dernier ||
-      dernier.score_global !== scores.global ||
-      dernier.score_humain !== scores.humain)
-  ) {
-    pointsCourbe.push({
-      id: "courant",
-      company_id: company.id,
-      score_global: scores.global,
-      score_humain: scores.humain,
-      created_at: new Date().toISOString(),
-    });
-  }
+  const couverturePct = Math.round(
+    (employes > 0 ? Math.min(1, activations / employes) : 0) * 100,
+  );
 
   return (
     <div className="w-full space-y-5">
@@ -131,112 +139,41 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          label="Collaborateurs"
-          value={String(employees)}
-          detail={employees === 0 ? "Aucun en base" : "Cibles potentielles"}
-        />
-        <Metric
-          label="Campagnes"
-          value={String(campaignCount)}
-          detail={`${pretes} prête${pretes !== 1 ? "s" : ""} · ${brouillons} brouillon${brouillons !== 1 ? "s" : ""}`}
-        />
-        <Metric
-          label="Score de risque"
-          value={scores ? `${scores.global}%` : "—"}
-          detail={
-            scores
-              ? `${RISK_LEVEL_LABELS[riskLevel(scores.global)]} · dynamique`
-              : "Non évalué"
-          }
-        />
-        <Metric
-          label="Envois (7 j)"
-          value={String(totalEnvoisSemaine)}
-          detail="E-mails de simulation"
-        />
-      </section>
+      {/* Indicateurs + courbe, pilotés par le sélecteur de période */}
+      <ActiviteExtension
+        menaces={menacesGraphique}
+        employes={employes}
+        activations={activations}
+        scoreGlobal={scores ? scores.global : null}
+        libelleNiveauScore={
+          scores ? RISK_LEVEL_LABELS[riskLevel(scores.global)] : ""
+        }
+      />
 
-      {/* Historique du score + répartition dynamique */}
-      <section className="grid gap-3 lg:grid-cols-[1.35fr_1fr]">
-        <article className="rounded-xl border border-border bg-surface">
-          <div className="flex items-start justify-between gap-3 px-5 pt-5">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                Évolution
-              </p>
-              <h2 className="mt-1 text-[17px] font-semibold tracking-[-0.02em] text-foreground">
-                Historique du score de risque
-              </h2>
-              <p className="mt-1 text-[12.5px] text-faint">
-                0&nbsp;% = faible risque · 100&nbsp;% = risque élevé
-              </p>
-            </div>
-            {scores && (
-              <div className="text-right">
-                <p className="text-[11px] text-muted">Actuel</p>
-                <p className="tabular text-[18px] font-semibold text-foreground">
-                  {scores.global}&nbsp;%
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="px-5 pb-4 pt-4">
-            {pointsCourbe.length >= 1 ? (
-              <ScoreHistoryList points={pointsCourbe} />
-            ) : (
-              <p className="py-12 text-center text-[13px] text-muted">
-                Complétez le questionnaire ou lancez une campagne pour
-                historiser le score.
-              </p>
-            )}
-          </div>
-
-          {pointsCourbe.length >= 2 && (
-            <div className="border-t border-border px-5 py-3.5">
-              <p className="text-[13px] text-muted">
-                Depuis le début :{" "}
-                <span className="font-medium text-foreground">
-                  {pointsCourbe[0].score_global}&nbsp;%
-                </span>
-                <span className="mx-1.5 text-faint">→</span>
-                <span className="font-medium text-foreground">
-                  {pointsCourbe[pointsCourbe.length - 1].score_global}&nbsp;%
-                </span>
-                <VariationBadge
-                  delta={
-                    pointsCourbe[pointsCourbe.length - 1].score_global -
-                    pointsCourbe[0].score_global
-                  }
-                />
-              </p>
-            </div>
-          )}
-        </article>
-
+      {/* Taux d'exposition — l'axe technique intègre la couverture */}
+      <section>
         <article className="rounded-xl border border-border bg-surface">
           <div className="px-5 pt-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-foreground">
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-faint">
               Répartition
             </p>
-            <h2 className="mt-1 text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+            <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-foreground">
               Taux d&apos;exposition
             </h2>
           </div>
 
           {scores ? (
-            <div className="flex flex-col items-center gap-5 px-5 py-5 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-center gap-6 px-5 py-5 lg:flex-row lg:items-center">
               <RiskRing
                 pourcentage={scores.global}
                 label={RISK_LEVEL_LABELS[riskLevel(scores.global)]}
               />
+
               <ul className="w-full min-w-0 space-y-3.5">
                 {RISK_CATEGORY_ORDER.map((categorie, index) => (
                   <li
                     key={categorie}
-                    className="flex items-start justify-between gap-2"
+                    className="flex items-start justify-between gap-3"
                   >
                     <span className="min-w-0">
                       <span className="flex items-center gap-2 text-[13px] font-medium text-foreground">
@@ -250,15 +187,34 @@ export default async function DashboardPage() {
                             dyn.
                           </span>
                         )}
+                        {categorie === "technique" &&
+                          scores.reductionTechnique > 0 && (
+                            <span className="text-[10px] font-normal uppercase tracking-wide text-success">
+                              −{scores.reductionTechnique}
+                            </span>
+                          )}
                       </span>
+
                       <span className="mt-0.5 block pl-3.5 text-[11.5px] leading-snug text-faint">
                         {categorie === "humain"
                           ? "Moyenne des collaborateurs (campagnes + inactivité)"
-                          : RISK_CATEGORY_HINTS[categorie]}
+                          : categorie === "technique" &&
+                              scores.reductionTechnique > 0
+                            ? `Renforcé par l'extension (${couverturePct} % de couverture)`
+                            : RISK_CATEGORY_HINTS[categorie]}
                       </span>
                     </span>
-                    <span className="tabular shrink-0 text-[13px] font-semibold text-foreground">
-                      {scores[categorie]}&nbsp;%
+
+                    <span className="shrink-0 text-right">
+                      <span className="tabular block text-[13px] font-semibold text-foreground">
+                        {scores[categorie]}&nbsp;%
+                      </span>
+                      {categorie === "technique" &&
+                        scores.reductionTechnique > 0 && (
+                          <span className="tabular block text-[11px] text-faint line-through">
+                            {scores.techniqueBase}&nbsp;%
+                          </span>
+                        )}
                     </span>
                   </li>
                 ))}
@@ -266,8 +222,24 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <p className="px-5 py-10 text-[13px] text-muted">
-              Aucune évaluation disponible.
+              Aucune évaluation disponible — complétez le questionnaire de
+              risque pour afficher le taux d&apos;exposition.
             </p>
+          )}
+
+          {scores && scores.reductionTechnique > 0 && (
+            <div className="border-t border-border px-5 py-3.5">
+              <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-muted">
+                <IconShieldCheck className="h-3.5 w-3.5 text-success" />
+                Sans l&apos;extension, le score global serait de{" "}
+                <span className="tabular font-medium text-foreground">
+                  {scores.globalSansExtension}&nbsp;%
+                </span>
+                <span className="tabular font-medium text-success">
+                  (−{scores.globalSansExtension - scores.global} pts)
+                </span>
+              </p>
+            </div>
           )}
         </article>
       </section>
@@ -365,127 +337,80 @@ export default async function DashboardPage() {
           </dl>
         </article>
       </section>
+
+      {/* Dernières alertes remontées par l'extension */}
+      <section>
+        <article className="rounded-xl border border-border bg-surface">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+            <div>
+              <h2 className="text-[14px] font-semibold text-foreground">
+                Menaces récentes
+              </h2>
+              <p className="mt-0.5 text-[12.5px] text-muted">
+                Dernières tentatives interceptées sur les boîtes mail
+              </p>
+            </div>
+            <Link
+              href="/menaces"
+              className="inline-flex items-center gap-1 text-[12.5px] font-medium text-foreground hover:underline"
+            >
+              Voir tout
+              <IconArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {menaces.length === 0 ? (
+            <div className="flex flex-col items-center px-5 py-10 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted">
+                <IconShieldCheck />
+              </span>
+              <p className="mt-3 text-[13.5px] font-medium text-foreground">
+                Aucune tentative détectée
+              </p>
+              <p className="mt-1.5 max-w-sm text-[12.5px] text-muted">
+                Les alertes apparaîtront ici dès que vos collaborateurs auront
+                activé l&apos;extension.
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {menaces.slice(0, 5).map((menace) => (
+                <li
+                  key={menace.id}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-surface-2/40"
+                >
+                  <span className="tabular w-[86px] shrink-0 text-[12px] text-faint">
+                    {formatDateCourt(menace.detecte_at)}
+                  </span>
+
+                  <span className="min-w-[160px] flex-1">
+                    <span className="block truncate text-[13px] font-medium text-foreground">
+                      {menace.expediteur_nom || menace.expediteur_email}
+                    </span>
+                    <span className="block truncate font-mono text-[11.5px] text-muted">
+                      {menace.expediteur_email}
+                    </span>
+                  </span>
+
+                  <span className="min-w-[140px] flex-1 truncate text-[12.5px] text-muted">
+                    {menace.objet || "—"}
+                  </span>
+
+                  <NiveauBadge
+                    niveau={menace.niveau_risque}
+                    score={menace.score}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+      </section>
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-
-function Metric({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-surface px-4 py-4">
-      <p className="text-[12px] text-foreground">{label}</p>
-      <p className="tabular mt-2 text-[26px] font-semibold leading-none tracking-[-0.03em] text-foreground">
-        {value}
-      </p>
-      <p className="mt-2 text-[12px] text-muted">{detail}</p>
-    </div>
-  );
-}
-
-/**
- * Historique lisible du score global (plus clair qu'une courbe SVG).
- * Chaque ligne = une mesure : date, barre, score, variation vs la précédente.
- */
-function ScoreHistoryList({ points }: { points: ScoreHistory[] }) {
-  return (
-    <ul className="space-y-3" aria-label="Historique du score de risque global">
-      {points.map((p, i) => {
-        const score = Math.min(Math.max(p.score_global, 0), 100);
-        const precedent = i > 0 ? points[i - 1].score_global : null;
-        const delta = precedent !== null ? score - precedent : null;
-        const actuel = i === points.length - 1;
-
-        return (
-          <li key={p.id} className="flex items-center gap-3">
-            <div className="w-[5.5rem] shrink-0">
-              <p
-                className={`text-[12.5px] ${actuel ? "font-medium text-foreground" : "text-muted"}`}
-              >
-                {actuel && p.id === "courant"
-                  ? "Maintenant"
-                  : formatDateCourt(p.created_at)}
-              </p>
-              {besoinHeure(points, i) && (
-                <p className="tabular text-[11px] text-faint">
-                  {formatHeure(p.created_at)}
-                </p>
-              )}
-            </div>
-
-            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-3">
-              <div
-                className="h-full rounded-full bg-accent"
-                style={{ width: `${Math.max(score, 2)}%` }}
-              />
-            </div>
-
-            <p className="tabular w-12 shrink-0 text-right text-[14px] font-semibold text-foreground">
-              {score}&nbsp;%
-            </p>
-
-            <div className="w-14 shrink-0 text-right">
-              {delta === null ? (
-                <span className="text-[11px] text-faint">début</span>
-              ) : (
-                <VariationBadge delta={delta} compact />
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** Affiche +3 / −2 / = selon l'évolution du risque. */
-function VariationBadge({
-  delta,
-  compact,
-}: {
-  delta: number;
-  compact?: boolean;
-}) {
-  if (delta === 0) {
-    return (
-      <span
-        className={`tabular text-faint ${compact ? "text-[12px]" : "ml-2 text-[12.5px]"}`}
-      >
-        =
-      </span>
-    );
-  }
-
-  // Baisse du score = moins de risque (positif) ; hausse = plus de risque
-  const baisse = delta < 0;
-  return (
-    <span
-      className={`tabular font-medium ${compact ? "text-[12px]" : "ml-2 text-[12.5px]"} ${
-        baisse ? "text-success" : "text-danger"
-      }`}
-    >
-      {delta > 0 ? "+" : ""}
-      {delta}
-      {compact ? "" : " pts"}
-    </span>
-  );
-}
-
-/** Si plusieurs mesures le même jour, on affiche l'heure pour les distinguer. */
-function besoinHeure(points: ScoreHistory[], index: number): boolean {
-  const jour = formatDateCourt(points[index].created_at);
-  return points.some(
-    (p, i) => i !== index && formatDateCourt(p.created_at) === jour,
-  );
-}
 
 function RiskRing({
   pourcentage,
@@ -524,7 +449,7 @@ function RiskRing({
           strokeLinecap="round"
           strokeDasharray={circonference}
           strokeDashoffset={offset}
-          className="stroke-accent-text"
+          className="results-ring-arc stroke-accent-text"
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -561,58 +486,7 @@ function formatDateCourt(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
-  }).format(new Date(iso));
-}
-
-function formatHeure(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
-}
-
-/** ISO du début de la fenêtre (il y a 6 jours à 00:00 locale). */
-function debutSemaineIso(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - 6);
-  return d.toISOString();
-}
-
-type JourEnvoi = { key: string; label: string; count: number };
-
-/** Agrège les timestamps d'envoi en 7 jours (J-6 → aujourd'hui). */
-function agregerEnvoisParJour(envoyeAts: string[]): JourEnvoi[] {
-  const labels = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
-  const jours: JourEnvoi[] = [];
-  const counts = new Map<string, number>();
-
-  for (const iso of envoyeAts) {
-    const d = new Date(iso);
-    const key = cleJourLocal(d);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  const aujourdhui = new Date();
-  aujourdhui.setHours(0, 0, 0, 0);
-
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(aujourdhui);
-    d.setDate(aujourdhui.getDate() - i);
-    const key = cleJourLocal(d);
-    jours.push({
-      key,
-      label: labels[d.getDay()],
-      count: counts.get(key) ?? 0,
-    });
-  }
-
-  return jours;
-}
-
-function cleJourLocal(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }

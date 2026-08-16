@@ -191,3 +191,15 @@ export type MenaceDetectee = {
   detecte_at: string;
   created_at: string;
 };
+
+/**
+ * Activation de l'extension par un collaborateur.
+ * Une ligne par adresse ayant saisi le code de la société.
+ */
+export type ActivationExtension = {
+  id: string;
+  company_id: string;
+  employe_email: string;
+  activated_at: string;
+  last_seen_at: string;
+};
