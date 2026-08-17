@@ -7,6 +7,11 @@
 #   NEXT_PUBLIC_SUPABASE_URL
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY
 #   NEXT_PUBLIC_APP_URL=https://safentreprise.com
+#     ↳ sert à construire les liens de suivi insérés dans chaque message.
+#       Sans elle, l'app retombe sur http://localhost:3000 et l'envoi de
+#       campagne est REFUSÉ (voir verifierUrlPublique dans
+#       src/lib/send/tracking.ts). Variable NEXT_PUBLIC_*, donc injectée au
+#       build : redéployer après l'avoir ajoutée.
 # Recommandées :
 #   RESEND_API_KEY
 #   SIMULATION_FROM_EMAIL

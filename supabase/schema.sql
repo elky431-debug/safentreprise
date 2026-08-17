@@ -1381,3 +1381,273 @@ REVOKE ALL ON FUNCTION public.enregistrer_menace(
 GRANT EXECUTE ON FUNCTION public.enregistrer_menace(
   TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, JSONB, TEXT, TIMESTAMPTZ
 ) TO anon, authenticated;
+
+
+-- =============================================================================
+-- Safentreprise Guard — activations de l'extension (couverture)
+-- =============================================================================
+
+-- =============================================================================
+-- 1. Table des activations
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS activations_extension (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  employe_email TEXT NOT NULL,
+  activated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Une seule ligne par collaborateur : la ré-activation actualise last_seen_at
+  UNIQUE (company_id, employe_email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_activations_company
+  ON activations_extension(company_id);
+
+ALTER TABLE activations_extension ENABLE ROW LEVEL SECURITY;
+
+-- Lecture : chaque dirigeant ne voit que les activations de SA société.
+DROP POLICY IF EXISTS activations_extension_select_own ON activations_extension;
+CREATE POLICY activations_extension_select_own
+  ON activations_extension FOR SELECT
+  USING (company_id = public.get_my_company_id());
+
+-- Retrait d'un poste (départ d'un collaborateur).
+DROP POLICY IF EXISTS activations_extension_delete_own ON activations_extension;
+CREATE POLICY activations_extension_delete_own
+  ON activations_extension FOR DELETE
+  USING (company_id = public.get_my_company_id());
+
+-- Aucune politique INSERT : seule la fonction ci-dessous écrit dans la table,
+-- après validation du code d'activation.
+
+-- =============================================================================
+-- 2. Vérification du code + enregistrement de l'activation
+-- =============================================================================
+
+-- L'ancienne signature à un seul argument est remplacée : la vérification
+-- enregistre désormais l'activation quand l'email du collaborateur est fourni.
+DROP FUNCTION IF EXISTS public.verifier_code_activation(TEXT);
+
+CREATE OR REPLACE FUNCTION public.verifier_code_activation(
+  p_code          TEXT,
+  p_employe_email TEXT
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_company_id UUID;
+  v_nom TEXT;
+  v_email TEXT;
+BEGIN
+  SELECT id, nom INTO v_company_id, v_nom
+    FROM companies
+   WHERE code_activation = upper(btrim(p_code));
+
+  -- Code inconnu : la route répond 401, rien n'est écrit.
+  IF v_company_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  v_email := lower(btrim(COALESCE(p_employe_email, '')));
+
+  -- Sans email, on se contente de confirmer le code (aucune activation).
+  IF v_email <> '' THEN
+    INSERT INTO activations_extension (company_id, employe_email)
+    VALUES (v_company_id, v_email)
+    ON CONFLICT (company_id, employe_email)
+    DO UPDATE SET last_seen_at = now();
+  END IF;
+
+  RETURN v_nom;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.verifier_code_activation(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verifier_code_activation(TEXT, TEXT)
+  TO anon, authenticated;
+
+
+-- =============================================================================
+-- Cloisonnement des modèles et des quiz par société
+-- =============================================================================
+
+-- =============================================================================
+-- 1. Colonnes de rattachement
+-- =============================================================================
+
+ALTER TABLE message_templates
+  ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+
+ALTER TABLE quiz_questions
+  ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS idx_message_templates_company
+  ON message_templates(company_id);
+
+CREATE INDEX IF NOT EXISTS idx_quiz_questions_company
+  ON quiz_questions(company_id);
+
+-- Les lignes existantes restent à NULL, donc « système ». C'est le bon
+-- résultat pour les gabarits et questions livrés avec le produit (identifiants
+-- préfixés a1000000-… et b1000000-…).
+--
+-- ATTENTION : si un client a déjà créé ses propres questions via l'onglet
+-- Formations, elles deviendraient système elles aussi. La requête de contrôle
+-- fournie dans la réponse liste ces lignes ; rattachez-les à leur société avec
+--   UPDATE quiz_questions SET company_id = '<uuid-societe>' WHERE id = '<uuid>';
+
+-- =============================================================================
+-- 2. RLS message_templates
+-- =============================================================================
+
+-- Anciennes politiques trop larges
+DROP POLICY IF EXISTS message_templates_select_actif ON message_templates;
+DROP POLICY IF EXISTS message_templates_select_all_auth ON message_templates;
+DROP POLICY IF EXISTS message_templates_update_auth ON message_templates;
+
+-- Lecture : les gabarits système + les siens
+DROP POLICY IF EXISTS message_templates_select_visible ON message_templates;
+CREATE POLICY message_templates_select_visible
+  ON message_templates FOR SELECT
+  TO authenticated
+  USING (
+    company_id IS NULL
+    OR company_id = public.get_my_company_id()
+  );
+
+-- Création : uniquement rattachée à sa propre société
+DROP POLICY IF EXISTS message_templates_insert_own ON message_templates;
+CREATE POLICY message_templates_insert_own
+  ON message_templates FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
+
+-- Modification : jamais un gabarit système, jamais celui d'un autre
+DROP POLICY IF EXISTS message_templates_update_own ON message_templates;
+CREATE POLICY message_templates_update_own
+  ON message_templates FOR UPDATE
+  TO authenticated
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  )
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
+
+DROP POLICY IF EXISTS message_templates_delete_own ON message_templates;
+CREATE POLICY message_templates_delete_own
+  ON message_templates FOR DELETE
+  TO authenticated
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
+
+-- =============================================================================
+-- 3. RLS quiz_questions
+-- =============================================================================
+
+DROP POLICY IF EXISTS quiz_questions_select_auth ON quiz_questions;
+DROP POLICY IF EXISTS quiz_questions_insert_auth ON quiz_questions;
+DROP POLICY IF EXISTS quiz_questions_update_auth ON quiz_questions;
+DROP POLICY IF EXISTS quiz_questions_delete_auth ON quiz_questions;
+
+DROP POLICY IF EXISTS quiz_questions_select_visible ON quiz_questions;
+CREATE POLICY quiz_questions_select_visible
+  ON quiz_questions FOR SELECT
+  TO authenticated
+  USING (
+    company_id IS NULL
+    OR company_id = public.get_my_company_id()
+  );
+
+DROP POLICY IF EXISTS quiz_questions_insert_own ON quiz_questions;
+CREATE POLICY quiz_questions_insert_own
+  ON quiz_questions FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
+
+DROP POLICY IF EXISTS quiz_questions_update_own ON quiz_questions;
+CREATE POLICY quiz_questions_update_own
+  ON quiz_questions FOR UPDATE
+  TO authenticated
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  )
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
+
+DROP POLICY IF EXISTS quiz_questions_delete_own ON quiz_questions;
+CREATE POLICY quiz_questions_delete_own
+  ON quiz_questions FOR DELETE
+  TO authenticated
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
+
+-- =============================================================================
+-- 4. Quiz de la page piégée : questions système + celles de la société
+-- =============================================================================
+
+-- La page /t/[token] est publique : elle n'a pas de session, seulement le
+-- jeton. La fonction résout donc la société à partir du jeton, puis renvoie
+-- les questions système ET celles de cette société.
+DROP FUNCTION IF EXISTS public.get_quiz_questions(TEXT);
+
+CREATE OR REPLACE FUNCTION public.get_quiz_questions(
+  p_type_fraude TEXT,
+  p_token       TEXT
+)
+RETURNS TABLE (
+  id UUID,
+  question TEXT,
+  options JSONB,
+  bonne_reponse INTEGER,
+  ordre INTEGER
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT q.id, q.question, q.options, q.bonne_reponse, q.ordre
+    FROM quiz_questions q
+   WHERE q.actif = true
+     AND (
+       p_type_fraude IS NULL
+       OR q.type_fraude IS NULL
+       OR q.type_fraude = p_type_fraude
+     )
+     AND (
+       q.company_id IS NULL
+       OR q.company_id = (
+            SELECT c.company_id
+              FROM campaign_targets ct
+              JOIN campaigns c ON c.id = ct.campaign_id
+             WHERE ct.token_unique = p_token
+             LIMIT 1
+          )
+     )
+   ORDER BY q.ordre ASC, q.created_at ASC
+$$;
+
+REVOKE ALL ON FUNCTION public.get_quiz_questions(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_quiz_questions(TEXT, TEXT)
+  TO anon, authenticated;

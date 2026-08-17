@@ -25,10 +25,34 @@ Application SaaS de simulation d'arnaques (président / faux fournisseur) pour f
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL du projet Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique, exposée au navigateur |
-| `SUPABASE_SECRET_KEY` | Clé de service, serveur uniquement |
-| `OPENAI_API_KEY` | Génération des faux messages, serveur uniquement |
-| `OPENAI_MODEL` | Facultatif, `gpt-4o-mini` par défaut |
+| **`NEXT_PUBLIC_APP_URL`** | **URL publique de l'app. Obligatoire pour envoyer une campagne** |
+| `RESEND_API_KEY` | Envoi des emails de simulation, serveur uniquement |
+| `SIMULATION_FROM_EMAIL` | Adresse d'expédition, sur un domaine vérifié chez Resend |
+| `SMSPARTNER_API_KEY` | Envoi des SMS de simulation, serveur uniquement |
+| `SMSPARTNER_SENDER` | Expéditeur alphanumérique validé (3–11 caractères) |
 | `DATABASE_URL` | Connexion Postgres directe, utilisée par `npm run db:apply` |
+
+### NEXT_PUBLIC_APP_URL — à ne pas oublier en production
+
+Les liens piégés et de signalement insérés dans chaque message sont construits à
+partir de cette variable. Si elle est absente, le code retombe sur
+`http://localhost:3000` : les liens seraient **injoignables depuis la boîte mail
+d'un collaborateur** et le tracking resterait muet.
+
+`POST /api/campaigns/[id]/send` refuse donc l'envoi quand elle est absente, mal
+formée, ou qu'elle pointe sur localhost en production
+(`src/lib/send/tracking.ts`, fonction `verifierUrlPublique`).
+
+En production, la valeur attendue est :
+
+```
+NEXT_PUBLIC_APP_URL=https://safentreprise.com
+```
+
+Sur Netlify : **Site configuration → Environment variables → Add a variable**.
+C'est une variable `NEXT_PUBLIC_*`, injectée **au build** : après l'avoir
+ajoutée ou modifiée, relancez un déploiement (*Deploys → Trigger deploy →
+Clear cache and deploy site*), sinon l'ancienne valeur reste embarquée.
 
 ## Scripts de diagnostic
 
@@ -45,10 +69,21 @@ Application SaaS de simulation d'arnaques (président / faux fournisseur) pour f
   (9 questions, score par catégorie), résultat commenté.
 - **Collaborateurs** : ajout manuel, import CSV/XLSX, suppression.
 - **Campagnes** : choix des scénarios et des canaux, sélection des cibles,
-  rédaction des messages par IA (3 variantes par combinaison scénario × canal),
-  relecture et modification manuelle, régénération, validation.
+  composition des messages par injection de variables dans les gabarits,
+  relecture et modification manuelle, validation puis envoi réel.
 
-L'appel à l'IA a lieu exclusivement côté serveur (`src/lib/ai/generate-messages.ts`,
-protégé par `server-only`) : la clé OpenAI n'atteint jamais le navigateur.
-Aucun envoi réel de message n'est encore implémenté : une campagne validée passe
-au statut « prête ».
+Les messages sont composés à partir des gabarits `message_templates`
+(`src/lib/templates/inject.ts`) — la génération par IA a été retirée. L'envoi
+réel est opérationnel : emails via Resend, SMS via SMS Partner.
+
+### Modèles et questions de quiz : système ou société
+
+`message_templates` et `quiz_questions` portent une colonne `company_id` :
+
+- `company_id` **null** = entrée **système**, livrée avec le produit. Visible
+  par toutes les sociétés, modifiable par aucune.
+- `company_id` renseigné = entrée **de la société**, qu'elle seule voit et gère.
+
+Un client personnalise un gabarit système en le dupliquant dans sa société ; sa
+copie prend alors la priorité à la composition. Ses questions de quiz, elles,
+s'ajoutent aux questions système dans le quiz vu par le collaborateur.

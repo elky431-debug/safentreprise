@@ -17,6 +17,8 @@ import { TYPE_FRAUDE_LABELS } from "@/lib/campaigns";
 
 export type QuizQuestionRow = {
   id: string;
+  /** null = question système, en lecture seule pour le client. */
+  company_id: string | null;
   type_fraude: TypeFraude | null;
   question: string;
   options: string[];
@@ -25,10 +27,21 @@ export type QuizQuestionRow = {
   actif: boolean;
 };
 
-type Props = { initial: QuizQuestionRow[] };
+type Props = {
+  initial: QuizQuestionRow[];
+  /** Société connectée : toute création lui est rattachée. */
+  companyId: string;
+};
 
-/** CRUD des questions du quiz post-simulation. */
-export function FormationsManager({ initial }: Props) {
+/**
+ * Questions du quiz post-simulation.
+ *
+ * Les questions SYSTÈME (company_id null) sont fournies par Safentreprise et
+ * communes à toutes les sociétés : elles restent visibles mais non modifiables.
+ * Les questions créées ici appartiennent à la société et S'AJOUTENT aux
+ * questions système dans le quiz vu par le collaborateur.
+ */
+export function FormationsManager({ initial, companyId }: Props) {
   const [questions, setQuestions] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -118,9 +131,10 @@ export function FormationsManager({ initial }: Props) {
         ),
       );
     } else {
+      // Rattachement obligatoire : la RLS refuse toute question sans société
       const { data, error: err } = await supabase
         .from("quiz_questions")
-        .insert(payload)
+        .insert({ ...payload, company_id: companyId })
         .select("*")
         .single();
       setSaving(false);
@@ -132,6 +146,7 @@ export function FormationsManager({ initial }: Props) {
         ...prev,
         {
           id: data.id,
+          company_id: data.company_id ?? null,
           question: data.question,
           options: data.options as string[],
           bonne_reponse: data.bonne_reponse,
@@ -180,41 +195,63 @@ export function FormationsManager({ initial }: Props) {
           {questions
             .slice()
             .sort((a, b) => a.ordre - b.ordre)
-            .map((q) => (
-              <li
-                key={q.id}
-                className="flex flex-wrap items-start justify-between gap-3 px-6 py-4"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13.5px] font-medium text-foreground">
-                    {q.ordre}. {q.question}
-                  </p>
-                  <p className="mt-1 text-[12px] text-faint">
-                    {q.type_fraude
-                      ? TYPE_FRAUDE_LABELS[q.type_fraude]
-                      : "Tous scénarios"}{" "}
-                    · {q.actif ? "Actif" : "Inactif"} · bonne = option #
-                    {q.bonne_reponse}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className={buttonSecondary}
-                    onClick={() => ouvrir(q)}
-                  >
-                    Éditer
-                  </button>
-                  <button
-                    type="button"
-                    className={buttonSecondary}
-                    onClick={() => void supprimer(q.id)}
-                  >
-                    Supprimer
-                  </button>
-                </div>
-              </li>
-            ))}
+            .map((q) => {
+              const systeme = q.company_id === null;
+
+              return (
+                <li
+                  key={q.id}
+                  className="flex flex-wrap items-start justify-between gap-3 px-6 py-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-medium text-foreground">
+                      <span>
+                        {q.ordre}. {q.question}
+                      </span>
+                      <span
+                        className={`rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${
+                          systeme
+                            ? "border-border-strong bg-surface-2 text-muted"
+                            : "border-accent-line bg-accent-soft text-accent-text"
+                        }`}
+                      >
+                        {systeme ? "Système" : "Votre société"}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-[12px] text-faint">
+                      {q.type_fraude
+                        ? TYPE_FRAUDE_LABELS[q.type_fraude]
+                        : "Tous scénarios"}{" "}
+                      · {q.actif ? "Actif" : "Inactif"} · bonne = option #
+                      {q.bonne_reponse}
+                    </p>
+                  </div>
+
+                  {systeme ? (
+                    <span className="text-[12px] text-faint">
+                      Question Safentreprise — non modifiable
+                    </span>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className={buttonSecondary}
+                        onClick={() => ouvrir(q)}
+                      >
+                        Éditer
+                      </button>
+                      <button
+                        type="button"
+                        className={buttonSecondary}
+                        onClick={() => void supprimer(q.id)}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
         </ul>
       </Panel>
 

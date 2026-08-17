@@ -101,7 +101,10 @@ export async function POST(
     );
   }
 
-  // Un gabarit actif par combinaison type × canal
+  // Un gabarit actif par combinaison type × canal.
+  // La RLS ne laisse voir que les gabarits système et ceux de la société ;
+  // le tri place les gabarits de la société en premier, afin qu'une
+  // personnalisation l'emporte toujours sur le gabarit système.
   const types = typesFraudeDeCampagne(campaign.type_fraude);
   const canaux = canauxDeCampagne(campaign.canal);
   const gabarits = new Map<string, MessageTemplate>();
@@ -114,6 +117,7 @@ export async function POST(
         .eq("type_fraude", typeFraude)
         .eq("canal", canal)
         .eq("actif", true)
+        .order("company_id", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle<MessageTemplate>();

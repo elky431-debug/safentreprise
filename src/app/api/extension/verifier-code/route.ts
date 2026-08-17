@@ -63,13 +63,15 @@ export async function POST(request: Request) {
 
   // Cette fonction valide le code ET, si une adresse est fournie, enregistre
   // l'activation du collaborateur (upsert sur company_id + employe_email).
-  const { data, error } = await supabase.rpc("enregistrer_activation_extension", {
+  // Nom aligné sur la fonction réellement présente en base : la migration
+  // appliquée est celle qui étend verifier_code_activation à deux arguments.
+  const { data, error } = await supabase.rpc("verifier_code_activation", {
     p_code: code,
     p_employe_email: employeEmail,
   });
 
   if (error) {
-    console.error("enregistrer_activation_extension :", error);
+    console.error("verifier_code_activation :", error);
     return reponseCors({ valide: false, erreur: "Vérification impossible." }, 500);
   }
 
