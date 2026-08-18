@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DemoRequestForm } from "@/components/DemoRequestForm";
 import { Logo } from "@/components/Logo";
+import { LegalLinks } from "@/components/LegalLinks";
 import { IconTarget, IconFormation, IconShieldCheck } from "@/components/icons";
 
 export const metadata: Metadata = {
@@ -115,9 +116,9 @@ export default function DemoPage() {
       </main>
 
       <footer className="border-t border-border px-6 py-8 lg:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <Logo />
-          <p className="text-[12.5px] text-faint">Sensibilisation à la fraude</p>
+          <LegalLinks />
         </div>
       </footer>
     </div>

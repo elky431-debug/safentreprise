@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
+import { LegalLinks } from "@/components/LegalLinks";
 import {
   IconBilling,
   IconCampaign,
@@ -103,6 +104,15 @@ export function AppShell({ companyName, userEmail, children }: AppShellProps) {
 
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 lg:px-6 lg:py-6">
           {children}
+
+          {/* Pied de page minimal : les liens légaux doivent rester
+              atteignables depuis l'espace connecté, pas seulement du site
+              public. « mt-auto » le colle en bas quand la page est courte. */}
+          <footer className="mt-auto pt-10">
+            <div className="border-t border-border pt-4">
+              <LegalLinks />
+            </div>
+          </footer>
         </main>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { Triptyque } from "@/components/Triptyque";
 import { ProtectionExtension } from "@/components/ProtectionExtension";
 import { FraudEmailExample } from "@/components/FraudEmailExample";
 import { Logo } from "@/components/Logo";
+import { LegalLinks } from "@/components/LegalLinks";
 import { buttonPrimary, buttonPrimaryLg } from "@/components/ui";
 import { IconArrowRight } from "@/components/icons";
 
@@ -220,9 +221,9 @@ export default async function HomePage() {
       </main>
 
       <footer className="border-t border-border px-6 py-8 lg:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <Logo />
-          <p className="text-[12.5px] text-faint">Sensibilisation à la fraude</p>
+          <LegalLinks />
         </div>
       </footer>
     </div>
