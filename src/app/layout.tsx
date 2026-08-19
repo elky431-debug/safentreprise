@@ -34,10 +34,29 @@ const sacramento = Sacramento({
   display: "swap",
 });
 
+const DESCRIPTION =
+  "Testez vos équipes comptables et financières face à l'arnaque au président et au faux fournisseur, puis formez celles qui se font piéger.";
+
 export const metadata: Metadata = {
+  // Base des URL absolues (image sociale, canoniques). Renseignée depuis
+  // l'environnement pour rester juste en préproduction comme en production.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://safentreprise.com",
+  ),
   title: "Safentreprise — Sensibilisation à la fraude ciblée",
-  description:
-    "Testez vos équipes comptables et financières face à l'arnaque au président et au faux fournisseur, puis formez celles qui se font piéger.",
+  description: DESCRIPTION,
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Safentreprise",
+    title: "Safentreprise — Sensibilisation à la fraude ciblée",
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Safentreprise — Sensibilisation à la fraude ciblée",
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="192" height="192" role="img" aria-label="Safentreprise">
+  <!-- Marque simplifiée, une seule couleur (currentColor par défaut).
+       Destinée aux petits formats et aux documents imprimés en noir et
+       blanc : aucun aplat, aucun dégradé, aucune transparence. -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2.4 20.4 5.5V12.2C20.4 17 16.9 21 12 22.2 7.1 21 3.6 17 3.6 12.2V5.5Z"/>
+    <path d="M14.24 11.04C14.24 9.54 13.15 8.8 12 8.8c-1.22 0-2.24.74-2.24 1.92 0 1.31 1.15 1.76 2.24 2.08 1.09.32 2.24.77 2.24 2.08 0 1.18-1.02 1.92-2.24 1.92-1.31 0-2.24-.74-2.24-2.24"/>
+  </g>
+</svg>

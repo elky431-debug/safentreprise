@@ -14,6 +14,16 @@ export type DonneesAttestation = {
   nbCibles: number;
 };
 
+/**
+ * Marque simplifiée (grille SVG 24) — bouclier et noyau en S.
+ * Version tracée d'une seule couleur : elle reste lisible à l'impression
+ * noir et blanc, ce qui est le cas d'usage de ce document.
+ */
+const LOGO_BOUCLIER =
+  "M12 2.4 20.4 5.5V12.2C20.4 17 16.9 21 12 22.2 7.1 21 3.6 17 3.6 12.2V5.5Z";
+const LOGO_S =
+  "M14.24 11.04C14.24 9.54 13.15 8.8 12 8.8c-1.22 0-2.24.74-2.24 1.92 0 1.31 1.15 1.76 2.24 2.08 1.09.32 2.24.77 2.24 2.08 0 1.18-1.02 1.92-2.24 1.92-1.31 0-2.24-.74-2.24-2.24";
+
 /** Formate une date en français (JJ/MM/AAAA). */
 function formatDateFr(d: Date): string {
   return d.toLocaleDateString("fr-FR", {
@@ -52,14 +62,27 @@ export async function genererPdfAttestation(
     color: accent,
   });
 
+  // Marque : le tracé SVG est posé depuis son coin supérieur gauche,
+  // l'axe y de drawSvgPath étant orienté vers le bas.
+  const echelleLogo = 1.25; // 24 unités SVG → 30 pt
+  for (const trace of [LOGO_BOUCLIER, LOGO_S]) {
+    page.drawSvgPath(trace, {
+      x: marge,
+      y: y + 7,
+      scale: echelleLogo,
+      borderColor: accent,
+      borderWidth: 1.4,
+    });
+  }
+
   page.drawText("SAFENTREPRISE", {
-    x: marge,
-    y: y - 8,
+    x: marge + 42,
+    y: y - 10,
     size: 11,
     font: fontBold,
     color: accent,
   });
-  y -= 36;
+  y -= 46;
 
   page.drawText("Attestation de sensibilisation", {
     x: marge,

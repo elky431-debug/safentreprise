@@ -76,6 +76,12 @@ export default async function HomePage() {
               >
                 Protection
               </a>
+              <Link
+                href="/tarifs"
+                className="text-[13.5px] text-muted transition-colors hover:text-foreground"
+              >
+                Tarifs
+              </Link>
             </nav>
           </div>
 

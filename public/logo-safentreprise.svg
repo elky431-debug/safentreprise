@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-label="Safentreprise">
+  <!-- Emblème complet — grands formats (réseaux sociaux, présentations,
+       supports imprimés en quadrichromie). Pour le noir et blanc, utiliser
+       logo-safentreprise-mono.svg. -->
+  <defs>
+    <linearGradient id="safentreprise-degrade" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7ee8ef"/>
+      <stop offset=".55" stop-color="#16a3b4"/>
+      <stop offset="1" stop-color="#1257a5"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 3 57.5 12.2V32.5C57.5 45.6 47.3 55.9 32 61 16.7 55.9 6.5 45.6 6.5 32.5V12.2Z" fill="url(#safentreprise-degrade)"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.78 25.97A19 19 0 0 1 49.22 25.97" stroke-width="3" opacity=".55"/>
+    <path d="M19.44 26.75A14.5 14.5 0 0 1 44.56 26.75" stroke-width="3" opacity=".8"/>
+    <path d="M39 30.5C39 25.8 35.6 23.5 32 23.5c-3.8 0-7 2.3-7 6 0 4.1 3.6 5.5 7 6.5 3.4 1 7 2.4 7 6.5 0 3.7-3.2 6-7 6-3.6 0-7-2.3-7-7" stroke-width="3.6"/>
+  </g>
+</svg>

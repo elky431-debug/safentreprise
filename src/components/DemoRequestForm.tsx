@@ -23,9 +23,15 @@ const CHAMPS_VIDES: Champs = {
 /**
  * Formulaire de demande de démonstration.
  * Envoie la demande à /api/demo, qui l'enregistre dans la table demandes_demo.
+ *
+ * `offre` : nom de l'offre depuis laquelle la demande a été lancée (page
+ * /tarifs). Il pré-remplit le message pour que la demande arrive qualifiée.
  */
-export function DemoRequestForm() {
-  const [champs, setChamps] = useState<Champs>(CHAMPS_VIDES);
+export function DemoRequestForm({ offre }: { offre?: string }) {
+  const [champs, setChamps] = useState<Champs>(() => ({
+    ...CHAMPS_VIDES,
+    message: offre ? `Je souhaite un devis pour l’offre ${offre}.` : "",
+  }));
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);

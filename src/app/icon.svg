@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Favicon : emblème réduit à l'essentiel. Les crêtes d'empreinte sont
+       retirées car elles se referment sous 32 px ; il ne reste que le
+       bouclier et son noyau en S. -->
+  <defs>
+    <linearGradient id="d" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7ee8ef"/>
+      <stop offset=".55" stop-color="#16a3b4"/>
+      <stop offset="1" stop-color="#1257a5"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 3 57.5 12.2V32.5C57.5 45.6 47.3 55.9 32 61 16.7 55.9 6.5 45.6 6.5 32.5V12.2Z" fill="url(#d)"/>
+  <path d="M40 28.5C40 23.4 36.1 21 32 21c-4.4 0-8 2.6-8 6.8 0 4.6 4.1 6.2 8 7.4 3.9 1.2 8 2.8 8 7.4 0 4.2-3.6 6.8-8 6.8-4.1 0-8-2.4-8-7.5"
+        fill="none" stroke="#fff" stroke-width="4.6" stroke-linecap="round"/>
+</svg>

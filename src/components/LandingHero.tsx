@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonPrimaryLg } from "@/components/ui";
 import { IconArrowRight } from "@/components/icons";
+import { LogoEmblem } from "@/components/Logo";
 
 type Props = {
   isLoggedIn: boolean;
@@ -20,6 +21,13 @@ export function LandingHero({ isLoggedIn }: Props) {
       </div>
 
       <div className="mx-auto max-w-5xl px-6 pt-16 pb-20 text-center md:pt-24 md:pb-28">
+        {/* Emblème en grand format : c'est le seul endroit du site où la
+            marque apparaît en dégradé, les en-têtes utilisant la version
+            simplifiée. */}
+        <div className="rise mb-9 flex justify-center">
+          <LogoEmblem size={72} className="drop-shadow-[0_8px_28px_rgba(14,133,147,0.35)]" />
+        </div>
+
         <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-[12.5px] text-muted backdrop-blur-sm">
           <span className="h-1.5 w-1.5 rounded-full bg-accent-text" />
           Arnaque au président · faux fournisseur

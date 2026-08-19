@@ -4,6 +4,7 @@ import { DemoRequestForm } from "@/components/DemoRequestForm";
 import { Logo } from "@/components/Logo";
 import { LegalLinks } from "@/components/LegalLinks";
 import { IconTarget, IconFormation, IconShieldCheck } from "@/components/icons";
+import { OFFRES } from "@/lib/tarifs";
 
 export const metadata: Metadata = {
   title: "Demander une démo — Safentreprise",
@@ -37,7 +38,16 @@ const PROGRAMME = [
 ];
 
 /** Page publique de prise de contact commercial. */
-export default function DemoPage() {
+export default async function DemoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ offre?: string }>;
+}) {
+  // Depuis /tarifs, le bouton transmet l'offre choisie : on la reprend pour
+  // pré-remplir le message. Valeur inconnue = paramètre ignoré.
+  const { offre } = await searchParams;
+  const offreChoisie = OFFRES.find((o) => o.cle === offre)?.nom;
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
@@ -109,7 +119,7 @@ export default function DemoPage() {
 
             {/* Formulaire */}
             <div className="lg:pt-2">
-              <DemoRequestForm />
+              <DemoRequestForm offre={offreChoisie} />
             </div>
           </div>
         </div>

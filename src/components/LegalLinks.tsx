@@ -23,6 +23,10 @@ export function LegalLinks({ className = "" }: { className?: string }) {
         Politique de confidentialité
       </Link>
       <span aria-hidden>·</span>
+      <Link href="/cgv" className="transition-colors hover:text-foreground">
+        CGV
+      </Link>
+      <span aria-hidden>·</span>
       <span>© 2026 Safentreprise</span>
     </p>
   );
