@@ -9,6 +9,10 @@ export function LegalLinks({ className = "" }: { className?: string }) {
     <p
       className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-faint ${className}`}
     >
+      <Link href="/tarifs" className="transition-colors hover:text-foreground">
+        Tarifs
+      </Link>
+      <span aria-hidden>·</span>
       <Link
         href="/mentions-legales"
         className="transition-colors hover:text-foreground"

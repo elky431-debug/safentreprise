@@ -143,7 +143,7 @@ export const CONDITIONS: Prestation[] = [
   },
 ];
 
-/** Format monétaire français, sans décimales : 1 890 €. */
+/** Format monétaire français, sans décimales : 1 234 €. */
 export function formaterEuros(montant: number): string {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
