@@ -256,24 +256,44 @@ export default function CgvPage() {
           l’effectif du Client prend effet à la date anniversaire du contrat.
         </P>
 
-        <H2 id="article-8">
-          Article 8 — Obligations et engagements du Prestataire
-        </H2>
+        <H2 id="article-8">Article 8 — Nature de l’engagement</H2>
         <P>
-          Le Prestataire s’engage à exécuter le Service avec le soin et la
-          diligence d’un professionnel de son secteur.
+          Le Service a pour objet de réduire l’exposition du Client au risque de
+          fraude par la sensibilisation, la formation et la détection de
+          tentatives d’usurpation. Il ne constitue ni une garantie contre la
+          fraude, ni un dispositif de sécurité infaillible.
         </P>
         <P>
+          Le Prestataire s’engage à exécuter le Service avec le soin et la
+          diligence d’un professionnel de son secteur.{" "}
           <Fort>
-            Le Prestataire est tenu d’une obligation de moyens et non d’une
-            obligation de résultat.
+            Il est tenu d’une obligation de moyens et non d’une obligation de
+            résultat.
           </Fort>{" "}
           Il ne garantit ni l’absence de tentative de fraude visant le Client,
           ni l’absence de succès d’une telle tentative, ni l’atteinte d’un
           niveau déterminé de vigilance des Collaborateurs.
         </P>
         <P>
-          Il s’engage à mettre en œuvre les mesures techniques et
+          Le Client reconnaît expressément que l’efficacité du dispositif dépend
+          de facteurs qu’il maîtrise seul, notamment le comportement individuel
+          de ses Collaborateurs, ses procédures internes de validation des
+          paiements et de vérification des coordonnées bancaires, ses
+          délégations de signature, ainsi que les suites qu’il donne aux
+          recommandations issues des rapports.
+        </P>
+        <P>
+          <Fort>
+            En conséquence, la responsabilité du Prestataire ne saurait être
+            engagée à raison d’une fraude subie par le Client, quelle qu’en soit
+            l’origine
+          </Fort>
+          , et notamment lorsqu’elle résulte du comportement d’un Collaborateur,
+          d’une défaillance des procédures internes du Client, ou d’un mode
+          opératoire non couvert par le Service.
+        </P>
+        <P>
+          Le Prestataire s’engage à mettre en œuvre les mesures techniques et
           organisationnelles décrites dans la Politique de confidentialité, et à
           informer le Client dans les meilleurs délais de tout incident
           significatif affectant le Service.
