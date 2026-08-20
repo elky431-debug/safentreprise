@@ -63,57 +63,95 @@ export function LogoMark({
   );
 }
 
+/** Crêtes concentriques du bouclier, de l'extérieur vers l'intérieur. */
+const CRETES = [
+  "M 200 10 L 24 88 C 24 210, 58 366, 200 470 C 342 366, 376 210, 376 88 Z",
+  "M 200 40 L 50 110 C 50 220, 80 358, 200 436 C 320 358, 350 220, 350 110 Z",
+  "M 200 70 L 76 132 C 76 230, 102 350, 200 402 C 298 350, 324 230, 324 132 Z",
+  "M 200 100 L 102 154 C 102 240, 124 342, 200 368 C 276 342, 298 240, 298 154 Z",
+  "M 200 130 L 128 176 C 128 250, 146 334, 200 334 C 254 334, 272 250, 272 176 Z",
+];
+
+/** Noyau : le S. */
+const S_EMBLEME =
+  "M 240 202 C 240 184, 222 176, 200 176 L 184 176 C 160 176, 144 192, 144 214 C 144 232, 156 242, 176 248 L 224 264 C 246 271, 258 284, 258 306 C 258 330, 240 346, 214 346 L 196 346 C 172 346, 156 336, 156 316";
+
 /**
  * Emblème complet, réservé aux grands formats.
- * `id` distingue le dégradé si plusieurs emblèmes cohabitent sur une page.
+ * `id` distingue le dégradé et le masque si plusieurs emblèmes cohabitent
+ * sur une même page.
  */
 export function LogoEmblem({
   size = 96,
   className = "",
-  id = "safentreprise-degrade",
+  id = "safentreprise",
 }: {
   size?: number;
   className?: string;
   id?: string;
 }) {
+  const degrade = `${id}-degrade`;
+  const creux = `${id}-creux`;
+
   return (
     <svg
       width={size}
-      height={size}
-      viewBox="0 0 64 64"
+      height={size * (480 / 400)}
+      viewBox="0 0 400 480"
       fill="none"
       role="img"
       aria-label="Safentreprise"
       className={`shrink-0 ${className}`}
     >
       <defs>
-        <linearGradient id={id} x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#7ee8ef" />
-          <stop offset="0.55" stopColor="#16a3b4" />
-          <stop offset="1" stopColor="#1257a5" />
+        <linearGradient
+          id={degrade}
+          x1="160"
+          y1="0"
+          x2="270"
+          y2="470"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0" stopColor="#2BE6F4" />
+          <stop offset="1" stopColor="#0C6CF3" />
         </linearGradient>
+
+        {/* Le S creuse un couloir dans les crêtes : elles s'interrompent
+            autour de lui au lieu de le traverser. */}
+        <mask id={creux}>
+          <rect x="0" y="0" width="400" height="480" fill="#fff" />
+          <path
+            d={S_EMBLEME}
+            fill="none"
+            stroke="#000"
+            strokeWidth={56}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </mask>
       </defs>
 
-      {/* Bouclier plein */}
-      <path
-        d="M32 3 57.5 12.2V32.5C57.5 45.6 47.3 55.9 32 61 16.7 55.9 6.5 45.6 6.5 32.5V12.2Z"
-        fill={`url(#${id})`}
-      />
-
-      {/* Crêtes d'empreinte + noyau en S, détourés */}
       <g
-        stroke="#ffffff"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        stroke={`url(#${degrade})`}
         fill="none"
+        strokeWidth={15}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        mask={`url(#${creux})`}
       >
-        <path d="M14.78 25.97A19 19 0 0 1 49.22 25.97" strokeWidth={3} opacity={0.55} />
-        <path d="M19.44 26.75A14.5 14.5 0 0 1 44.56 26.75" strokeWidth={3} opacity={0.8} />
-        <path
-          d="M39 30.5C39 25.8 35.6 23.5 32 23.5c-3.8 0-7 2.3-7 6 0 4.1 3.6 5.5 7 6.5 3.4 1 7 2.4 7 6.5 0 3.7-3.2 6-7 6-3.6 0-7-2.3-7-7"
-          strokeWidth={3.6}
-        />
+        {CRETES.map((d) => (
+          <path key={d} d={d} />
+        ))}
       </g>
+
+      <path
+        d={S_EMBLEME}
+        fill="none"
+        stroke={`url(#${degrade})`}
+        strokeWidth={26}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

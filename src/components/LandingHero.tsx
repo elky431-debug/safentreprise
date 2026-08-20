@@ -25,7 +25,7 @@ export function LandingHero({ isLoggedIn }: Props) {
             marque apparaît en dégradé, les en-têtes utilisant la version
             simplifiée. */}
         <div className="rise mb-9 flex justify-center">
-          <LogoEmblem size={72} className="drop-shadow-[0_8px_28px_rgba(14,133,147,0.35)]" />
+          <LogoEmblem size={78} className="drop-shadow-[0_8px_28px_rgba(14,133,147,0.35)]" />
         </div>
 
         <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-[12.5px] text-muted backdrop-blur-sm">
