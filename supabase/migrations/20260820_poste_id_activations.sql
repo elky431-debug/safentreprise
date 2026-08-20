@@ -66,8 +66,27 @@ DROP FUNCTION IF EXISTS public.enregistrer_activation_extension(TEXT, TEXT);
 -- comportement dépendrait de ce qui traîne en base.
 DROP FUNCTION IF EXISTS public.verifier_code_activation(TEXT, TEXT);
 
--- verifier_code_activation(TEXT) — un seul argument — est CONSERVÉE :
--- c'est la vérification simple, sans effet de bord.
+-- verifier_code_activation(TEXT) — un seul argument — est la vérification
+-- simple, sans effet de bord. Elle est RECRÉÉE ici : une base ayant reçu la
+-- variante à deux arguments avait vu l'originale supprimée, et le DROP
+-- ci-dessus la laisserait alors absente. La recréer garantit que la base
+-- converge vers ce que décrivent les migrations, quel que soit son passé.
+CREATE OR REPLACE FUNCTION public.verifier_code_activation(p_code TEXT)
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT nom
+    FROM companies
+   WHERE code_activation = upper(btrim(p_code))
+   LIMIT 1
+$$;
+
+REVOKE ALL ON FUNCTION public.verifier_code_activation(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verifier_code_activation(TEXT)
+  TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.enregistrer_activation_extension(
   p_code          TEXT,
