@@ -1,49 +1,20 @@
+import { readFile } from "fs/promises";
+import { join } from "path";
 import { ImageResponse } from "next/og";
 
 /**
- * Image sociale (Open Graph / Twitter) générée à la volée.
- * L'emblème est injecté en data-URI : le moteur de rendu de `next/og` ne
- * gère pas les dégradés SVG déclarés en JSX, mais il affiche sans peine une
- * image SVG complète.
+ * Image sociale (Open Graph / Twitter) — utilise le logo PNG officiel.
  */
 export const alt =
   "Safentreprise — tester, former et protéger ses équipes face à la fraude";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const EMBLEME = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="200" height="240" role="img" aria-label="Safentreprise">
-  <defs>
-    <linearGradient id="sg" x1="160" y1="0" x2="270" y2="470" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2BE6F4"/>
-      <stop offset="1" stop-color="#0C6CF3"/>
-    </linearGradient>
-
-    <!-- Le S creuse un couloir dans les crêtes : elles s'interrompent autour
-         de lui au lieu de le traverser. -->
-    <mask id="creux">
-      <rect x="0" y="0" width="400" height="480" fill="#fff"/>
-      <path d="M 240 202 C 240 184, 222 176, 200 176 L 184 176 C 160 176, 144 192, 144 214 C 144 232, 156 242, 176 248 L 224 264 C 246 271, 258 284, 258 306 C 258 330, 240 346, 214 346 L 196 346 C 172 346, 156 336, 156 316" fill="none" stroke="#000" stroke-width="56"
-            stroke-linejoin="round" stroke-linecap="round"/>
-
-    </mask>
-  </defs>
-
-  <g stroke="url(#sg)" fill="none" stroke-width="15" stroke-linejoin="round" stroke-linecap="round">
-    <g mask="url(#creux)">
-      <path d="M 200 10 L 24 88 C 24 210, 58 366, 200 470 C 342 366, 376 210, 376 88 Z"/>
-      <path d="M 200 40 L 50 110 C 50 220, 80 358, 200 436 C 320 358, 350 220, 350 110 Z"/>
-      <path d="M 200 70 L 76 132 C 76 230, 102 350, 200 402 C 298 350, 324 230, 324 132 Z"/>
-      <path d="M 200 100 L 102 154 C 102 240, 124 342, 200 368 C 276 342, 298 240, 298 154 Z"/>
-      <path d="M 200 130 L 128 176 C 128 250, 146 334, 200 334 C 254 334, 272 250, 272 176 Z"/>
-    </g>
-  </g>
-
-  <path d="M 240 202 C 240 184, 222 176, 200 176 L 184 176 C 160 176, 144 192, 144 214 C 144 232, 156 242, 176 248 L 224 264 C 246 271, 258 284, 258 306 C 258 330, 240 346, 214 346 L 196 346 C 172 346, 156 336, 156 316" fill="none" stroke="url(#sg)" stroke-width="26"
-        stroke-linejoin="round" stroke-linecap="round"/>
-</svg>`;
-
-export default function OpengraphImage() {
-  const embleme = `data:image/svg+xml;base64,${Buffer.from(EMBLEME).toString("base64")}`;
+export default async function OpengraphImage() {
+  const bytes = await readFile(
+    join(process.cwd(), "public", "logo-safentreprise.png"),
+  );
+  const embleme = `data:image/png;base64,${bytes.toString("base64")}`;
 
   return new ImageResponse(
     (
@@ -60,7 +31,7 @@ export default function OpengraphImage() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={embleme} width={107} height={128} alt="" />
+        <img src={embleme} width={120} height={120} alt="" />
 
         <div
           style={{
