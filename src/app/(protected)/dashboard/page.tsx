@@ -91,7 +91,14 @@ export default async function DashboardPage() {
   const campaigns = (campaignRows ?? []) as CampagneListe[];
   const menaces = (menaceRows ?? []) as MenaceListe[];
   const employes = employeeRows?.length ?? 0;
-  const activations = activationRows?.length ?? 0;
+  // Le compteur porte sur des PERSONNES, pas sur des lignes : depuis que la
+  // clé d'unicité est le poste, un collaborateur équipé de deux machines
+  // occupe deux lignes et ne doit être compté qu'une fois.
+  const activations = new Set(
+    (activationRows ?? [])
+      .map((a) => (a.employe_email as string | null)?.trim().toLowerCase())
+      .filter((e): e is string => Boolean(e)),
+  ).size;
 
   // Le graphique n'a besoin que de la date et du niveau : on n'envoie pas le
   // reste au client.

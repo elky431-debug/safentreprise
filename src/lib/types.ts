@@ -222,6 +222,8 @@ export type MenaceDetectee = {
 export type ActivationExtension = {
   id: string;
   company_id: string;
+  /** UUID du poste, tiré par l'extension à sa première exécution */
+  poste_id: string;
   employe_email: string;
   activated_at: string;
   last_seen_at: string;

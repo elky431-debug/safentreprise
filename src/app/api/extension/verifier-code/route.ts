@@ -1,17 +1,19 @@
 /**
  * Vérifie un code d'activation saisi dans l'extension Safentreprise Guard.
  *
- * POST /api/extension/verifier-code   { code_activation, employe_email? }
+ * POST /api/extension/verifier-code
+ *   { code_activation, employe_email?, poste_id? }
  *   200 → { valide: true, societe: "Martin & Associés" }
  *   401 → { valide: false }
  *
  * Aucune donnée n'est exposée sans code valide : la réponse se limite au nom
  * de la société, afin que l'employé confirme qu'il active la bonne.
  *
- * Quand `employe_email` accompagne un code valide, l'activation est
- * enregistrée (ou rafraîchie) dans activations_extension. C'est ce qui permet
- * au tableau de bord de compter les collaborateurs réellement protégés.
- * Le champ reste facultatif : sans lui, la route se comporte comme avant.
+ * ENRÔLEMENT — quand `employe_email` ET `poste_id` accompagnent un code
+ * valide, l'activation est enregistrée ou rafraîchie dans
+ * activations_extension. C'est ce qui alimente le compteur des collaborateurs
+ * protégés. Les deux champs restent facultatifs : sans eux, la route se
+ * limite à valider le code, comme à l'origine.
  */
 import { createClient } from "@/lib/supabase/server";
 import { reponseCors, reponsePreflight } from "@/lib/extension/cors";
@@ -24,12 +26,21 @@ export async function OPTIONS() {
 const LONGUEUR_MAX_EMAIL = 320;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+/** UUID v4 tiré par l'extension au premier lancement, identifiant le poste. */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request: Request) {
-  let corps: { code_activation?: string; employe_email?: string };
+  let corps: {
+    code_activation?: string;
+    employe_email?: string;
+    poste_id?: string;
+  };
   try {
     corps = (await request.json()) as {
       code_activation?: string;
       employe_email?: string;
+      poste_id?: string;
     };
   } catch {
     return reponseCors({ valide: false, erreur: "JSON invalide." }, 400);
@@ -43,6 +54,11 @@ export async function POST(request: Request) {
     emailBrut && emailBrut.length <= LONGUEUR_MAX_EMAIL && EMAIL_REGEX.test(emailBrut)
       ? emailBrut
       : null;
+
+  // Poste facultatif : rejeté s'il n'a pas la forme d'un UUID, pour ne pas
+  // laisser la base arbitrer un cast qui échouerait.
+  const posteBrut = corps.poste_id?.trim().toLowerCase() ?? "";
+  const posteId = UUID_REGEX.test(posteBrut) ? posteBrut : null;
 
   if (!code) {
     return reponseCors(
@@ -61,17 +77,18 @@ export async function POST(request: Request) {
     );
   }
 
-  // Cette fonction valide le code ET, si une adresse est fournie, enregistre
-  // l'activation du collaborateur (upsert sur company_id + employe_email).
-  // Nom aligné sur la fonction réellement présente en base : la migration
-  // appliquée est celle qui étend verifier_code_activation à deux arguments.
-  const { data, error } = await supabase.rpc("verifier_code_activation", {
+  // Valide le code et, si adresse ET poste sont fournis, enregistre
+  // l'activation (upsert sur company_id + poste_id).
+  // Signature établie par 20260820_poste_id_activations.sql, qui retire au
+  // passage les variantes ambiguës.
+  const { data, error } = await supabase.rpc("enregistrer_activation_extension", {
     p_code: code,
     p_employe_email: employeEmail,
+    p_poste_id: posteId,
   });
 
   if (error) {
-    console.error("verifier_code_activation :", error);
+    console.error("enregistrer_activation_extension :", error);
     return reponseCors({ valide: false, erreur: "Vérification impossible." }, 500);
   }
 
