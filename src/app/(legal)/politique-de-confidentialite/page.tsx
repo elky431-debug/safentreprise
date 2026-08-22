@@ -15,7 +15,7 @@ import {
 export const metadata: Metadata = {
   title: "Politique de confidentialité — Safentreprise",
   description:
-    "Traitement des données personnelles par Safentreprise : rôles de responsable de traitement et de sous-traitant, finalités, durées de conservation, sous-traitants et exercice des droits.",
+    "Traitement des données personnelles par Safentreprise : rôles de responsable de traitement et de sous-traitant, extension Safentreprise Guard, finalités, durées de conservation, sous-traitants et exercice des droits.",
   robots: { index: true, follow: true },
 };
 
@@ -27,7 +27,7 @@ export default function PolitiqueConfidentialitePage() {
           Politique de confidentialité et de protection des données personnelles
         </h1>
         <p className="mt-3 text-[13.5px] text-faint">
-          Dernière mise à jour : 18 août 2026
+          Dernière mise à jour : 21 août 2026
         </p>
       </header>
 
@@ -275,6 +275,113 @@ export default function PolitiqueConfidentialitePage() {
             démontrer le respect de ses obligations.
           </Li>
         </Ul>
+
+        <H3 id="extension">2.5 Extension Safentreprise Guard</H3>
+        <P>
+          Safentreprise Guard est une extension pour navigateur, installée
+          volontairement par le collaborateur sur son poste de travail, qui
+          l’avertit lorsqu’un message reçu présente les caractéristiques d’une
+          tentative d’usurpation d’identité.
+        </P>
+        <P>
+          Le traitement décrit au présent point relève du même régime que le
+          reste de la Partie 2 : <Fort>l’entreprise cliente</Fort> en est le
+          responsable de traitement, <Fort>Safentreprise</Fort> agit en qualité
+          de sous-traitant et ne traite ces données que sur son instruction
+          documentée.
+        </P>
+
+        <P>
+          <Fort>Ce que l’extension lit.</Fort> L’extension accède au contenu des
+          messages affichés dans Gmail sur le poste du collaborateur, afin d’en
+          examiner l’expéditeur, la signature et les formulations
+          caractéristiques d’une fraude. Cette analyse est réalisée{" "}
+          <Fort>localement, dans le navigateur</Fort>. Le contenu des messages
+          n’est ni copié, ni transmis, ni conservé en dehors du poste.
+        </P>
+
+        <P>
+          <Fort>Ce qui est transmis, uniquement en cas d’alerte.</Fort> Lorsque
+          l’analyse conclut à une tentative d’usurpation, seules les métadonnées
+          suivantes sont envoyées aux serveurs de Safentreprise :
+        </P>
+        <Ul>
+          <Li>le nom et l’adresse électronique de l’expéditeur ;</Li>
+          <Li>le nom signé dans le message ;</Li>
+          <Li>l’objet du message ;</Li>
+          <Li>le niveau de risque et le score attribués ;</Li>
+          <Li>les signaux ayant motivé l’alerte ;</Li>
+          <Li>l’adresse professionnelle du collaborateur alerté ;</Li>
+          <Li>la date et l’heure de la détection.</Li>
+        </Ul>
+
+        <P>
+          <Fort>Ce qui n’est jamais transmis.</Fort>
+        </P>
+        <Ul>
+          <Li>
+            le corps du message, même partiellement et même sous forme
+            d’extrait ;
+          </Li>
+          <Li>les pièces jointes, ni leur contenu, ni leur nom ;</Li>
+          <Li>les en-têtes techniques bruts ;</Li>
+          <Li>
+            les messages jugés sans risque, qui ne donnent lieu à aucune
+            transmission — l’absence d’alerte ne laisse aucune trace sur nos
+            serveurs.
+          </Li>
+        </Ul>
+
+        <P>
+          <Fort>Données d’activation.</Fort> À la première ouverture,
+          l’extension demande le code d’activation de l’entreprise. Sont alors
+          transmis l’adresse électronique professionnelle du collaborateur et un
+          identifiant de poste (<Fort>poste_id</Fort>), tiré aléatoirement par
+          l’extension et conservé dans son stockage local. Cet identifiant sert
+          uniquement à dénombrer les postes équipés ; il n’est associé à aucune
+          caractéristique matérielle du poste et ne permet aucun suivi en dehors
+          du service.
+        </P>
+
+        <P>
+          <Fort>Hébergement.</Fort> Les alertes et les données d’activation sont
+          enregistrées dans la base de données Supabase, hébergée dans l’Union
+          européenne. Aucun transfert hors Union européenne n’est effectué pour
+          ce traitement.
+        </P>
+
+        <P>
+          <Fort>Durées de conservation.</Fort>
+        </P>
+        <Tableau
+          entetes={["Données", "Durée de conservation"]}
+          lignes={[
+            [
+              "Alertes remontées par l’extension",
+              "12 mois à compter de la détection, puis suppression automatique",
+            ],
+            [
+              "Données d’activation (adresse professionnelle, identifiant de poste)",
+              "Durée de l’abonnement ; supprimées à la résiliation",
+            ],
+          ]}
+        />
+
+        <P>
+          <Fort>Droits des personnes.</Fort> Le collaborateur dispose des droits
+          d’accès, de rectification, de suppression et d’opposition sur les
+          données traitées par l’extension. La demande peut être adressée à son
+          employeur, responsable de traitement, ou directement à{" "}
+          <a
+            href="mailto:contact@safentreprise.com"
+            className="text-accent-text underline decoration-accent-line underline-offset-[3px] transition-colors hover:text-foreground"
+          >
+            contact@safentreprise.com
+          </a>
+          , auquel cas Safentreprise la transmet à l’entreprise concernée et
+          l’assiste dans son traitement. La désinstallation de l’extension
+          interrompt immédiatement toute collecte.
+        </P>
 
         {/* ------------------------------------------------------------------ */}
 
