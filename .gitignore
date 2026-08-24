@@ -1,0 +1,10 @@
+# Secrets — ne doit JAMAIS partir sur GitHub
+.env
+
+# Correspondance index court -> identifiant Microsoft, régénérée par « list »
+.messages.json
+
+# Sauvegardes des corps de mails originaux
+backups/
+
+node_modules/

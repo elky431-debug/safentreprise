@@ -1,0 +1,16 @@
+{
+  "name": "safentreprise-graph-spike",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spike technique : prouver l'injection d'une bannière d'alerte dans un mail Microsoft 365 via Microsoft Graph. Pas du code de production.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "list": "node index.js list",
+    "backup": "node index.js backup",
+    "inject": "node index.js inject",
+    "restore": "node index.js restore"
+  }
+}
