@@ -130,6 +130,73 @@
     "je suis injoignable", "en clientele", "a l etranger",
   ];
 
+  /**
+   * CHANGEMENT DE COORDONNÉES BANCAIRES — le vocabulaire du basculement.
+   *
+   * Cette liste ne déclenche JAMAIS seule. Elle n'a de sens qu'en présence
+   * d'un IBAN ou d'un RIB dont la clé de contrôle est vérifiée.
+   *
+   * ⚠ POURQUOI LA CONJONCTION EST OBLIGATOIRE : toute facture légitime porte
+   *   un IBAN. Alerter sur « IBAN présent + expéditeur externe » reviendrait à
+   *   alerter sur la totalité du courrier de facturation entrant. C'est
+   *   l'annonce d'un CHANGEMENT qui distingue la fraude de la facture.
+   *
+   * ⚠ N'y ajoutez rien de générique (« à compter de ce jour », « dès à
+   *   présent ») : ces tournures abondent dans les échanges légitimes et
+   *   feraient basculer des factures ordinaires.
+   */
+  /**
+   * Formulations qui parlent SANS AMBIGUÏTÉ d'un changement bancaire.
+   *
+   * Elles seules autorisent le chemin secondaire, celui où aucun IBAN n'est
+   * présent dans le corps — parce que le nouveau RIB est en pièce jointe, ce
+   * qui est le cas le plus fréquent dans la fraude au fournisseur réelle.
+   *
+   * Rien ici ne doit pouvoir désigner autre chose qu'un compte en banque :
+   * « changement de coordonnées » tout court n'y a pas sa place, un
+   * déménagement en produirait autant.
+   */
+  const CHANGEMENT_BANCAIRE_EXPLICITE = [
+    "nouvelles coordonnees bancaires", "nouvelle coordonnee bancaire",
+    "changement de coordonnees bancaires", "modification de coordonnees bancaires",
+    "modification de nos coordonnees bancaires",
+    "mise a jour de nos coordonnees bancaires",
+    "mettre a jour vos informations bancaires",
+    "coordonnees bancaires ont change", "coordonnees bancaires ont ete modifiees",
+    "coordonnees bancaires ont ete mises a jour",
+    "changement de banque", "changement d etablissement bancaire",
+    "nouvel etablissement bancaire", "nouvelle domiciliation bancaire",
+    "changement de domiciliation",
+    "changement de rib", "changement d iban", "nouveau rib", "nouvel iban",
+    "nouveau compte bancaire", "nouveau numero de compte",
+    "ancien rib", "ancien iban", "ancienne banque",
+    "bank details have changed", "new bank account", "updated bank details",
+    "change of bank", "new bank details",
+  ];
+
+  /**
+   * Formulations de changement qui ne suffisent PAS seules.
+   *
+   * Elles ne comptent qu'accompagnées d'un IBAN ou d'un RIB vérifié : hors de
+   * ce contexte, elles désignent aussi bien un changement d'adresse ou de
+   * référence client.
+   */
+  const CHANGEMENT_GENERIQUE = [
+    "changement de coordonnees", "modification de nos coordonnees",
+    "mise a jour de nos coordonnees", "mettre a jour nos coordonnees",
+    // « base fournisseurs » seul est écarté : une facture peut mentionner sa
+    // référence dans votre base sans rien changer du tout.
+    "mettre a jour votre base fournisseurs", "mettre a jour votre base",
+    "ancien compte", "notre precedent compte", "compte habituel",
+    "ne plus utiliser", "n est plus valable", "n est plus valide",
+    "ne sont plus valables", "ne sont plus valides",
+  ];
+
+  /** Vocabulaire complet du changement de coordonnées. */
+  const CHANGEMENT_COORDONNEES = CHANGEMENT_BANCAIRE_EXPLICITE.concat(
+    CHANGEMENT_GENERIQUE
+  );
+
   /** Formules de politesse annonçant une signature. */
   const FORMULES_CLOTURE = [
     "cordialement", "bien cordialement", "tres cordialement", "bien a vous",
@@ -292,6 +359,167 @@
     return DOMAINES_GRAND_PUBLIC.includes(
       String(domaine || "").trim().toLowerCase()
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Coordonnées bancaires
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Longueur exacte d'un IBAN par pays.
+   *
+   * La contrôler élimine la quasi-totalité des faux positifs : une suite de
+   * caractères prise au hasard doit à la fois avoir la bonne longueur pour son
+   * code pays ET satisfaire la clé modulo 97.
+   */
+  const LONGUEURS_IBAN = {
+    AD: 24, AE: 23, AL: 28, AT: 20, AZ: 28, BA: 20, BE: 16, BG: 22, BH: 22,
+    BR: 29, CH: 21, CI: 28, CR: 22, CY: 28, CZ: 24, DE: 22, DK: 18, DO: 28,
+    DZ: 26, EE: 20, EG: 29, ES: 24, FI: 18, FO: 18, FR: 27, GB: 22, GE: 22,
+    GI: 23, GL: 18, GR: 27, GT: 28, HR: 21, HU: 28, IE: 22, IL: 23, IS: 26,
+    IT: 27, JO: 30, KW: 30, KZ: 20, LB: 28, LI: 21, LT: 20, LU: 20, LV: 21,
+    MA: 28, MC: 27, MD: 24, ME: 22, MK: 19, MR: 27, MT: 31, MU: 30, NL: 18,
+    NO: 15, PK: 24, PL: 28, PS: 29, PT: 25, QA: 29, RO: 24, RS: 22, SA: 24,
+    SE: 24, SI: 19, SK: 24, SM: 27, SN: 28, TN: 24, TR: 26, UA: 29, VG: 24,
+    XK: 20,
+  };
+
+  /** Modulo 97 par accumulation : évite tout débordement d'entier. */
+  function modulo97(chiffres) {
+    let reste = 0;
+    for (let i = 0; i < chiffres.length; i += 1) {
+      reste = (reste * 10 + Number(chiffres[i])) % 97;
+    }
+    return reste;
+  }
+
+  /**
+   * IBAN valide ? Structure, longueur du pays, puis clé modulo 97 (ISO 13616).
+   */
+  function validerIban(candidat) {
+    const s = String(candidat || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(s)) return false;
+
+    const attendue = LONGUEURS_IBAN[s.slice(0, 2)];
+    if (attendue === undefined) return false;
+    if (s.length !== attendue) return false;
+
+    // Les quatre premiers caractères passent à la fin, puis chaque lettre
+    // devient un nombre (A=10 … Z=35). Le reste doit valoir 1.
+    const reagence = s.slice(4) + s.slice(0, 4);
+    let chiffres = "";
+    for (let i = 0; i < reagence.length; i += 1) {
+      const c = reagence[i];
+      chiffres += c >= "0" && c <= "9" ? c : String(c.charCodeAt(0) - 55);
+    }
+    return modulo97(chiffres) === 1;
+  }
+
+  /**
+   * IBAN présents dans un texte.
+   *
+   * On reconstruit à partir des suites alphanumériques plutôt qu'avec une
+   * seule expression régulière : un IBAN s'écrit aussi bien d'un trait
+   * (FR7630006000011234567890189) qu'en blocs de quatre séparés par des
+   * espaces, des points ou des tirets. La validation de la clé arrête la
+   * reconstruction au bon endroit.
+   */
+  function trouverIbans(texte) {
+    const blocs = String(texte || "").toUpperCase().match(/[A-Z0-9]+/g) || [];
+    const trouves = [];
+
+    for (let i = 0; i < blocs.length; i += 1) {
+      if (!/^[A-Z]{2}\d{2}/.test(blocs[i])) continue;
+      let candidat = "";
+      for (let j = i; j < blocs.length && candidat.length < 34; j += 1) {
+        candidat += blocs[j];
+        if (validerIban(candidat)) {
+          if (trouves.indexOf(candidat) === -1) trouves.push(candidat);
+          break;
+        }
+      }
+    }
+    return trouves;
+  }
+
+  /** Conversion des lettres pour la clé RIB française. */
+  const RIB_LETTRES = {
+    A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, H: 8, I: 9,
+    J: 1, K: 2, L: 3, M: 4, N: 5, O: 6, P: 7, Q: 8, R: 9,
+    S: 2, T: 3, U: 4, V: 5, W: 6, X: 7, Y: 8, Z: 9,
+  };
+
+  /** Clé RIB française : 97 − (89×banque + 15×guichet + 3×compte) mod 97. */
+  function validerRibFrancais(banque, guichet, compte, cle) {
+    let compteChiffre = "";
+    for (let i = 0; i < compte.length; i += 1) {
+      const c = compte[i].toUpperCase();
+      const v = RIB_LETTRES[c];
+      compteChiffre += v === undefined ? c : String(v);
+    }
+    if (!/^\d+$/.test(compteChiffre)) return false;
+
+    const reste =
+      (89 * modulo97(banque) + 15 * modulo97(guichet) + 3 * modulo97(compteChiffre)) % 97;
+    return (97 - reste) % 97 === Number(cle);
+  }
+
+  /**
+   * RIB français au format classique (banque / guichet / compte / clé).
+   *
+   * On EXIGE la forme en blocs séparés. Une suite de 23 chiffres d'un seul
+   * tenant est trop ambiguë : les factures regorgent de numéros de commande,
+   * de SIRET et de références longues, et une clé sur 97 finirait par tomber
+   * juste. La forme groupée, elle, ne s'écrit que pour un RIB.
+   */
+  function trouverRibsFrancais(texte) {
+    const motif = /\b(\d{5})[ .\-]+(\d{5})[ .\-]+([A-Z0-9]{11})[ .\-]+(\d{2})\b/gi;
+    const trouves = [];
+    let m;
+    while ((m = motif.exec(String(texte || ""))) !== null) {
+      if (!validerRibFrancais(m[1], m[2], m[3], m[4])) continue;
+      const compact = (m[1] + m[2] + m[3] + m[4]).toUpperCase();
+      if (trouves.indexOf(compact) === -1) trouves.push(compact);
+    }
+    return trouves;
+  }
+
+  /**
+   * Masque une coordonnée bancaire pour l'affichage et la journalisation.
+   *
+   * Les signaux sont CONSERVÉS EN BASE : y laisser un IBAN complet reviendrait
+   * à stocker du contenu de message, ce que ce produit s'interdit. On n'en
+   * garde que de quoi reconnaître de quoi on parle.
+   */
+  function masquerCompte(compact) {
+    const s = String(compact || "");
+    if (s.length <= 8) return s;
+    return `${s.slice(0, 4)}…${s.slice(-4)}`;
+  }
+
+  /** Le domaine relève-t-il de l'une des listes fournies ? */
+  function domaineDansListe(domaine, liste) {
+    const d = String(domaine || "").trim().toLowerCase().replace(/\.$/, "");
+    if (!d) return false;
+    return liste.some((entree) => {
+      const e = String(entree || "").trim().toLowerCase().replace(/^@/, "");
+      return e && (d === e || d.endsWith(`.${e}`));
+    });
+  }
+
+  /**
+   * L'expéditeur est-il externe à l'entreprise ?
+   *
+   * Trois états, et le troisième compte : `null` signifie « on n'en sait
+   * rien », faute de contexte. Sans annuaire ni liste de domaines, le moteur
+   * ne doit ni supposer externe ni supposer interne.
+   */
+  function expediteurExterne(prep) {
+    const c = prep.contexte;
+    if (!c.fourni || c.domainesInternes.length === 0) return null;
+    if (domaineDansListe(prep.domaine, c.domainesInternes)) return false;
+    if (domaineDansListe(prep.domaine, c.domainesAutorises)) return false;
+    return true;
   }
 
   // ---------------------------------------------------------------------------
@@ -681,6 +909,10 @@
       demandesSensibles,
       amplificateurs,
       texteAnalyse,
+      // Texte NON normalisé : `normaliser` passe tout en minuscules, ce qui
+      // rendrait un IBAN méconnaissable. La recherche de coordonnées bancaires
+      // travaille donc sur l'original.
+      texteBrut: `${objet}\n${corps}`,
       contexte: normaliserContexte(contexte),
     };
   }
@@ -868,6 +1100,159 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Détecteur — CHANGEMENT DE COORDONNÉES BANCAIRES
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fraude au fournisseur : « nos coordonnées bancaires ont changé ».
+   *
+   * Ce détecteur ne dépend d'AUCUNE identification de nom. C'est tout son
+   * intérêt : l'expéditeur signe « Comptabilité DELTA-LOG », qui n'est pas un
+   * nom de personne, et le détecteur d'identité renonce. Avant le remaniement,
+   * ce renoncement mettait fin à l'analyse et le message passait sans avoir
+   * été examiné.
+   *
+   * Le déclenchement exige DEUX faits ensemble :
+   *   1. une coordonnée bancaire dont la clé de contrôle est vérifiée ;
+   *   2. l'annonce d'un changement.
+   *
+   * L'un sans l'autre ne dit rien : toute facture porte un IBAN, et « mise à
+   * jour de nos coordonnées » sans coordonnée bancaire peut n'être qu'un
+   * changement d'adresse.
+   */
+  function detecterChangementRib(prep, identite) {
+    const comptes = trouverIbans(prep.texteBrut).concat(
+      trouverRibsFrancais(prep.texteBrut)
+    );
+
+    const liste = [];
+
+    if (comptes.length > 0) {
+      const changements = motsClesPresents(
+        prep.texteAnalyse,
+        CHANGEMENT_COORDONNEES
+      );
+
+      if (changements.length === 0) {
+        return abandon(
+          "detecteur",
+          "IGNORÉ — coordonnées bancaires sans changement annoncé",
+          "Le message porte des coordonnées bancaires mais n'annonce aucun " +
+            "changement : c'est le cas de toute facture."
+        );
+      }
+
+      const masques = comptes.map(masquerCompte);
+      prep.base.coordonneesBancaires = masques;
+      prep.base.changementsAnnonces = changements;
+
+      liste.push({
+        // 55 : au-dessus du seuil « modéré », en dessous d'« élevé ». Une
+        // entreprise change réellement de banque de temps en temps ; le
+        // conseil « vérifiez par téléphone auprès d'un contact connu » reste
+        // le bon même quand le changement est authentique.
+        points: 55,
+        raison: "changement_coordonnees_bancaires",
+        signal:
+          `Le message annonce un changement de coordonnées bancaires ` +
+          `(${changements.slice(0, 3).join(", ")}) et fournit ${
+            masques.length > 1 ? "des comptes" : "un compte"
+          } : ${masques.join(", ")}.`,
+      });
+    } else {
+      // CHEMIN SECONDAIRE — changement annoncé, coordonnées absentes du corps.
+      //
+      // C'est la forme la plus courante de la fraude au fournisseur réelle :
+      // le message annonce le changement, le nouveau RIB est dans le PDF
+      // joint. Exiger l'IBAN dans le texte reviendrait à ne rien voir.
+      //
+      // Le signal vaut moins (45, soit « à vérifier ») car il n'y a rien à
+      // recouper : on ne peut pas confirmer qu'il s'agit bien d'un compte.
+      // Seul le vocabulaire sans ambiguïté bancaire y donne droit.
+      //
+      // ⚠ PAS DE DOUBLE COMPTE. « nouveau rib », « nouvel iban », « changement
+      //   de rib » figurent DÉJÀ dans DEMANDES_SENSIBLES, que le détecteur
+      //   d'identité facture 25 points. Si celui-ci a parlé, la preuve est
+      //   déjà au score et la recompter ici gonflerait artificiellement des
+      //   messages que le moteur signalait correctement depuis toujours.
+      //
+      //   Ce chemin n'existe que pour les messages où le détecteur d'identité
+      //   a renoncé — précisément le cas du fournisseur qui signe d'un nom de
+      //   service et non d'un nom de personne.
+      const identiteAParle =
+        identite &&
+        identite.apports &&
+        identite.apports.some((a) => a.raison === "demande_sensible");
+
+      if (identiteAParle) {
+        return abandon(
+          "detecteur",
+          "IGNORÉ — changement bancaire déjà compté comme demande sensible",
+          "Le détecteur d'identité a déjà retenu ce vocabulaire ; le compter " +
+            "une seconde fois fausserait le score."
+        );
+      }
+
+      const explicites = motsClesPresents(
+        prep.texteAnalyse,
+        CHANGEMENT_BANCAIRE_EXPLICITE
+      );
+
+      if (explicites.length === 0) {
+        return abandon(
+          "detecteur",
+          "IGNORÉ — aucun changement de coordonnées bancaires",
+          "Ni IBAN ni RIB vérifiable, et rien qui annonce sans ambiguïté un " +
+            "changement bancaire."
+        );
+      }
+
+      prep.base.changementsAnnonces = explicites;
+
+      liste.push({
+        points: 45,
+        raison: "changement_bancaire_annonce",
+        signal:
+          `Le message annonce un changement bancaire ` +
+          `(${explicites.slice(0, 3).join(", ")}) sans faire figurer de ` +
+          `coordonnées vérifiables dans le corps — elles sont probablement ` +
+          `en pièce jointe.`,
+      });
+    }
+
+    // L'externalité ne peut qu'AJOUTER, jamais retrancher : un compte interne
+    // compromis qui annonce un faux changement de RIB reste une fraude, et
+    // c'en est même une particulièrement efficace.
+    if (expediteurExterne(prep) === true) {
+      liste.push({
+        points: 10,
+        raison: "expediteur_externe",
+        signal:
+          `L'expéditeur (${prep.domaine}) est extérieur à l'entreprise et à ` +
+          `ses domaines autorisés.`,
+      });
+    }
+
+    if (prep.amplificateurs.length > 0) {
+      liste.push({
+        // 20, et non 10 comme l'amplificateur générique du détecteur
+        // d'identité : presser quelqu'un de changer OÙ VA L'ARGENT, en lui
+        // demandant de n'en parler à personne, n'est pas de l'urgence
+        // ordinaire. Avec le signal de base on atteint 75, soit « élevé ».
+        // Une vraie notification de changement de banque annonce, elle ne
+        // presse pas et ne demande pas le secret.
+        points: 20,
+        raison: "pression_changement_rib",
+        signal:
+          `Le changement s'accompagne d'une pression à l'urgence ou au ` +
+          `secret : ${prep.amplificateurs.slice(0, 4).join(", ")}.`,
+      });
+    }
+
+    return apports(liste);
+  }
+
+  // ---------------------------------------------------------------------------
   // Composition
   // ---------------------------------------------------------------------------
 
@@ -954,8 +1339,12 @@
   function analyserEmail(emailData, contexte) {
     const prep = preparer(emailData, contexte);
 
-    // L'ordre compte pour la lisibilité des signaux, pas pour le score.
-    const detecteurs = [detecterIdentite(prep)];
+    // L'ordre compte pour la lisibilité des signaux, pas pour le score — à une
+    // exception près : le détecteur de RIB a besoin de savoir si celui
+    // d'identité a déjà retenu le vocabulaire bancaire, pour ne pas le
+    // compter deux fois.
+    const identite = detecterIdentite(prep);
+    const detecteurs = [identite, detecterChangementRib(prep, identite)];
 
     return composer(prep, detecteurs);
   }
@@ -973,7 +1362,13 @@
     DOMAINES_GRAND_PUBLIC,
     DEMANDES_SENSIBLES,
     AMPLIFICATEURS,
+    CHANGEMENT_COORDONNEES,
+    CHANGEMENT_BANCAIRE_EXPLICITE,
     analyserEmail,
+    validerIban,
+    trouverIbans,
+    validerRibFrancais,
+    trouverRibsFrancais,
     estDomaineDeConfiance,
     reconnaitreNomDePersonne,
     extraireNomSignature,
