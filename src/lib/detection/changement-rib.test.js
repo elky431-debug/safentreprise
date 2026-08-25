@@ -185,28 +185,26 @@ const CAS = [
     },
   },
   // ————————————————————————————————————————————————————————————————————————
-  // ⚠ CAS DE CARACTÉRISATION — ce cas décrit un DÉFAUT, pas un comportement
-  //   souhaitable. Il est ici pour que le défaut cesse d'être invisible.
+  // CORRIGÉ — ce cas décrivait un faux positif.
   //
-  //   Une facture ordinaire, sans le moindre changement annoncé, est classée
+  //   Une facture ordinaire, sans le moindre changement annoncé, ressortait en
   //   « modéré » : « ATELIERS MERCIER » est pris pour un nom de personne par
   //   reconnaitreNomDePersonne (deux mots capitalisés), l'adresse
   //   compta@ateliers-mercier-sarl.fr ne « contient » pas ce nom, et le
-  //   détecteur d'identité conclut à une incohérence.
+  //   détecteur d'identité concluait à une incohérence.
   //
-  //   VÉRIFIÉ SUR LE MOTEUR D'ORIGINE (commit 85a6e40) : le défaut est
-  //   antérieur au découpage en détecteurs et au détecteur de RIB. Il touche
-  //   toute entreprise dont le nom affiché fait deux mots — soit une bonne
-  //   part des fournisseurs français.
+  //   Le défaut était antérieur au découpage en détecteurs — vérifié sur le
+  //   moteur d'origine, commit 85a6e40 — et touchait toute entreprise dont le
+  //   nom affiché fait deux mots, soit une bonne part des fournisseurs
+  //   français. Sur Outlook, où la bannière est irréversible, c'était du
+  //   courrier commercial banal défiguré définitivement.
   //
-  //   À corriger dans le chantier « domaine » : le nom du domaine expéditeur
-  //   (ateliers-mercier-sarl.fr) contient le nom affiché, ce qui suffirait à
-  //   conclure à un expéditeur cohérent. Quand ce sera fait, ce cas passera à
-  //   `attendu: null` et le test échouera ici — c'est voulu.
+  //   Corrigé par la porte 4 : le DOMAINE cautionne le nom au même titre que
+  //   la partie locale. Le cas reste ici en garde-fou.
   // ————————————————————————————————————————————————————————————————————————
   {
-    titre: "⚠ DÉFAUT CONNU : facture, nom de société pris pour un nom de personne",
-    attendu: "modéré",
+    titre: "Facture : nom de société porté par le domaine (ex-faux positif)",
+    attendu: null,
     data: {
       nomAffiche: "ATELIERS MERCIER",
       email: "compta@ateliers-mercier-sarl.fr",

@@ -362,6 +362,185 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Analyse de domaine
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Suffixes publics à deux niveaux.
+   *
+   * Sans eux, « bbc.co.uk » donnerait le label « co » et se comparerait à
+   * n'importe quel autre « co ». La liste n'est pas exhaustive — elle couvre
+   * ce qu'un client français est susceptible de croiser.
+   */
+  const SUFFIXES_COMPOSES = [
+    "co.uk", "org.uk", "gov.uk", "ac.uk", "com.au", "net.au", "org.au",
+    "co.jp", "co.nz", "com.br", "com.mx", "com.ar", "co.za", "com.tr",
+    "com.cn", "com.hk", "com.sg", "co.in", "com.es", "com.pt", "com.pl",
+    "gouv.fr", "asso.fr", "com.ua",
+  ];
+
+  /**
+   * Label enregistrable d'un domaine : ce qui identifie vraiment l'entreprise.
+   *
+   *   safentreprise.fr            → safentreprise
+   *   mail.safentreprise.co.uk    → safentreprise
+   *
+   * C'est LUI qu'il faut comparer, pas le domaine entier : « safentreprise.fr »
+   * et « safentreprise.com » ne sont pas à distance 3 l'un de l'autre, ce sont
+   * deux extensions de la même marque.
+   */
+  function labelEnregistrable(domaine) {
+    const d = String(domaine || "").trim().toLowerCase().replace(/^\.|\.$/g, "");
+    if (!d) return "";
+    const parties = d.split(".");
+    if (parties.length < 2) return d;
+
+    const deuxDerniers = parties.slice(-2).join(".");
+    const aRetirer = SUFFIXES_COMPOSES.indexOf(deuxDerniers) !== -1 ? 3 : 2;
+    if (parties.length < aRetirer) return parties[0];
+    return parties[parties.length - aRetirer];
+  }
+
+  /** Jetons d'un label : « safentreprlse-groupe » → [safentreprlse, groupe]. */
+  function jetonsDeDomaine(label) {
+    return String(label || "")
+      .split(/[^a-z0-9]+/i)
+      .filter((j) => j && j.length >= 3);
+  }
+
+  /**
+   * Distance d'édition, bornée.
+   *
+   * Au-delà de `max` on s'arrête : deux domaines très différents n'ont aucun
+   * intérêt, et la borne évite de calculer une matrice complète pour rien.
+   */
+  function distanceEdition(a, b, max) {
+    const s = String(a || "");
+    const t = String(b || "");
+    if (s === t) return 0;
+    if (Math.abs(s.length - t.length) > max) return max + 1;
+
+    let precedente = new Array(t.length + 1);
+    let courante = new Array(t.length + 1);
+    for (let j = 0; j <= t.length; j += 1) precedente[j] = j;
+
+    for (let i = 1; i <= s.length; i += 1) {
+      courante[0] = i;
+      let minLigne = i;
+      for (let j = 1; j <= t.length; j += 1) {
+        const cout = s[i - 1] === t[j - 1] ? 0 : 1;
+        courante[j] = Math.min(
+          precedente[j] + 1,
+          courante[j - 1] + 1,
+          precedente[j - 1] + cout
+        );
+        if (courante[j] < minLigne) minLigne = courante[j];
+      }
+      if (minLigne > max) return max + 1;
+      const echange = precedente;
+      precedente = courante;
+      courante = echange;
+    }
+    return precedente[t.length];
+  }
+
+  /**
+   * Distance maximale tolérée avant de crier au typosquattage.
+   *
+   * Elle dépend de la longueur : un label de quatre lettres est à distance 1
+   * de dizaines de domaines réels sans le moindre rapport. En dessous de cinq
+   * caractères, on ne conclut rien.
+   */
+  function distanceToleree(longueur) {
+    if (longueur >= 8) return 2;
+    if (longueur >= 5) return 1;
+    return 0;
+  }
+
+  /**
+   * Le domaine expéditeur imite-t-il l'un des domaines de l'entreprise ?
+   *
+   * Renvoie `null` quand il n'y a rien à dire — pas de contexte, ou domaine
+   * reconnu. Sinon { genre, cible, jeton, distance }.
+   *
+   * Deux genres, délibérément inégaux :
+   *
+   *   « typosquat »  — une ou deux lettres d'écart (safentreprlse). Personne
+   *                    ne possède légitimement un domaine qui diffère du sien
+   *                    d'une lettre. Signal fort.
+   *   « marque »     — la marque exacte dans un autre domaine
+   *                    (safentreprise-groupe.com). Souvent frauduleux, mais
+   *                    parfois le domaine marketing du client lui-même ou
+   *                    celui de son routeur d'emailing. Signal modéré, et
+   *                    c'est à ça que sert la liste blanche.
+   */
+  function analyserDomaineExpediteur(prep) {
+    const c = prep.contexte;
+    if (!c.fourni || c.domainesInternes.length === 0) return null;
+    if (!prep.domaine) return null;
+
+    // Domaine de l'entreprise, ou domaine tiers déclaré légitime : rien à dire.
+    if (domaineDansListe(prep.domaine, c.domainesInternes)) return null;
+    if (domaineDansListe(prep.domaine, c.domainesAutorises)) return null;
+
+    const label = labelEnregistrable(prep.domaine);
+    if (!label) return null;
+    const jetons = [label].concat(jetonsDeDomaine(label));
+
+    let meilleur = null;
+
+    for (const interne of c.domainesInternes) {
+      const cible = labelEnregistrable(interne);
+      if (!cible || cible.length < 5) continue;
+
+      for (const jeton of jetons) {
+        if (jeton === cible) {
+          // La marque exacte, dans un domaine qui n'est pas le vôtre.
+          if (!meilleur) meilleur = { genre: "marque", cible, jeton, distance: 0 };
+          continue;
+        }
+        const max = distanceToleree(Math.min(jeton.length, cible.length));
+        if (max === 0) continue;
+        const d = distanceEdition(jeton, cible, max);
+        if (d >= 1 && d <= max) {
+          // Un typosquat prime sur tout le reste.
+          if (!meilleur || meilleur.genre !== "typosquat" || d < meilleur.distance) {
+            meilleur = { genre: "typosquat", cible, jeton, distance: d };
+          }
+        }
+      }
+    }
+
+    return meilleur;
+  }
+
+  /**
+   * Le nom affiché correspond-il au DOMAINE de l'expéditeur ?
+   *
+   * « ATELIERS MERCIER » depuis compta@ateliers-mercier-sarl.fr : le domaine
+   * porte le nom, l'expéditeur est cohérent. Sans cette règle, le moteur y
+   * voyait une incohérence — deux mots capitalisés passent pour un nom de
+   * personne, et « compta » ne ressemble pas à « Ateliers Mercier ». Une
+   * facture parfaitement banale se retrouvait en « modéré ».
+   *
+   * On exige que TOUTES les parties significatives du nom figurent dans le
+   * label. Une correspondance partielle ne suffit pas : « Yacine El Fahim »
+   * depuis elfahim-consulting.fr ne contient pas « yacine », et reste donc
+   * une incohérence à signaler.
+   */
+  function nomCorrespondAuDomaine(nom, domaine) {
+    const label = labelEnregistrable(domaine).replace(/[^a-z0-9]/g, "");
+    if (!label || !nom) return false;
+
+    const parties = normaliser(nom)
+      .split(" ")
+      .filter((p) => p && !PARTICULES.has(p) && p.length >= 3);
+    if (parties.length === 0) return false;
+
+    return parties.every((p) => label.indexOf(p) !== -1);
+  }
+
+  // ---------------------------------------------------------------------------
   // Coordonnées bancaires
   // ---------------------------------------------------------------------------
 
@@ -822,9 +1001,17 @@
     return { abandon: { portee, decision, motif } };
   }
 
-  /** Ce qu'un détecteur verse au score commun. */
-  function apports(liste) {
-    return { apports: liste };
+  /**
+   * Ce qu'un détecteur verse au score commun.
+   *
+   * `remplace` liste les raisons d'AUTRES détecteurs que celui-ci rend
+   * caduques, parce qu'il dit la même chose en mieux documenté. Sans ce
+   * mécanisme, deux formulations du même fait s'additionnent et un message
+   * franchit un seuil qu'il ne mérite pas — sur Outlook, où la bannière est
+   * irréversible, c'est un mail légitime défiguré.
+   */
+  function apports(liste, remplace) {
+    return { apports: liste, remplace: remplace || [] };
   }
 
   /**
@@ -872,6 +1059,7 @@
     const domaineConfiance = estDomaineDeConfiance(domaine);
     const domaineGrandPublic = estDomaineGrandPublic(domaine);
 
+    const prep = {};
     const base = {
       seuil: SEUIL_ALERTE,
       nomSignature: null,
@@ -897,7 +1085,7 @@
       },
     };
 
-    return {
+    Object.assign(prep, {
       base,
       corps,
       nomAffiche,
@@ -914,7 +1102,14 @@
       // travaille donc sur l'original.
       texteBrut: `${objet}\n${corps}`,
       contexte: normaliserContexte(contexte),
-    };
+    });
+
+    // Calculé ici, et non dans le détecteur de domaine, parce que les DEUX
+    // détecteurs en ont besoin : celui d'identité doit savoir qu'un domaine
+    // est suspect avant d'accepter qu'il cautionne un nom (voir porte 4).
+    prep.domaineSuspect = analyserDomaineExpediteur(prep);
+
+    return prep;
   }
 
   // ---------------------------------------------------------------------------
@@ -1001,10 +1196,52 @@
     ].filter(Boolean);
 
     let candidatCoherent = null;
+    let sourceCoherence = null;
     for (const c of candidats) {
       if (nomCorrespondALAdresse(c.nom, local)) {
         candidatCoherent = c;
+        sourceCoherence = "partie locale";
         break;
+      }
+    }
+
+    // Le DOMAINE peut cautionner le nom tout autant que la partie locale.
+    // « ATELIERS MERCIER » depuis compta@ateliers-mercier-sarl.fr est un
+    // expéditeur cohérent : le domaine porte le nom. Sans cette règle, une
+    // facture ordinaire ressortait en « modéré », parce que deux mots
+    // capitalisés passent pour un nom de personne et que « compta » ne
+    // ressemble à rien.
+    //
+    // ⚠ Sauf si le domaine est lui-même suspect. Un domaine typosquatté ne
+    //   cautionne rien du tout — c'est précisément l'inverse.
+    if (!candidatCoherent && !prep.domaineSuspect) {
+      for (const c of candidats) {
+        if (nomCorrespondAuDomaine(c.nom, domaine)) {
+          candidatCoherent = c;
+          sourceCoherence = "domaine";
+          break;
+        }
+      }
+    }
+
+    // Un domaine que le client a lui-même déclaré — le sien, ou celui d'un
+    // tiers légitime comme son routeur d'emailing — cautionne le nom.
+    //
+    // Sur ces domaines, l'incohérence nom ↔ partie locale ne dit rien :
+    // « campagnes@ », « no-reply@ » et « contact@ » ne ressembleront jamais à
+    // la signature, et une newsletter signée « L'équipe Safentreprise » se
+    // ferait signaler indéfiniment.
+    //
+    // Cela ne désarme QUE ce détecteur. Un compte interne compromis qui
+    // annonce un faux changement de RIB reste détecté : c'est un autre
+    // détecteur, et il ne dépend pas de l'identification d'un nom.
+    if (!candidatCoherent && !prep.domaineSuspect && prep.contexte.fourni) {
+      const declare =
+        domaineDansListe(domaine, prep.contexte.domainesInternes) ||
+        domaineDansListe(domaine, prep.contexte.domainesAutorises);
+      if (declare && candidats.length > 0) {
+        candidatCoherent = candidats[0];
+        sourceCoherence = "domaine declare";
       }
     }
 
@@ -1031,8 +1268,14 @@
       return abandon(
         "detecteur",
         "IGNORÉ — adresse cohérente avec le nom",
-        `L'adresse « ${local} » contient une forme reconnaissable de ` +
-          `« ${candidatCoherent.nom} » — expéditeur cohérent.`
+        sourceCoherence === "domaine"
+          ? `Le domaine « ${domaine} » porte le nom « ${candidatCoherent.nom} » ` +
+            `— expéditeur cohérent.`
+          : sourceCoherence === "domaine declare"
+          ? `Le domaine « ${domaine} » est déclaré par l'entreprise — ` +
+            `expéditeur cohérent.`
+          : `L'adresse « ${local} » contient une forme reconnaissable de ` +
+            `« ${candidatCoherent.nom} » — expéditeur cohérent.`
       );
     }
 
@@ -1253,6 +1496,157 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Détecteur — DOMAINE ET ANNUAIRE
+  // ---------------------------------------------------------------------------
+
+  /** Ce détecteur a-t-il déjà retenu cette raison ? Sert à ne rien compter deux fois. */
+  function aDejaRetenu(resultat, raison) {
+    return Boolean(
+      resultat &&
+        resultat.apports &&
+        resultat.apports.some((a) => a.raison === raison)
+    );
+  }
+
+  /**
+   * Deux noms désignent-ils la même personne ?
+   *
+   * Comparaison STRICTE des parties significatives, dans l'ordre. « Jean
+   * Martin » ne doit pas correspondre à « Jean Martinez », ni « Martin » seul
+   * à « Jean Martin » : sur un annuaire d'entreprise, une correspondance
+   * approximative produirait des usurpations imaginaires en série.
+   */
+  function memePersonne(a, b) {
+    const parties = (n) =>
+      normaliser(n)
+        .split(" ")
+        .filter((p) => p && !PARTICULES.has(p) && p.length >= 2);
+    const pa = parties(a);
+    const pb = parties(b);
+    if (pa.length < 2 || pa.length !== pb.length) return false;
+    return pa.every((p, i) => p === pb[i]);
+  }
+
+  /**
+   * Domaine imité, et identité d'annuaire usurpée.
+   *
+   * Ce détecteur ne fonctionne QU'AVEC un contexte : il compare le domaine
+   * expéditeur aux domaines réels de l'entreprise, et le nom signé à
+   * l'annuaire. Sans ces faits, il se tait — et le moteur se comporte comme
+   * avant, ce que vérifient les seize cas de référence.
+   *
+   * Il lit `base.nomSignature` et `base.nomExpediteur`, renseignés par le
+   * détecteur d'identité : celui-ci doit donc tourner en premier.
+   */
+  function detecterDomaine(prep, identite) {
+    const c = prep.contexte;
+    if (!c.fourni) {
+      return abandon(
+        "detecteur",
+        "IGNORÉ — aucun contexte d'entreprise",
+        "Ni domaines ni annuaire fournis : le domaine expéditeur n'est " +
+          "comparable à rien."
+      );
+    }
+
+    const liste = [];
+    const suspect = prep.domaineSuspect;
+
+    if (suspect && suspect.genre === "typosquat") {
+      liste.push({
+        // 75 = « élevé » à lui seul. C'est un fait vérifiable et sans
+        // interprétation possible : personne ne possède légitimement un
+        // domaine qui diffère du sien d'une lettre.
+        points: 75,
+        raison: "domaine_typosquatte",
+        signal:
+          `Le domaine expéditeur « ${prep.domaine} » imite « ${suspect.cible} », ` +
+          `un domaine de l'entreprise, à ${suspect.distance} caractère` +
+          `${suspect.distance > 1 ? "s" : ""} près.`,
+      });
+    } else if (suspect && suspect.genre === "marque") {
+      liste.push({
+        // 55 = « modéré ». Ici l'interprétation N'EST PAS univoque : un
+        // domaine marketing, un routeur d'emailing ou une filiale portent
+        // légitimement la marque. C'est à ça que sert la liste blanche, et
+        // c'est pourquoi ce signal ne monte pas seul à « élevé ».
+        points: 55,
+        raison: "marque_dans_domaine_tiers",
+        signal:
+          `Le domaine expéditeur « ${prep.domaine} » reprend le nom ` +
+          `« ${suspect.cible} » de l'entreprise sans être l'un de ses ` +
+          `domaines déclarés.`,
+      });
+    }
+
+    // — Usurpation d'une identité de l'annuaire —
+    const nom = prep.base.nomSignature || prep.base.nomExpediteur;
+    const externe = expediteurExterne(prep) === true;
+    const remplace = [];
+
+    if (nom && externe && c.annuaire.length > 0) {
+      const personne = c.annuaire.find((p) => p && memePersonne(nom, p.nom));
+      if (personne) {
+        // « Se présente au nom d'une personne depuis une messagerie grand
+        // public » redit, en moins précis, ce que dit l'usurpation d'annuaire.
+        // Les additionner ferait passer à « élevé » un message sans la moindre
+        // demande sensible — un salarié qui écrit depuis son adresse perso.
+        remplace.push("domaine_grand_public");
+        liste.push({
+          // 55 = « modéré » seul, et pas davantage : le fait est vérifiable
+          // mais son interprétation ne l'est pas. Les homonymes existent — le
+          // « Jean Martin » qui écrit depuis un cabinet comptable n'est pas
+          // celui de l'annuaire — et un dirigeant écrit parfois depuis son
+          // adresse personnelle.
+          points: 55,
+          raison: "usurpation_identite_annuaire",
+          signal:
+            `Le message se présente au nom de « ${nom} », qui figure à ` +
+            `l'annuaire de l'entreprise, mais il est envoyé depuis une ` +
+            `adresse extérieure (${prep.email}).`,
+        });
+
+        // Ce qui fait passer à « élevé ». Sans demande sensible ni pression,
+        // on en reste à « à vérifier ».
+        if (
+          prep.demandesSensibles.length > 0 &&
+          !aDejaRetenu(identite, "demande_sensible")
+        ) {
+          liste.push({
+            points: 20,
+            raison: "demande_sensible",
+            signal: `Demande d'action sensible détectée : ${prep.demandesSensibles
+              .slice(0, 4)
+              .join(", ")}.`,
+          });
+        } else if (
+          prep.amplificateurs.length > 0 &&
+          !aDejaRetenu(identite, "urgence_ou_secret")
+        ) {
+          liste.push({
+            points: 20,
+            raison: "urgence_ou_secret",
+            signal:
+              `Pression à l'urgence, au secret ou à l'indisponibilité : ` +
+              `${prep.amplificateurs.slice(0, 4).join(", ")}.`,
+          });
+        }
+      }
+    }
+
+    if (liste.length === 0) {
+      return abandon(
+        "detecteur",
+        "IGNORÉ — domaine expéditeur sans anomalie",
+        "Le domaine ne ressemble à aucun domaine de l'entreprise, et aucun " +
+          "nom de l'annuaire n'est repris."
+      );
+    }
+
+    return apports(liste, remplace);
+  }
+
+  // ---------------------------------------------------------------------------
   // Composition
   // ---------------------------------------------------------------------------
 
@@ -1280,9 +1674,22 @@
     const raisons = [];
     let score = 0;
 
+    // Raisons rendues caduques par un détecteur mieux renseigné.
+    const remplacees = new Set();
+    for (const resultat of resultats) {
+      for (const raison of resultat.remplace || []) remplacees.add(raison);
+    }
+
     for (const resultat of resultats) {
       if (!resultat.apports) continue;
       for (const apport of resultat.apports) {
+        // Un détecteur ne remplace jamais ses propres apports.
+        if (
+          remplacees.has(apport.raison) &&
+          (resultat.remplace || []).indexOf(apport.raison) === -1
+        ) {
+          continue;
+        }
         score += apport.points;
         signaux.push(apport.signal);
         raisons.push(apport.raison);
@@ -1344,7 +1751,11 @@
     // d'identité a déjà retenu le vocabulaire bancaire, pour ne pas le
     // compter deux fois.
     const identite = detecterIdentite(prep);
-    const detecteurs = [identite, detecterChangementRib(prep, identite)];
+    const detecteurs = [
+      identite,
+      detecterChangementRib(prep, identite),
+      detecterDomaine(prep, identite),
+    ];
 
     return composer(prep, detecteurs);
   }
@@ -1369,6 +1780,9 @@
     trouverIbans,
     validerRibFrancais,
     trouverRibsFrancais,
+    labelEnregistrable,
+    nomCorrespondAuDomaine,
+    distanceEdition,
     estDomaineDeConfiance,
     reconnaitreNomDePersonne,
     extraireNomSignature,

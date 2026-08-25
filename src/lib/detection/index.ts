@@ -40,8 +40,27 @@ export type Verdict = {
   nomRetenu?: string | null;
 };
 
+/**
+ * Faits que le moteur ne peut pas établir seul.
+ *
+ * Il ne va JAMAIS les chercher : c'est l'appelant qui les fournit, ce qui lui
+ * permet de rester sans entrée/sortie et chargeable dans un navigateur.
+ * Omis, le verdict est celui du moteur nu.
+ */
+export type ContexteDetection = {
+  /** Domaines réellement possédés par l'entreprise. */
+  domainesInternes?: string[];
+  /** Tiers légitimes : routeurs d'emailing, filiales, partenaires. */
+  domainesAutorises?: string[];
+  /** Instantané de l'annuaire. */
+  annuaire?: { nom: string; email?: string | null }[];
+};
+
 type ApiMoteur = {
-  analyserEmail: (entree: EntreeAnalyse) => Verdict;
+  analyserEmail: (
+    entree: EntreeAnalyse,
+    contexte?: ContexteDetection,
+  ) => Verdict;
   setDebug: (valeur: boolean) => void;
 };
 
@@ -90,9 +109,10 @@ export type VerdictServeur = Verdict & {
 /** Analyse un message et renvoie le verdict, niveau normalisé compris. */
 export async function analyser(
   entree: EntreeAnalyse,
+  contexte?: ContexteDetection,
 ): Promise<VerdictServeur> {
   const api = await chargerMoteur();
-  const verdict = api.analyserEmail(entree);
+  const verdict = api.analyserEmail(entree, contexte);
 
   return {
     ...verdict,

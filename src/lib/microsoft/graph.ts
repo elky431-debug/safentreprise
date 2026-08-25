@@ -147,6 +147,91 @@ export async function appelGraph<T>(
   return donnees as T;
 }
 
+/* ==========================================================================
+   Annuaire
+   ========================================================================== */
+
+export type PersonneAnnuaire = {
+  graph_user_id: string;
+  nom: string;
+  email: string | null;
+};
+
+type UtilisateurGraph = {
+  id?: string;
+  displayName?: string;
+  mail?: string | null;
+  userPrincipalName?: string | null;
+};
+
+/**
+ * Instantané de l'annuaire du locataire.
+ *
+ * Nécessite User.Read.All en autorisation d'application — la permission déjà
+ * ajoutée pour créer les abonnements.
+ *
+ * On ne demande QUE les quatre champs utiles. Graph renvoie par défaut une
+ * vingtaine d'attributs par personne, dont le poste, le téléphone et le
+ * bureau : autant de données personnelles qu'on n'a aucune raison de faire
+ * transiter.
+ *
+ * La pagination est suivie jusqu'au bout. Un annuaire tronqué produirait des
+ * usurpations non détectées, et surtout des domaines manquants — ce qui, sur
+ * Outlook, se paie en bannières posées sur du courrier légitime.
+ */
+export async function listerAnnuaire(
+  tenantId: string,
+  plafond = 5000,
+): Promise<PersonneAnnuaire[]> {
+  const personnes: PersonneAnnuaire[] = [];
+  let chemin: string | null =
+    "/users?$select=id,displayName,mail,userPrincipalName&$top=999";
+
+  while (chemin && personnes.length < plafond) {
+    const page: { value?: UtilisateurGraph[]; "@odata.nextLink"?: string } =
+      await appelGraph(tenantId, "GET", chemin);
+
+    for (const u of page.value ?? []) {
+      const nom = (u.displayName ?? "").trim();
+      if (!u.id || !nom) continue;
+      personnes.push({
+        graph_user_id: u.id,
+        nom,
+        email: (u.mail ?? u.userPrincipalName ?? null)?.toLowerCase() ?? null,
+      });
+    }
+
+    const suivant = page["@odata.nextLink"];
+    chemin = suivant ? suivant.replace("https://graph.microsoft.com/v1.0", "") : null;
+  }
+
+  return personnes;
+}
+
+/**
+ * Domaines déduits des adresses de l'annuaire.
+ *
+ * Les tirer de `/users` évite une permission supplémentaire : la liste
+ * faisant autorité vit sur `/organization` (verifiedDomains), mais elle
+ * demanderait un consentement de plus à l'installation. Les adresses réelles
+ * des salariés donnent le même résultat pour ce qu'on en fait.
+ *
+ * Les domaines techniques *.onmicrosoft.com sont écartés : tout locataire en
+ * possède un, il n'identifie pas l'entreprise et le comparer à quoi que ce
+ * soit n'aurait pas de sens.
+ */
+export function domainesDeAnnuaire(personnes: PersonneAnnuaire[]): string[] {
+  const comptes = new Map<string, number>();
+
+  for (const p of personnes) {
+    const domaine = p.email?.split("@")[1]?.trim().toLowerCase();
+    if (!domaine || domaine.endsWith(".onmicrosoft.com")) continue;
+    comptes.set(domaine, (comptes.get(domaine) ?? 0) + 1);
+  }
+
+  return [...comptes.keys()].sort();
+}
+
 /** Ce que le worker lit d'un message. Aucun autre champ n'est demandé. */
 export type MessageGraph = {
   id: string;

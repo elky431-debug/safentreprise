@@ -38,6 +38,13 @@ type Travail = {
   tentatives: number;
 };
 
+/** Faits d'entreprise passés au moteur. Voir `normaliserContexte`. */
+type ContexteDetection = {
+  domainesInternes: string[];
+  domainesAutorises: string[];
+  annuaire: { nom: string; email: string | null }[];
+};
+
 /* ==========================================================================
    Base
    ========================================================================== */
@@ -88,7 +95,46 @@ type Resultat = {
   motif?: string;
 };
 
-async function traiter(travail: Travail): Promise<Resultat> {
+/**
+ * Contexte d'entreprise, mis en cache le temps de l'exécution.
+ *
+ * Un lot porte souvent plusieurs messages de la même société : inutile de
+ * redemander l'annuaire à chaque fois. Le cache ne vit QUE le temps de
+ * l'invocation — pas de risque de servir à une société le contexte d'une
+ * autre entre deux appels.
+ */
+async function contextePour(
+  companyId: string,
+  cache: Map<string, ContexteDetection | null>,
+): Promise<ContexteDetection | undefined> {
+  if (!cache.has(companyId)) {
+    try {
+      cache.set(
+        companyId,
+        await rpc<ContexteDetection>("contexte_detection_graph", {
+          p_company_id: companyId,
+        }),
+      );
+    } catch (erreur) {
+      // Sans contexte le moteur reste opérant : il perd la détection de
+      // typosquattage et d'usurpation, pas le reste. Mieux vaut un verdict
+      // partiel qu'un message non analysé.
+      console.error("[worker] contexte indisponible :", erreur);
+      cache.set(companyId, null);
+    }
+  }
+
+  const contexte = cache.get(companyId);
+  // Un contexte sans domaine interne n'apprend rien au moteur et l'exposerait
+  // à conclure sur du vide : on préfère ne rien passer du tout.
+  if (!contexte || contexte.domainesInternes.length === 0) return undefined;
+  return contexte;
+}
+
+async function traiter(
+  travail: Travail,
+  contexte: ContexteDetection | undefined,
+): Promise<Resultat> {
   const debut = Date.now();
 
   const message = await lireMessage(
@@ -113,12 +159,15 @@ async function traiter(travail: Travail): Promise<Resultat> {
     format: message.body?.contentType === "text" ? "text" : "auto",
   });
 
-  const verdict = await analyser({
-    nomAffiche: message.from?.emailAddress?.name ?? "",
-    email: message.from?.emailAddress?.address ?? "",
-    objet: message.subject ?? "",
-    corps: corps.texte,
-  });
+  const verdict = await analyser(
+    {
+      nomAffiche: message.from?.emailAddress?.name ?? "",
+      email: message.from?.emailAddress?.address ?? "",
+      objet: message.subject ?? "",
+      corps: corps.texte,
+    },
+    contexte,
+  );
 
   await rpc("enregistrer_analyse_graph", {
     p_travail_id: travail.travail_id,
@@ -167,6 +216,7 @@ async function executer(): Promise<Response> {
 
   const resultats: Resultat[] = [];
   const echeance = Date.now() + BUDGET_MS;
+  const contextes = new Map<string, ContexteDetection | null>();
 
   for (const travail of travaux) {
     if (Date.now() > echeance) {
@@ -181,7 +231,8 @@ async function executer(): Promise<Response> {
     }
 
     try {
-      resultats.push(await traiter(travail));
+      const contexte = await contextePour(travail.company_id, contextes);
+      resultats.push(await traiter(travail, contexte));
     } catch (erreur) {
       const graph = erreur instanceof ErreurGraph ? erreur : null;
       const detail = erreur instanceof Error ? erreur.message : String(erreur);

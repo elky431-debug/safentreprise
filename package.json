@@ -12,7 +12,9 @@
     "moteur:test": "node src/lib/detection/detection-rules.test.js",
     "moteur:test-html": "node src/lib/detection/html-texte.test.js",
     "moteur:empreinte": "node src/lib/detection/empreinte.mjs",
-    "moteur:test-rib": "node src/lib/detection/changement-rib.test.js"
+    "moteur:test-rib": "node src/lib/detection/changement-rib.test.js",
+    "moteur:test-domaine": "node src/lib/detection/domaine.test.js",
+    "graph:annuaire": "node scripts/graph-annuaire.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
