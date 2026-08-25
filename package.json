@@ -8,8 +8,6 @@
     "start": "next start",
     "lint": "eslint",
     "db:apply": "node scripts/apply-schema.mjs",
-    "moteur:copier": "node scripts/moteur-copier.mjs",
-    "moteur:verifier": "node scripts/moteur-verifier.mjs",
     "moteur:test": "node src/lib/detection/detection-rules.test.js",
     "moteur:test-html": "node src/lib/detection/html-texte.test.js"
   },

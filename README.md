@@ -54,6 +54,71 @@ C'est une variable `NEXT_PUBLIC_*`, injectée **au build** : après l'avoir
 ajoutée ou modifiée, relancez un déploiement (*Deploys → Trigger deploy →
 Clear cache and deploy site*), sinon l'ancienne valeur reste embarquée.
 
+## Détection des messages frauduleux
+
+Le moteur vit dans `src/lib/detection/` et tourne **côté serveur**.
+
+| Fichier | Rôle |
+| --- | --- |
+| `detection-rules.js` | Moteur. Détecte l'incohérence entre le nom signé et l'adresse d'envoi. Aucune donnée propre à une société : rien à configurer par client. |
+| `html-texte.js` | Conversion du corps HTML en texte, préalable indispensable. |
+| `index.ts` | Adaptateur : rend le moteur consommable depuis le code Next. |
+
+`detection-rules.js` est écrit comme une fonction anonyme exécutée
+immédiatement, qui accroche son API à `self`. Ni `window` ni `self` n'existent
+dans Node : l'adaptateur pose `self` avant un import **dynamique**, un import
+statique serait hissé et s'exécuterait trop tôt. Le fichier de déclaration
+`detection-rules.d.ts` existe parce que TypeScript refuse d'importer un module
+sans `import` ni `export`.
+
+`html-texte.js` n'est pas un confort. Le moteur cherche la signature dans les
+huit dernières lignes non vides du corps : sur du HTML brut ce sont des balises
+de fermeture, et sur un mail avec fil de citation ce sont les dernières lignes
+du message **cité** — donc la signature de la mauvaise personne. Le module
+convertit, retire le texte masqué et les caractères de largeur nulle qui cassent
+la recherche par mot-clé, et coupe le fil de citation.
+
+| Commande | Effet |
+| --- | --- |
+| `npm run moteur:test` | 16 cas de détection |
+| `npm run moteur:test-html` | 28 vérifications de conversion HTML → texte, dont l'enchaînement complet conversion + moteur |
+
+### Deux principes qui valent pour toute intégration
+
+**Le signal durable est écrit à l'ingestion, pas à l'affichage.** Catégorie,
+libellé, bannière injectée : tout est posé dans la boîte au moment de l'analyse.
+Ces marques survivent à une panne du serveur. Une indisponibilité empêche
+d'analyser les **nouveaux** messages, elle n'efface pas les alertes déjà posées.
+
+**Jamais de pastille verte.** On n'affiche que le risque, jamais l'absence de
+risque. Sans cette règle, une analyse manquante ou une panne se lit comme une
+garantie de sécurité — un faux négatif silencieux, à l'échelle de tous les
+clients.
+
+### Extension Chrome — abandonnée le 25 août 2026
+
+**Raison.** Elle ne couvrait que gmail.com dans Chrome sur ordinateur. Ni le
+mobile, ni Safari, ni les applications de messagerie installées. Or les PME
+françaises sont majoritairement sur Microsoft 365, et leurs salariés lisent
+leurs messages dans Outlook installé ou sur téléphone — invisible pour une
+extension de navigateur.
+
+**Ce qui la remplace.** Une plateforme serveur qui se branche aux messageries.
+Microsoft 365 d'abord, via Microsoft Graph : le serveur analyse et pose une
+catégorie plus une bannière injectée dans le corps du message, visible quel que
+soit le client utilisé. La faisabilité est prouvée, voir la branche
+`spike/graph-banniere` et son `SPIKE-OUTLOOK.md`.
+
+Google Workspace viendra ensuite, et **pas via l'API Gmail** : les messages y
+sont immuables, seuls les libellés sont modifiables. La voie à creuser est le
+routage Google Workspace, qui intervient avant livraison.
+
+**Conséquences dans ce dépôt.** Le moteur reste ici et n'est plus partagé : le
+script de copie vers l'extension et ses vérifications de divergence ont été
+supprimés le même jour. Le dépôt `safentreprise-extension` est archivé en
+lecture seule ; sa copie du moteur porte encore un en-tête renvoyant à une
+commande qui n'existe plus.
+
 ## Scripts de diagnostic
 
 | Commande | Effet |
