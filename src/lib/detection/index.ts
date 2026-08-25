@@ -28,8 +28,16 @@ export type Verdict = {
   /** « faible » | « modéré » | « élevé » — avec accents. */
   niveau: string;
   alerte: boolean;
+  /** Phrases explicatives, destinées à l'affichage. */
   signaux: string[];
+  /** Codes courts, destinés aux statistiques. */
   raisons?: string[];
+  /** Nom trouvé en signature, s'il y en a un. */
+  nomSignature?: string | null;
+  /** Nom affiché par l'expéditeur. */
+  nomExpediteur?: string | null;
+  /** Celui des deux que le moteur a retenu pour son raisonnement. */
+  nomRetenu?: string | null;
 };
 
 type ApiMoteur = {
