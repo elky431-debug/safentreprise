@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:apply": "node scripts/apply-schema.mjs",
+    "graph:abonner": "node scripts/graph-abonner.mjs",
     "moteur:test": "node src/lib/detection/detection-rules.test.js",
     "moteur:test-html": "node src/lib/detection/html-texte.test.js"
   },
