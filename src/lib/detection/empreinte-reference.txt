@@ -1,0 +1,744 @@
+# Empreinte du moteur — 16 cas de référence
+
+==============================================================================
+Notification LinkedIn (nom = destinataire)
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — domaine expéditeur en liste blanche",
+  "demandesSensibles": [],
+  "formesTestees": [],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "linkedin.com",
+    "domaineDeConfiance": true,
+    "domaineGrandPublic": false,
+    "email": "notifications-noreply@linkedin.com",
+    "local": "notifications-noreply",
+    "longueurCorps": 144,
+    "nomAffiche": "LinkedIn"
+  },
+  "motifNonAlerte": "Expéditeur de confiance : « linkedin.com » figure dans la liste blanche.",
+  "niveau": "faible",
+  "nomExpediteur": null,
+  "nomRetenu": null,
+  "nomSignature": null,
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": null
+}
+
+==============================================================================
+Collègue depuis une adresse interne qui colle au nom
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — adresse cohérente avec le nom",
+  "demandesSensibles": [
+    "paiement",
+    "acompte"
+  ],
+  "formesTestees": [
+    "martin",
+    "sophiemartin",
+    "martinsophie",
+    "smartin",
+    "martins",
+    "sophie",
+    "sophiem",
+    "sm"
+  ],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "societe.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "sophie.martin@societe.com",
+    "local": "sophie.martin",
+    "longueurCorps": 103,
+    "nomAffiche": "Sophie Martin"
+  },
+  "motifNonAlerte": "L'adresse « sophie.martin » contient une forme reconnaissable de « Sophie Martin » — expéditeur cohérent.",
+  "niveau": "faible",
+  "nomExpediteur": "Sophie Martin",
+  "nomRetenu": "Sophie Martin",
+  "nomSignature": "Sophie Martin",
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Adresse par initiales (yef@societe.com) signée « Yacine El Fahim »
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — adresse cohérente avec le nom",
+  "demandesSensibles": [
+    "virement"
+  ],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "societe.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "yef@societe.com",
+    "local": "yef",
+    "longueurCorps": 96,
+    "nomAffiche": "Yacine El Fahim"
+  },
+  "motifNonAlerte": "L'adresse « yef » contient une forme reconnaissable de « Yacine El Fahim » — expéditeur cohérent.",
+  "niveau": "faible",
+  "nomExpediteur": "Yacine El Fahim",
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Initiale + nom (y.elfahim@societe.com)
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — adresse cohérente avec le nom",
+  "demandesSensibles": [
+    "regler la facture"
+  ],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "societe.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "y.elfahim@societe.com",
+    "local": "y.elfahim",
+    "longueurCorps": 73,
+    "nomAffiche": "Yacine El Fahim"
+  },
+  "motifNonAlerte": "L'adresse « y.elfahim » contient une forme reconnaissable de « Yacine El Fahim » — expéditeur cohérent.",
+  "niveau": "faible",
+  "nomExpediteur": "Yacine El Fahim",
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Newsletter externe saluant le destinataire par son nom
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — aucun nom de personne détecté",
+  "demandesSensibles": [
+    "paiement"
+  ],
+  "formesTestees": [],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "facture-pro.io",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "contact@facture-pro.io",
+    "local": "contact",
+    "longueurCorps": 119,
+    "nomAffiche": "Equipe Facture Pro"
+  },
+  "motifNonAlerte": "Ni signature de fin ni nom d'expéditeur ne ressemblent à un nom de personne.",
+  "niveau": "faible",
+  "nomExpediteur": null,
+  "nomRetenu": null,
+  "nomSignature": null,
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": null
+}
+
+==============================================================================
+Fin de message « Voir pièce jointe » (n'est pas un nom)
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — aucun nom de personne détecté",
+  "demandesSensibles": [
+    "paiement"
+  ],
+  "formesTestees": [],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "partenaire.fr",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "compta@partenaire.fr",
+    "local": "compta",
+    "longueurCorps": 73,
+    "nomAffiche": "Compta"
+  },
+  "motifNonAlerte": "Ni signature de fin ni nom d'expéditeur ne ressemblent à un nom de personne.",
+  "niveau": "faible",
+  "nomExpediteur": null,
+  "nomRetenu": null,
+  "nomSignature": null,
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": null
+}
+
+==============================================================================
+Signature tout en minuscules (trop ambiguë pour être un nom)
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — aucun nom de personne détecté",
+  "demandesSensibles": [
+    "regler la facture"
+  ],
+  "formesTestees": [],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "partenaire.fr",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "compta@partenaire.fr",
+    "local": "compta",
+    "longueurCorps": 59,
+    "nomAffiche": "Compta"
+  },
+  "motifNonAlerte": "Ni signature de fin ni nom d'expéditeur ne ressemblent à un nom de personne.",
+  "niveau": "faible",
+  "nomExpediteur": null,
+  "nomRetenu": null,
+  "nomSignature": null,
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": null
+}
+
+==============================================================================
+Message sans aucun nom de personne (notification applicative)
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — aucun nom de personne détecté",
+  "demandesSensibles": [],
+  "formesTestees": [],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "monoutil.io",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "support@monoutil.io",
+    "local": "support",
+    "longueurCorps": 54,
+    "nomAffiche": "Support Client"
+  },
+  "motifNonAlerte": "Ni signature de fin ni nom d'expéditeur ne ressemblent à un nom de personne.",
+  "niveau": "faible",
+  "nomExpediteur": null,
+  "nomRetenu": null,
+  "nomSignature": null,
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": null
+}
+
+==============================================================================
+Nom de famille seul dans l'adresse (elfahim@societe.com)
+attendu: aucune
+==============================================================================
+{
+  "alerte": false,
+  "amplificateurs": [],
+  "decision": "IGNORÉ — adresse cohérente avec le nom",
+  "demandesSensibles": [],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "societe.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "elfahim@societe.com",
+    "local": "elfahim",
+    "longueurCorps": 48,
+    "nomAffiche": "Yacine El Fahim"
+  },
+  "motifNonAlerte": "L'adresse « elfahim » contient une forme reconnaissable de « Yacine El Fahim » — expéditeur cohérent.",
+  "niveau": "faible",
+  "nomExpediteur": "Yacine El Fahim",
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [],
+  "score": 0,
+  "seuil": 30,
+  "signaux": [],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Signé un nom depuis gmail, SANS demande d'argent
+attendu: faible
+==============================================================================
+{
+  "alerte": true,
+  "amplificateurs": [],
+  "decision": "ALERTE faible — incoherence_nom_adresse + domaine_grand_public",
+  "demandesSensibles": [],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": true,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "gmail.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": true,
+    "email": "contact2024x@gmail.com",
+    "local": "contact2024x",
+    "longueurCorps": 74,
+    "nomAffiche": "Yacine El Fahim"
+  },
+  "motifNonAlerte": "",
+  "niveau": "faible",
+  "nomExpediteur": "Yacine El Fahim",
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [
+    "incoherence_nom_adresse",
+    "domaine_grand_public"
+  ],
+  "score": 50,
+  "seuil": 30,
+  "signaux": [
+    "Le message se présente au nom de « Yacine El Fahim » (signature), mais l'adresse d'envoi « contact2024x@gmail.com » ne contient aucune forme de ce nom.",
+    "L'expéditeur utilise une messagerie grand public (gmail.com) tout en se présentant au nom d'une personne."
+  ],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Adresse générique interne (direction@) signée d'un nom
+attendu: faible
+==============================================================================
+{
+  "alerte": true,
+  "amplificateurs": [],
+  "decision": "ALERTE faible — incoherence_nom_adresse",
+  "demandesSensibles": [],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": true,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "societe.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "direction@societe.com",
+    "local": "direction",
+    "longueurCorps": 74,
+    "nomAffiche": "Direction"
+  },
+  "motifNonAlerte": "",
+  "niveau": "faible",
+  "nomExpediteur": null,
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [
+    "incoherence_nom_adresse"
+  ],
+  "score": 30,
+  "seuil": 30,
+  "signaux": [
+    "Le message se présente au nom de « Yacine El Fahim » (signature), mais l'adresse d'envoi « direction@societe.com » ne contient aucune forme de ce nom."
+  ],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Signé un nom depuis une adresse incohérente + virement
+attendu: modéré
+==============================================================================
+{
+  "alerte": true,
+  "amplificateurs": [],
+  "decision": "ALERTE modéré — incoherence_nom_adresse + demande_sensible",
+  "demandesSensibles": [
+    "virement",
+    "iban",
+    "nouvel iban",
+    "reglement"
+  ],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": true,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "partenaire-groupe.net",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": false,
+    "email": "dg-compta@partenaire-groupe.net",
+    "local": "dg-compta",
+    "longueurCorps": 105,
+    "nomAffiche": "Direction Générale"
+  },
+  "motifNonAlerte": "",
+  "niveau": "modéré",
+  "nomExpediteur": null,
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [
+    "incoherence_nom_adresse",
+    "demande_sensible"
+  ],
+  "score": 55,
+  "seuil": 30,
+  "signaux": [
+    "Le message se présente au nom de « Yacine El Fahim » (signature), mais l'adresse d'envoi « dg-compta@partenaire-groupe.net » ne contient aucune forme de ce nom.",
+    "Demande d'action sensible détectée : virement, iban, nouvel iban, reglement."
+  ],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Signé un nom depuis gmail + virement urgent (arnaque au président)
+attendu: élevé
+==============================================================================
+{
+  "alerte": true,
+  "amplificateurs": [
+    "urgente",
+    "confidentielle",
+    "n en parlez a personne",
+    "je suis en deplacement"
+  ],
+  "decision": "ALERTE élevé — incoherence_nom_adresse + domaine_grand_public + demande_sensible + urgence_ou_secret",
+  "demandesSensibles": [
+    "virement",
+    "rib",
+    "nouveau rib"
+  ],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": true,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "gmail.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": true,
+    "email": "yacine.direction.groupe@gmail.com",
+    "local": "yacine.direction.groupe",
+    "longueurCorps": 226,
+    "nomAffiche": "Yacine El Fahim"
+  },
+  "motifNonAlerte": "",
+  "niveau": "élevé",
+  "nomExpediteur": "Yacine El Fahim",
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [
+    "incoherence_nom_adresse",
+    "domaine_grand_public",
+    "demande_sensible",
+    "urgence_ou_secret"
+  ],
+  "score": 85,
+  "seuil": 30,
+  "signaux": [
+    "Le message se présente au nom de « Yacine El Fahim » (signature), mais l'adresse d'envoi « yacine.direction.groupe@gmail.com » ne contient aucune forme de ce nom.",
+    "L'expéditeur utilise une messagerie grand public (gmail.com) tout en se présentant au nom d'une personne.",
+    "Demande d'action sensible détectée : virement, rib, nouveau rib.",
+    "Pression à l'urgence, au secret ou à l'indisponibilité : urgente, confidentielle, n en parlez a personne, je suis en deplacement."
+  ],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Adresse générique + webmail + transfert de solde en secret
+attendu: élevé
+==============================================================================
+{
+  "alerte": true,
+  "amplificateurs": [
+    "avant ce soir",
+    "discretion"
+  ],
+  "decision": "ALERTE élevé — incoherence_nom_adresse + domaine_grand_public + demande_sensible + urgence_ou_secret",
+  "demandesSensibles": [
+    "coordonnees bancaires",
+    "nouvelles coordonnees",
+    "transferer le solde",
+    "solde du compte"
+  ],
+  "formesTestees": [
+    "lefevre",
+    "marclefevre",
+    "lefevremarc",
+    "mlefevre",
+    "lefevrem",
+    "marc",
+    "marcl",
+    "ml"
+  ],
+  "incoherence": true,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "outlook.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": true,
+    "email": "compta.groupe2024@outlook.com",
+    "local": "compta.groupe2024",
+    "longueurCorps": 164,
+    "nomAffiche": "Marc Lefevre"
+  },
+  "motifNonAlerte": "",
+  "niveau": "élevé",
+  "nomExpediteur": "Marc Lefevre",
+  "nomRetenu": "Marc Lefevre",
+  "nomSignature": "Marc Lefevre",
+  "raisons": [
+    "incoherence_nom_adresse",
+    "domaine_grand_public",
+    "demande_sensible",
+    "urgence_ou_secret"
+  ],
+  "score": 85,
+  "seuil": 30,
+  "signaux": [
+    "Le message se présente au nom de « Marc Lefevre » (signature), mais l'adresse d'envoi « compta.groupe2024@outlook.com » ne contient aucune forme de ce nom.",
+    "L'expéditeur utilise une messagerie grand public (outlook.com) tout en se présentant au nom d'une personne.",
+    "Demande d'action sensible détectée : coordonnees bancaires, nouvelles coordonnees, transferer le solde, solde du compte.",
+    "Pression à l'urgence, au secret ou à l'indisponibilité : avant ce soir, discretion."
+  ],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Signature à majuscule partielle (« Clement faussé ») + gmail
+attendu: élevé
+==============================================================================
+{
+  "alerte": true,
+  "amplificateurs": [
+    "urgent",
+    "confidentiel"
+  ],
+  "decision": "ALERTE élevé — incoherence_nom_adresse + domaine_grand_public + demande_sensible + urgence_ou_secret",
+  "demandesSensibles": [
+    "virement"
+  ],
+  "formesTestees": [
+    "fausse",
+    "clementfausse",
+    "fausseclement",
+    "cfausse",
+    "faussec",
+    "clement",
+    "clementf",
+    "cf"
+  ],
+  "incoherence": true,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "gmail.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": true,
+    "email": "elky780contact@gmail.com",
+    "local": "elky780contact",
+    "longueurCorps": 83,
+    "nomAffiche": "ELKY 780"
+  },
+  "motifNonAlerte": "",
+  "niveau": "élevé",
+  "nomExpediteur": null,
+  "nomRetenu": "Clement faussé",
+  "nomSignature": "Clement faussé",
+  "raisons": [
+    "incoherence_nom_adresse",
+    "domaine_grand_public",
+    "demande_sensible",
+    "urgence_ou_secret"
+  ],
+  "score": 85,
+  "seuil": 30,
+  "signaux": [
+    "Le message se présente au nom de « Clement faussé » (signature), mais l'adresse d'envoi « elky780contact@gmail.com » ne contient aucune forme de ce nom.",
+    "L'expéditeur utilise une messagerie grand public (gmail.com) tout en se présentant au nom d'une personne.",
+    "Demande d'action sensible détectée : virement.",
+    "Pression à l'urgence, au secret ou à l'indisponibilité : urgent, confidentiel."
+  ],
+  "sourceNom": "signature"
+}
+
+==============================================================================
+Adresse gmail COHÉRENTE avec le nom + virement urgent
+attendu: modéré
+==============================================================================
+{
+  "alerte": true,
+  "amplificateurs": [
+    "urgent"
+  ],
+  "decision": "ALERTE modéré — domaine_grand_public + demande_sensible + urgence_ou_secret",
+  "demandesSensibles": [
+    "virement",
+    "rib",
+    "nouveau rib"
+  ],
+  "formesTestees": [
+    "fahim",
+    "yacinefahim",
+    "fahimyacine",
+    "yfahim",
+    "fahimy",
+    "yacineelfahim",
+    "yacine",
+    "yacinef",
+    "yf",
+    "yef"
+  ],
+  "incoherence": false,
+  "meta": {
+    "corpsDisponible": true,
+    "domaine": "gmail.com",
+    "domaineDeConfiance": false,
+    "domaineGrandPublic": true,
+    "email": "yacine.elfahim@gmail.com",
+    "local": "yacine.elfahim",
+    "longueurCorps": 97,
+    "nomAffiche": "Yacine El Fahim"
+  },
+  "motifNonAlerte": "",
+  "niveau": "modéré",
+  "nomExpediteur": "Yacine El Fahim",
+  "nomRetenu": "Yacine El Fahim",
+  "nomSignature": "Yacine El Fahim",
+  "raisons": [
+    "domaine_grand_public",
+    "demande_sensible",
+    "urgence_ou_secret"
+  ],
+  "score": 55,
+  "seuil": 30,
+  "signaux": [
+    "L'expéditeur utilise une messagerie grand public (gmail.com) tout en se présentant au nom d'une personne.",
+    "Demande d'action sensible détectée : virement, rib, nouveau rib.",
+    "Pression à l'urgence, au secret ou à l'indisponibilité : urgent."
+  ],
+  "sourceNom": "signature"
+}

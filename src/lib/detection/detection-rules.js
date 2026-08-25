@@ -575,11 +575,62 @@
   }
 
   /**
-   * Analyse un email et retourne un niveau de risque.
+   * Un détecteur renonce.
    *
-   * @param {{nomAffiche: string, email: string, objet?: string, corps?: string}} emailData
+   * La PORTÉE dit qui se tait :
+   *
+   *   « globale »   — plus personne ne parle. Réservé aux cas où le message
+   *                   entier est hors sujet : un expéditeur en liste blanche
+   *                   n'usurpe l'identité de personne et ne demande rien.
+   *   « detecteur » — ce détecteur-ci n'a rien à dire, les autres continuent.
+   *
+   * C'est toute la différence avec l'ancien fonctionnement, où le détecteur
+   * d'identité était l'unique chemin : faute de nom de personne à comparer, il
+   * sortait, et le message n'était plus examiné du tout. Un changement de RIB
+   * signé « Comptabilité DELTA-LOG » passait ainsi sans qu'aucune règle ne
+   * l'ait seulement regardé.
    */
-  function analyserEmail(emailData) {
+  function abandon(portee, decision, motif) {
+    return { abandon: { portee, decision, motif } };
+  }
+
+  /** Ce qu'un détecteur verse au score commun. */
+  function apports(liste) {
+    return { apports: liste };
+  }
+
+  /**
+   * Contexte facultatif, fourni par l'appelant.
+   *
+   * Le moteur ne fait AUCUN appel réseau et ne doit jamais en faire : il doit
+   * rester chargeable tel quel dans un navigateur. Les faits qu'il ne peut pas
+   * établir seul — domaines du locataire, annuaire, résultats SPF/DKIM/DMARC —
+   * lui sont donc PASSÉS par l'appelant qui, lui, a le droit d'aller les
+   * chercher.
+   *
+   * Absent, le moteur se comporte exactement comme sans lui. C'est ce qui
+   * permettra à un adaptateur Gmail de réutiliser le même fichier.
+   */
+  function normaliserContexte(contexte) {
+    const c = contexte || {};
+    const tableau = (v) => (Array.isArray(v) ? v : []);
+    return {
+      fourni: Boolean(contexte),
+      /** Domaines réellement possédés par le locataire. */
+      domainesInternes: tableau(c.domainesInternes),
+      /** Domaines tiers légitimes : routeurs d'emailing, partenaires. */
+      domainesAutorises: tableau(c.domainesAutorises),
+      /** Instantané de l'annuaire : [{ nom, email }]. */
+      annuaire: tableau(c.annuaire),
+      /** { spf, dkim, dmarc, compauth } tels que lus dans les en-têtes. */
+      authentification: c.authentification || null,
+      /** Adresse de réponse, si elle diffère de l'expéditeur. */
+      replyTo: typeof c.replyTo === "string" ? c.replyTo : null,
+    };
+  }
+
+  /** Travail commun à tous les détecteurs : parsing, normalisation, méta. */
+  function preparer(emailData, contexte) {
     const nomAffiche = (emailData && emailData.nomAffiche) || "";
     const adresse = (emailData && emailData.email) || "";
     const objet = (emailData && emailData.objet) || "";
@@ -618,20 +669,63 @@
       },
     };
 
+    return {
+      base,
+      corps,
+      nomAffiche,
+      email,
+      local,
+      domaine,
+      domaineConfiance,
+      domaineGrandPublic,
+      demandesSensibles,
+      amplificateurs,
+      texteAnalyse,
+      contexte: normaliserContexte(contexte),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Détecteur — IDENTITÉ (incohérence nom ↔ adresse)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Le détecteur historique, inchangé dans sa logique.
+   *
+   * Il n'est plus l'unique chemin d'analyse : c'est désormais un détecteur
+   * parmi d'autres. Ses portes ne font donc plus taire que lui — sauf la
+   * porte 1, dont la portée reste globale.
+   */
+  function detecterIdentite(prep) {
+    const base = prep.base;
+    const {
+      corps,
+      nomAffiche,
+      email,
+      local,
+      domaine,
+      domaineConfiance,
+      domaineGrandPublic,
+      demandesSensibles,
+      amplificateurs,
+    } = prep;
+
     // =========================================================================
     // PORTES BLOQUANTES
     // =========================================================================
 
     // Porte 1 — Service de confiance : ces expéditeurs citent le nom du
     // destinataire et n'usurpent l'identité de personne.
+    //
+    // PORTÉE GLOBALE, et c'est la seule : une notification LinkedIn n'est pas
+    // davantage un changement de RIB qu'une usurpation. Faire taire tous les
+    // détecteurs est ici le comportement voulu.
     if (domaineConfiance) {
-      const r = sansAlerte(
-        base,
+      return abandon(
+        "globale",
         "IGNORÉ — domaine expéditeur en liste blanche",
         `Expéditeur de confiance : « ${domaine} » figure dans la liste blanche.`
       );
-      journaliser(r);
-      return r;
     }
 
     // — Extraction des noms —
@@ -642,14 +736,16 @@
     base.nomExpediteur = nomDeExpediteur;
 
     // Porte 2 — Aucun nom de personne détecté : rien à comparer.
+    //
+    // C'est ici que mourait le changement de RIB fournisseur : « Comptabilité
+    // DELTA-LOG » n'est pas un nom de personne. La porte reste, mais sa portée
+    // est celle de ce détecteur seul.
     if (!base.nomSignature && !base.nomExpediteur) {
-      const r = sansAlerte(
-        base,
+      return abandon(
+        "detecteur",
         "IGNORÉ — aucun nom de personne détecté",
         "Ni signature de fin ni nom d'expéditeur ne ressemblent à un nom de personne."
       );
-      journaliser(r);
-      return r;
     }
 
     // Porte 3 — Le nom du corps n'est qu'une adresse au DESTINATAIRE.
@@ -657,13 +753,11 @@
     // déjà écarté ces cas ; il ne reste donc ici que le nom d'expéditeur.
     // Si celui-ci est absent, il n'y a plus rien à analyser.
     if (!base.nomSignature && !base.nomExpediteur) {
-      const r = sansAlerte(
-        base,
+      return abandon(
+        "detecteur",
         "IGNORÉ — nom en contexte de destinataire",
         "Le nom relevé désigne le destinataire, pas l'expéditeur."
       );
-      journaliser(r);
-      return r;
     }
 
     // — Correspondance nom ↔ adresse —
@@ -695,76 +789,130 @@
     // scénario canonique de l'arnaque au président, même quand l'adresse
     // reprend fidèlement le nom (yacine.elfahim@gmail.com). Le signal
     // « messagerie grand public » prend alors le relais de l'incohérence.
+    // NOTE — c'est cette porte qui rend le moteur aveugle au typosquatting :
+    // elle ne regarde que la partie locale de l'adresse. « y.elfahim » colle à
+    // « Yacine El Fahim », donc on sort — sans avoir vu que le domaine
+    // safentreprlse-groupe.com n'est pas celui de l'entreprise. Le détecteur
+    // de domaine, qui viendra ensuite, tranchera ce cas ; il le peut
+    // précisément parce que cette porte ne le fait plus taire.
     if (candidatCoherent && !domaineGrandPublic) {
-      const r = sansAlerte(
-        base,
+      return abandon(
+        "detecteur",
         "IGNORÉ — adresse cohérente avec le nom",
         `L'adresse « ${local} » contient une forme reconnaissable de ` +
           `« ${candidatCoherent.nom} » — expéditeur cohérent.`
       );
-      journaliser(r);
-      return r;
     }
 
     // Porte 5 — Adresse illisible (pas de partie locale exploitable).
     if (!local) {
-      const r = sansAlerte(
-        base,
+      return abandon(
+        "detecteur",
         "IGNORÉ — adresse expéditeur indisponible",
         "Impossible d'analyser l'adresse de l'expéditeur."
       );
-      journaliser(r);
-      return r;
     }
 
     // =========================================================================
     // SIGNAUX & SCORE
     // =========================================================================
 
-    const signaux = [];
-    const raisons = [];
-    let score = 0;
+    const liste = [];
 
     // Signal 1 — INCOHÉRENCE NOM ↔ ADRESSE (signal de base, +30)
     base.incoherence = !candidatCoherent;
     if (base.incoherence) {
-      score += 30;
-      signaux.push(
-        `Le message se présente au nom de « ${base.nomRetenu} » (${base.sourceNom}), ` +
-          `mais l'adresse d'envoi « ${email} » ne contient aucune forme de ce nom.`
-      );
-      raisons.push("incoherence_nom_adresse");
+      liste.push({
+        points: 30,
+        raison: "incoherence_nom_adresse",
+        signal:
+          `Le message se présente au nom de « ${base.nomRetenu} » (${base.sourceNom}), ` +
+          `mais l'adresse d'envoi « ${email} » ne contient aucune forme de ce nom.`,
+      });
     }
 
     // Signal 2 — MESSAGERIE GRAND PUBLIC (+20)
     if (domaineGrandPublic) {
-      score += 20;
-      signaux.push(
-        `L'expéditeur utilise une messagerie grand public (${domaine}) tout en ` +
-          `se présentant au nom d'une personne.`
-      );
-      raisons.push("domaine_grand_public");
+      liste.push({
+        points: 20,
+        raison: "domaine_grand_public",
+        signal:
+          `L'expéditeur utilise une messagerie grand public (${domaine}) tout en ` +
+          `se présentant au nom d'une personne.`,
+      });
     }
 
     // Signal 3 — DEMANDE D'ACTION SENSIBLE (+25)
     if (demandesSensibles.length > 0) {
-      score += 25;
-      signaux.push(
-        `Demande d'action sensible détectée : ${demandesSensibles.slice(0, 4).join(", ")}.`
-      );
-      raisons.push("demande_sensible");
+      liste.push({
+        points: 25,
+        raison: "demande_sensible",
+        signal: `Demande d'action sensible détectée : ${demandesSensibles.slice(0, 4).join(", ")}.`,
+      });
     }
 
     // Signal 4 — URGENCE / SECRET / INDISPONIBILITÉ (+10)
     // Bonus comportemental : ne compte qu'en renfort d'une demande sensible,
     // l'urgence étant bien trop banale dans les échanges légitimes.
     if (amplificateurs.length > 0 && demandesSensibles.length > 0) {
-      score += 10;
-      signaux.push(
-        `Pression à l'urgence, au secret ou à l'indisponibilité : ` +
-          `${amplificateurs.slice(0, 4).join(", ")}.`
-      );
-      raisons.push("urgence_ou_secret");
+      liste.push({
+        points: 10,
+        raison: "urgence_ou_secret",
+        signal:
+          `Pression à l'urgence, au secret ou à l'indisponibilité : ` +
+          `${amplificateurs.slice(0, 4).join(", ")}.`,
+      });
+    }
+
+    return apports(liste);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Composition
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Assemble les retours des détecteurs en un verdict unique.
+   *
+   * Le score est la somme des apports de TOUS les détecteurs. C'est le point
+   * du remaniement : un détecteur qui renonce ne retire que ses propres
+   * apports, il n'annule pas ceux des autres.
+   */
+  function composer(prep, resultats) {
+    const base = prep.base;
+
+    // Un abandon de portée globale prime sur tout le reste.
+    const global = resultats.find(
+      (r) => r.abandon && r.abandon.portee === "globale"
+    );
+    if (global) {
+      const r = sansAlerte(base, global.abandon.decision, global.abandon.motif);
+      journaliser(r);
+      return r;
+    }
+
+    const signaux = [];
+    const raisons = [];
+    let score = 0;
+
+    for (const resultat of resultats) {
+      if (!resultat.apports) continue;
+      for (const apport of resultat.apports) {
+        score += apport.points;
+        signaux.push(apport.signal);
+        raisons.push(apport.raison);
+      }
+    }
+
+    // Personne n'a rien à dire : on reprend le motif du premier détecteur qui
+    // a renoncé, nettement plus parlant qu'un « score insuffisant » générique.
+    if (signaux.length === 0) {
+      const premier = resultats.find((r) => r.abandon);
+      if (premier) {
+        const r = sansAlerte(base, premier.abandon.decision, premier.abandon.motif);
+        journaliser(r);
+        return r;
+      }
     }
 
     score = Math.min(100, score);
@@ -789,6 +937,27 @@
 
     journaliser(resultat);
     return resultat;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Analyse principale
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Analyse un email et retourne un niveau de risque.
+   *
+   * @param {{nomAffiche: string, email: string, objet?: string, corps?: string}} emailData
+   * @param {object} [contexte] Faits que le moteur ne peut pas établir seul
+   *   (domaines du locataire, annuaire, authentification). Facultatif : sans
+   *   lui le moteur rend exactement le même verdict qu'auparavant.
+   */
+  function analyserEmail(emailData, contexte) {
+    const prep = preparer(emailData, contexte);
+
+    // L'ordre compte pour la lisibilité des signaux, pas pour le score.
+    const detecteurs = [detecterIdentite(prep)];
+
+    return composer(prep, detecteurs);
   }
 
   // ---------------------------------------------------------------------------
