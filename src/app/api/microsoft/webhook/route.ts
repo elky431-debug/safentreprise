@@ -108,23 +108,31 @@ async function mettreEnFile(notification: Notification): Promise<boolean> {
   return true;
 }
 
-export async function POST(request: Request) {
-  const url = new URL(request.url);
+/**
+ * Poignée de main de validation.
+ *
+ * À la création d'un abonnement, Graph appelle cette URL avec un jeton en
+ * paramètre. Il faut le renvoyer TEL QUEL, en text/plain, avec un 200. Pas de
+ * JSON, pas de guillemets : la moindre décoration fait échouer la création.
+ *
+ * Graph n'utilise que POST. On répond aussi sur GET, volontairement : c'est
+ * le verbe par défaut de curl et d'un navigateur, donc celui avec lequel on
+ * teste. Sans ça, un test manuel tombe sur la page d'accueil de la route et
+ * laisse croire à une panne alors que tout fonctionne.
+ */
+function reponseValidation(request: Request): Response | null {
+  const jeton = new URL(request.url).searchParams.get("validationToken");
+  if (jeton === null) return null;
 
-  /* ----------------------------------------------------------------------
-     Poignée de main de validation
-     À la création d'un abonnement, Graph appelle cette URL avec un jeton en
-     paramètre. Il faut le renvoyer TEL QUEL, en text/plain, avec un 200.
-     Pas de JSON, pas de guillemets : la moindre décoration fait échouer la
-     création de l'abonnement.
-     ---------------------------------------------------------------------- */
-  const jeton = url.searchParams.get("validationToken");
-  if (jeton !== null) {
-    return new Response(jeton, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-  }
+  return new Response(jeton, {
+    status: 200,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
+export async function POST(request: Request) {
+  const validation = reponseValidation(request);
+  if (validation) return validation;
 
   /* ----------------------------------------------------------------------
      Notifications
@@ -171,8 +179,14 @@ export async function POST(request: Request) {
   return new Response(null, { status: toutesEnFile ? 202 : 503 });
 }
 
-/** Pratique pour vérifier d'un navigateur que la route est bien déployée. */
-export async function GET() {
+/**
+ * Pratique pour vérifier d'un navigateur que la route est bien déployée, et
+ * pour tester la poignée de main sans avoir à forcer la méthode.
+ */
+export async function GET(request: Request) {
+  const validation = reponseValidation(request);
+  if (validation) return validation;
+
   return new Response("Safentreprise — point d'entrée des notifications Graph", {
     status: 200,
     headers: { "Content-Type": "text/plain; charset=utf-8" },
