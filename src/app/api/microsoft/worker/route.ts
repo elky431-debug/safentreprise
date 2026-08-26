@@ -16,7 +16,7 @@
  * un lot court, un budget, et le reste au tour suivant.
  */
 import { analyser } from "@/lib/detection";
-import { ErreurGraph, lireMessage } from "@/lib/microsoft/graph";
+import { ErreurGraph, lireMessage, obtenirJeton } from "@/lib/microsoft/graph";
 import { convertirCorps } from "@/lib/detection/html-texte.js";
 
 export const runtime = "nodejs";
@@ -50,6 +50,32 @@ type ContexteDetection = {
    ========================================================================== */
 
 /**
+ * Erreur portant l'étape où elle s'est produite.
+ *
+ * Sans ça, une panne se présente comme un message nu — « Unexpected end of
+ * JSON input » — sans dire quel appel a échoué. L'étape est ce qui manque pour
+ * diagnostiquer depuis la seule réponse HTTP, sans accès aux journaux.
+ */
+class ErreurEtape extends Error {
+  constructor(
+    message: string,
+    readonly etape: string,
+    readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "ErreurEtape";
+  }
+}
+
+function etapeDe(erreur: unknown): string {
+  return erreur instanceof ErreurEtape ? erreur.etape : "inconnue";
+}
+
+function messageDe(erreur: unknown): string {
+  return erreur instanceof Error ? erreur.message : String(erreur);
+}
+
+/**
  * Appel d'une fonction Postgres avec la clé de service.
  *
  * Les fonctions du worker lisent des métadonnées de messages et modifient la
@@ -59,27 +85,79 @@ async function rpc<T>(nom: string, parametres: Record<string, unknown>): Promise
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const cle = process.env.SUPABASE_SECRET_KEY;
   if (!url || !cle) {
-    throw new Error(
+    throw new ErreurEtape(
       "NEXT_PUBLIC_SUPABASE_URL ou SUPABASE_SECRET_KEY absent de l'environnement.",
+      "configuration",
     );
   }
 
-  const reponse = await fetch(`${url}/rest/v1/rpc/${nom}`, {
-    method: "POST",
-    headers: {
-      apikey: cle,
-      Authorization: `Bearer ${cle}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(parametres),
-  });
-
-  if (!reponse.ok) {
-    const detail = await reponse.text();
-    throw new Error(`${nom} : HTTP ${reponse.status} — ${detail.slice(0, 300)}`);
+  let reponse: Response;
+  try {
+    reponse = await fetch(`${url}/rest/v1/rpc/${nom}`, {
+      method: "POST",
+      headers: {
+        apikey: cle,
+        Authorization: `Bearer ${cle}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(parametres),
+    });
+  } catch (erreur) {
+    throw new ErreurEtape(
+      `${nom} : impossible de joindre PostgREST — ${messageDe(erreur)}`,
+      `rpc:${nom}`,
+      erreur,
+    );
   }
 
-  return (await reponse.json()) as T;
+  const texte = await reponse.text();
+
+  if (!reponse.ok) {
+    throw new ErreurEtape(
+      `${nom} : HTTP ${reponse.status} — ${texte.slice(0, 300)}`,
+      `rpc:${nom}`,
+    );
+  }
+
+  // Une fonction qui RETURNS VOID — echec_travail_graph — fait répondre
+  // PostgREST sans corps. Faire JSON.parse dessus lève « Unexpected end of
+  // JSON input », un message qui ne dit ni quel appel ni quelle étape.
+  if (texte.trim() === "") return null as T;
+
+  try {
+    return JSON.parse(texte) as T;
+  } catch {
+    throw new ErreurEtape(
+      `${nom} : réponse illisible (HTTP ${reponse.status}) — ${texte.slice(0, 200)}`,
+      `rpc:${nom}`,
+    );
+  }
+}
+
+/**
+ * Signale l'échec d'un travail sans jamais masquer l'erreur d'origine.
+ *
+ * Ce compte rendu est appelé DEPUIS un bloc catch. S'il lève à son tour,
+ * l'exception remplace celle qu'on était en train de traiter et la vraie cause
+ * disparaît — c'est exactement ce qui rendait la panne indéchiffrable.
+ */
+async function signalerEchec(
+  travailId: string,
+  erreur: string,
+  definitif: boolean,
+): Promise<string | null> {
+  try {
+    await rpc("echec_travail_graph", {
+      p_travail_id: travailId,
+      p_erreur: erreur,
+      p_definitif: definitif,
+    });
+    return null;
+  } catch (secondaire) {
+    const detail = messageDe(secondaire);
+    console.error(`[worker] compte rendu d'échec impossible : ${detail}`);
+    return detail;
+  }
 }
 
 /* ==========================================================================
@@ -93,7 +171,23 @@ type Resultat = {
   score?: number;
   alerte?: boolean;
   motif?: string;
+  /** Où ça a cassé. Vide quand tout s'est bien passé. */
+  etape?: string;
+  /** Renseigné si le compte rendu d'échec a lui aussi échoué. */
+  echecSecondaire?: string;
+  /** Le contexte d'entreprise a-t-il pu être appliqué ? */
+  contexte?: "applique" | "absent";
 };
+
+/** Exécute une étape en lui attachant son nom en cas d'échec. */
+async function etape<T>(nom: string, action: () => Promise<T> | T): Promise<T> {
+  try {
+    return await action();
+  } catch (erreur) {
+    if (erreur instanceof ErreurEtape) throw erreur;
+    throw new ErreurEtape(messageDe(erreur), nom, erreur);
+  }
+}
 
 /**
  * Contexte d'entreprise, mis en cache le temps de l'exécution.
@@ -137,36 +231,43 @@ async function traiter(
 ): Promise<Resultat> {
   const debut = Date.now();
 
-  const message = await lireMessage(
-    travail.tenant_id,
-    travail.graph_user_id,
-    travail.message_id,
+  const message = await etape("lecture du message (Graph)", () =>
+    lireMessage(travail.tenant_id, travail.graph_user_id, travail.message_id),
   );
 
   // Un brouillon n'a pas été reçu : rien à analyser.
   if (message.isDraft) {
-    await rpc("echec_travail_graph", {
-      p_travail_id: travail.travail_id,
-      p_erreur: "brouillon, ignoré",
-      p_definitif: true,
-    });
-    return { message_id: travail.message_id, statut: "ignore", motif: "brouillon" };
+    const secondaire = await signalerEchec(
+      travail.travail_id,
+      "brouillon, ignoré",
+      true,
+    );
+    return {
+      message_id: travail.message_id,
+      statut: "ignore",
+      motif: "brouillon",
+      echecSecondaire: secondaire ?? undefined,
+    };
   }
 
   // Conversion du corps. C'est elle qui rend la signature trouvable : sur du
   // HTML brut, le moteur ne lit que des balises de fermeture.
-  const corps = convertirCorps(message.body?.content ?? "", {
-    format: message.body?.contentType === "text" ? "text" : "auto",
-  });
+  const corps = await etape("conversion du corps", () =>
+    convertirCorps(message.body?.content ?? "", {
+      format: message.body?.contentType === "text" ? "text" : "auto",
+    }),
+  );
 
-  const verdict = await analyser(
-    {
-      nomAffiche: message.from?.emailAddress?.name ?? "",
-      email: message.from?.emailAddress?.address ?? "",
-      objet: message.subject ?? "",
-      corps: corps.texte,
-    },
-    contexte,
+  const verdict = await etape("analyse (moteur de détection)", () =>
+    analyser(
+      {
+        nomAffiche: message.from?.emailAddress?.name ?? "",
+        email: message.from?.emailAddress?.address ?? "",
+        objet: message.subject ?? "",
+        corps: corps.texte,
+      },
+      contexte,
+    ),
   );
 
   await rpc("enregistrer_analyse_graph", {
@@ -198,6 +299,7 @@ async function traiter(
     niveau: verdict.niveau,
     score: verdict.score,
     alerte: verdict.alerte,
+    contexte: contexte ? "applique" : "absent",
   };
 }
 
@@ -222,11 +324,11 @@ async function executer(): Promise<Response> {
     if (Date.now() > echeance) {
       // On rend la main : les travaux non traités repassent en attente
       // au bout de dix minutes, ou dès le prochain tour si le lot est vide.
-      await rpc("echec_travail_graph", {
-        p_travail_id: travail.travail_id,
-        p_erreur: "budget de temps dépassé, repris au tour suivant",
-        p_definitif: false,
-      });
+      await signalerEchec(
+        travail.travail_id,
+        "budget de temps dépassé, repris au tour suivant",
+        false,
+      );
       continue;
     }
 
@@ -235,32 +337,193 @@ async function executer(): Promise<Response> {
       resultats.push(await traiter(travail, contexte));
     } catch (erreur) {
       const graph = erreur instanceof ErreurGraph ? erreur : null;
-      const detail = erreur instanceof Error ? erreur.message : String(erreur);
+      const detail = messageDe(erreur);
+      const ou = etapeDe(erreur);
 
       console.error(
-        `[worker] ${travail.message_id} : ${detail}`,
+        `[worker] ${travail.message_id} — étape « ${ou} » : ${detail}`,
         graph ? `(HTTP ${graph.statut}, ${graph.code})` : "",
       );
 
-      await rpc("echec_travail_graph", {
-        p_travail_id: travail.travail_id,
-        p_erreur: detail,
+      // signalerEchec avale ses propres pannes : sans ça, une erreur ici
+      // remplacerait celle qu'on est en train de traiter.
+      const secondaire = await signalerEchec(
+        travail.travail_id,
+        `[${ou}] ${detail}`,
         // Un message supprimé, une permission manquante : inutile d'insister.
-        p_definitif: graph ? !graph.reessayable : false,
-      });
+        graph ? !graph.reessayable : false,
+      );
 
       resultats.push({
         message_id: travail.message_id,
         statut: "echec",
-        motif: detail.slice(0, 200),
+        etape: ou,
+        motif: detail.slice(0, 300),
+        echecSecondaire: secondaire ?? undefined,
       });
     }
   }
 
   return Response.json({
     traites: resultats.filter((r) => r.statut === "analyse").length,
+    echecs: resultats.filter((r) => r.statut === "echec").length,
     resultats,
   });
+}
+
+/* ==========================================================================
+   Diagnostic
+   ========================================================================== */
+
+type Controle = { controle: string; etat: "ok" | "échec"; detail: string };
+
+/**
+ * Vérifie chaque dépendance, une par une, SANS TOUCHER À LA FILE.
+ *
+ * Quand le worker répond par une erreur, il est impossible de savoir depuis
+ * l'extérieur laquelle de ses cinq dépendances a lâché : variables
+ * d'environnement, PostgREST, les trois fonctions Postgres, le jeton Graph,
+ * l'annuaire. Ce mode les prend dans l'ordre et dit laquelle casse.
+ *
+ * Aucun travail n'est réclamé, aucun message lu, aucune ligne modifiée : on
+ * peut le lancer autant de fois qu'on veut, y compris en production.
+ */
+async function diagnostiquer(): Promise<Response> {
+  const controles: Controle[] = [];
+  const ajouter = (controle: string, etat: "ok" | "échec", detail: string) =>
+    controles.push({ controle, etat, detail });
+
+  // 1. Environnement. On ne révèle JAMAIS les valeurs, seulement la présence.
+  const requises = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "SUPABASE_SECRET_KEY",
+    "WORKER_SECRET",
+    "MS_CLIENT_ID",
+    "MS_CLIENT_SECRET",
+  ];
+  const absentes = requises.filter((v) => !process.env[v]);
+  ajouter(
+    "variables d'environnement",
+    absentes.length === 0 ? "ok" : "échec",
+    absentes.length === 0
+      ? `${requises.length} présentes`
+      : `absentes : ${absentes.join(", ")}`,
+  );
+
+  if (absentes.includes("NEXT_PUBLIC_SUPABASE_URL") || absentes.includes("SUPABASE_SECRET_KEY")) {
+    return Response.json({ diagnostic: controles }, { status: 500 });
+  }
+
+  // 2. Les trois fonctions du worker répondent-elles ?
+  //    On les appelle avec des paramètres inoffensifs : un UUID nul ne
+  //    correspond à aucun travail, donc rien n'est modifié.
+  const NUL = "00000000-0000-0000-0000-000000000000";
+
+  for (const [nom, parametres, attendu] of [
+    ["contexte_detection_graph", { p_company_id: NUL }, "objet JSON"],
+    ["echec_travail_graph", { p_travail_id: NUL, p_erreur: "diagnostic", p_definitif: false }, "corps vide (RETURNS VOID)"],
+  ] as const) {
+    try {
+      const r = await rpc<unknown>(nom, parametres);
+      ajouter(
+        `fonction ${nom}`,
+        "ok",
+        `répond — ${attendu}${r === null ? ", corps vide comme prévu" : ""}`,
+      );
+    } catch (erreur) {
+      ajouter(`fonction ${nom}`, "échec", messageDe(erreur));
+    }
+  }
+
+  // 3. État de la file, par simple lecture.
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const cle = process.env.SUPABASE_SECRET_KEY as string;
+    const r = await fetch(
+      `${url}/rest/v1/graph_file_attente?select=statut&limit=200`,
+      { headers: { apikey: cle, Authorization: `Bearer ${cle}` } },
+    );
+    const lignes = (await r.json()) as { statut: string }[];
+    const parStatut: Record<string, number> = {};
+    for (const l of lignes) parStatut[l.statut] = (parStatut[l.statut] ?? 0) + 1;
+    ajouter(
+      "file d'attente",
+      "ok",
+      Object.keys(parStatut).length
+        ? Object.entries(parStatut).map(([s, n]) => `${s}: ${n}`).join(", ")
+        : "vide",
+    );
+  } catch (erreur) {
+    ajouter("file d'attente", "échec", messageDe(erreur));
+  }
+
+  // 4. Locataires raccordés, et jeton Graph pour chacun.
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const cle = process.env.SUPABASE_SECRET_KEY as string;
+    const r = await fetch(
+      `${url}/rest/v1/microsoft_tenants?select=tenant_id,company_id,statut&statut=eq.actif`,
+      { headers: { apikey: cle, Authorization: `Bearer ${cle}` } },
+    );
+    const locataires = (await r.json()) as {
+      tenant_id: string;
+      company_id: string;
+    }[];
+
+    ajouter(
+      "locataires actifs",
+      locataires.length > 0 ? "ok" : "échec",
+      locataires.length > 0
+        ? `${locataires.length} — ${locataires.map((l) => l.tenant_id).join(", ")}`
+        : "aucun : lancer npm run graph:abonner",
+    );
+
+    for (const locataire of locataires) {
+      try {
+        await obtenirJeton(locataire.tenant_id);
+        ajouter(`jeton Graph ${locataire.tenant_id}`, "ok", "obtenu");
+      } catch (erreur) {
+        ajouter(`jeton Graph ${locataire.tenant_id}`, "échec", messageDe(erreur));
+      }
+
+      try {
+        const contexte = await rpc<ContexteDetection>(
+          "contexte_detection_graph",
+          { p_company_id: locataire.company_id },
+        );
+        const interne = contexte?.domainesInternes?.length ?? 0;
+        ajouter(
+          `contexte société ${locataire.company_id.slice(0, 8)}`,
+          interne > 0 ? "ok" : "échec",
+          interne > 0
+            ? `${interne} domaine(s) interne(s), ` +
+              `${contexte.domainesAutorises.length} autorisé(s), ` +
+              `${contexte.annuaire.length} personne(s)`
+            : "aucun domaine interne — le moteur tournera SANS détection de " +
+              "typosquattage ni d'usurpation. Lancer npm run graph:annuaire.",
+        );
+      } catch (erreur) {
+        ajouter(
+          `contexte société ${locataire.company_id.slice(0, 8)}`,
+          "échec",
+          messageDe(erreur),
+        );
+      }
+    }
+  } catch (erreur) {
+    ajouter("locataires actifs", "échec", messageDe(erreur));
+  }
+
+  const echecs = controles.filter((c) => c.etat === "échec");
+  return Response.json(
+    {
+      resume: echecs.length === 0
+        ? `${controles.length} contrôles, tout est vert`
+        : `${echecs.length} contrôle(s) en échec : ${echecs.map((c) => c.controle).join(", ")}`,
+      diagnostic: controles,
+    },
+    { status: echecs.length === 0 ? 200 : 500 },
+  );
 }
 
 /** Le secret partagé protège le déclenchement. */
@@ -281,12 +544,27 @@ export async function POST(request: Request) {
     return new Response("non autorisé", { status: 401 });
   }
 
+  // ?verifier=1 — contrôle les dépendances sans rien consommer.
+  if (new URL(request.url).searchParams.has("verifier")) {
+    return diagnostiquer();
+  }
+
   try {
     return await executer();
   } catch (erreur) {
-    const detail = erreur instanceof Error ? erreur.message : String(erreur);
-    console.error("[worker] échec global :", detail);
-    return Response.json({ erreur: detail }, { status: 500 });
+    const detail = messageDe(erreur);
+    const ou = etapeDe(erreur);
+    console.error(`[worker] échec global — étape « ${ou} » : ${detail}`);
+    return Response.json(
+      {
+        erreur: detail,
+        etape: ou,
+        indice:
+          "Lancer le même appel avec ?verifier=1 pour contrôler chaque " +
+          "dépendance sans toucher à la file.",
+      },
+      { status: 500 },
+    );
   }
 }
 
