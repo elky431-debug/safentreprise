@@ -18,29 +18,26 @@
  * moteur, si.
  */
 import { readFileSync } from "node:fs";
+import pg from "pg";
 
 // —————————————————————————— Environnement ——————————————————————————
 
-for (const ligne of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split("\n")) {
+// Mêmes variables que graph-abonner.mjs, lues au même endroit : le script
+// s'insère dans un enchaînement déjà en place, autant qu'il se configure
+// pareil.
+for (const ligne of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split(/\r?\n/)) {
   const m = ligne.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
 }
 
-const {
-  MS_CLIENT_ID,
-  MS_CLIENT_SECRET,
-  MS_TENANT_ID,
-  NEXT_PUBLIC_SUPABASE_URL,
-  SUPABASE_SECRET_KEY,
-} = process.env;
+const { MS_CLIENT_ID, MS_CLIENT_SECRET, MS_TENANT_ID, DATABASE_URL } = process.env;
 
 const manquantes = Object.entries({
-  MS_CLIENT_ID, MS_CLIENT_SECRET, MS_TENANT_ID,
-  NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY,
+  MS_CLIENT_ID, MS_CLIENT_SECRET, MS_TENANT_ID, DATABASE_URL,
 }).filter(([, v]) => !v).map(([k]) => k);
 
 if (manquantes.length) {
-  console.error(`Variables absentes de .env.local : ${manquantes.join(", ")}`);
+  console.error(`\n❌ Variables absentes de .env.local :\n   ${manquantes.join("\n   ")}\n`);
   process.exit(1);
 }
 
@@ -103,44 +100,31 @@ async function lireAnnuaire(acces) {
 
 // —————————————————————————— Base ——————————————————————————
 
-async function rpc(nom, parametres) {
-  const r = await fetch(`${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/${nom}`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(parametres),
-  });
-  const texte = await r.text();
-  if (!r.ok) throw new Error(`${nom} → HTTP ${r.status} — ${texte.slice(0, 400)}`);
-  return texte ? JSON.parse(texte) : null;
-}
+const db = new pg.Client({
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
 async function tenantUid() {
-  const r = await fetch(
-    `${NEXT_PUBLIC_SUPABASE_URL}/rest/v1/microsoft_tenants` +
-      `?tenant_id=eq.${encodeURIComponent(MS_TENANT_ID)}&select=id,company_id&limit=1`,
-    {
-      headers: {
-        apikey: SUPABASE_SECRET_KEY,
-        Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
-      },
-    },
+  const { rows } = await db.query(
+    `SELECT id, company_id FROM microsoft_tenants
+      WHERE tenant_id = $1 AND statut = 'actif' LIMIT 1`,
+    [MS_TENANT_ID],
   );
-  const lignes = await r.json();
-  if (!r.ok || !Array.isArray(lignes) || lignes.length === 0) {
+  if (rows.length === 0) {
     throw new Error(
-      `Locataire ${MS_TENANT_ID} introuvable. Lancer d'abord : npm run graph:abonner`,
+      `Locataire ${MS_TENANT_ID} introuvable ou inactif.\n` +
+        `   Lancer d'abord : npm run graph:abonner`,
     );
   }
-  return lignes[0];
+  return rows[0];
 }
 
 // —————————————————————————— Exécution ——————————————————————————
 
 console.log("Lecture de l'annuaire Microsoft 365…\n");
+
+await db.connect();
 
 const locataire = await tenantUid();
 const acces = await jeton();
@@ -162,21 +146,22 @@ for (const d of domaines) console.log(`    ${d.padEnd(40)} ${comptes.get(d)} adr
 
 if (personnes.length === 0) {
   console.error(
-    "\nAucune personne lue. L'instantané n'est PAS remplacé — une charge vide\n" +
-      "est un échec d'appel, pas une entreprise sans salarié.\n" +
-      "Vérifier la permission User.Read.All en autorisation d'application.",
+    "\n❌ Aucune personne lue. L'instantané n'est PAS remplacé — une charge vide\n" +
+      "   est un échec d'appel, pas une entreprise sans salarié.\n" +
+      "   Vérifier la permission User.Read.All en autorisation d'application.\n",
   );
+  await db.end();
   process.exit(1);
 }
 
-const [resultat] = await rpc("rafraichir_annuaire_graph", {
-  p_tenant_uid: locataire.id,
-  p_personnes: personnes,
-  p_domaines: domaines,
-});
+const { rows } = await db.query(
+  `SELECT * FROM rafraichir_annuaire_graph($1, $2::jsonb, $3::text[])`,
+  [locataire.id, JSON.stringify(personnes), domaines],
+);
+const resultat = rows[0];
 
 console.log(
-  `\n  Instantané à jour : ${resultat.personnes} personne(s), ` +
+  `\n✓ Instantané à jour : ${resultat.personnes} personne(s), ` +
     `${resultat.domaines} domaine(s).`,
 );
 console.log(
@@ -185,3 +170,5 @@ console.log(
     "    INSERT INTO company_domaines (company_id, domaine, interne, source, note)\n" +
     `    VALUES ('${locataire.company_id}', 'exemple.com', false, 'manuel', 'Routeur');\n`,
 );
+
+await db.end();
