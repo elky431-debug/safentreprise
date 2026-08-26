@@ -14,7 +14,9 @@
     "moteur:empreinte": "node src/lib/detection/empreinte.mjs",
     "moteur:test-rib": "node src/lib/detection/changement-rib.test.js",
     "moteur:test-domaine": "node src/lib/detection/domaine.test.js",
-    "graph:annuaire": "node scripts/graph-annuaire.mjs"
+    "graph:annuaire": "node scripts/graph-annuaire.mjs",
+    "banniere:test": "node --experimental-strip-types src/lib/microsoft/banniere.test.ts",
+    "graph:restaurer": "node scripts/graph-restaurer.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

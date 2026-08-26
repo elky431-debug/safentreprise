@@ -16,7 +16,20 @@
  * un lot court, un budget, et le reste au tour suivant.
  */
 import { analyser } from "@/lib/detection";
-import { ErreurGraph, lireMessage, obtenirJeton } from "@/lib/microsoft/graph";
+import {
+  ErreurGraph,
+  assurerCategorie,
+  lireMessage,
+  obtenirJeton,
+  poserCategorie,
+  remplacerCorps,
+} from "@/lib/microsoft/graph";
+import {
+  construireBanniere,
+  contientBanniere,
+  poserBanniere,
+  type NiveauBanniere,
+} from "@/lib/microsoft/banniere";
 import { convertirCorps } from "@/lib/detection/html-texte.js";
 
 export const runtime = "nodejs";
@@ -161,6 +174,134 @@ async function signalerEchec(
 }
 
 /* ==========================================================================
+   Action sur le message
+   ========================================================================== */
+
+/**
+ * Interrupteur d'écriture. DÉSACTIVÉ PAR DÉFAUT.
+ *
+ *   off       — on n'écrit rien. Le worker analyse et enregistre, comme avant.
+ *   categorie — pose seulement la catégorie. Réversible d'un clic par
+ *               l'utilisateur lui-même, et ne modifie pas le message.
+ *   complet   — catégorie ET bannière dans le corps.
+ *
+ * Il est à « off » tant que personne ne l'a explicitement changé : déployer ce
+ * code ne modifie donc aucune boîte. C'est voulu — la bannière est la seule
+ * opération irréversible du produit, elle ne doit jamais s'activer par le
+ * simple fait d'une mise en ligne.
+ */
+function modeAction(): "off" | "categorie" | "complet" {
+  const valeur = (process.env.GRAPH_ACTIONS ?? "off").trim().toLowerCase();
+  return valeur === "complet" || valeur === "categorie" ? valeur : "off";
+}
+
+type Action = {
+  mode: string;
+  categorie?: string;
+  banniere?: "posee" | "ignoree-texte" | "deja-presente" | "annulee-non-verifiable";
+  erreur?: string;
+};
+
+/**
+ * Pose la catégorie et, selon le mode, la bannière.
+ *
+ * ⚠ JAMAIS RIEN QUAND IL N'Y A PAS D'ALERTE. Pas de catégorie « analysé »,
+ *   pas de pastille verte : on n'affiche que le risque. Une marque d'absence
+ *   de risque vaudrait caution, y compris sur les messages que le worker n'a
+ *   jamais vus.
+ */
+async function agir(
+  travail: Travail,
+  message: { id: string; categories?: string[]; body?: { contentType?: string; content?: string } },
+  verdict: { alerte: boolean; niveauBase: string; score: number; signaux: string[] },
+): Promise<Action> {
+  const mode = modeAction();
+  if (mode === "off") return { mode: "off" };
+  if (!verdict.alerte) return { mode, banniere: undefined };
+
+  const categorie = await etape("création de la catégorie", () =>
+    assurerCategorie(travail.tenant_id, travail.graph_user_id, verdict.niveauBase),
+  );
+
+  await etape("pose de la catégorie", () =>
+    poserCategorie(
+      travail.tenant_id,
+      travail.graph_user_id,
+      travail.message_id,
+      message.categories ?? [],
+      categorie,
+    ),
+  );
+
+  if (mode === "categorie") return { mode, categorie };
+
+  const origine = message.body?.content ?? "";
+
+  // Un corps en texte brut afficherait les balises telles quelles. On s'en
+  // tient à la catégorie plutôt que de convertir le message en HTML, ce qui
+  // le transformerait bien au-delà de l'ajout d'un avertissement.
+  if (message.body?.contentType === "text") {
+    return { mode, categorie, banniere: "ignoree-texte" };
+  }
+
+  if (contientBanniere(origine)) {
+    return { mode, categorie, banniere: "deja-presente" };
+  }
+
+  const banniere = construireBanniere({
+    niveau: verdict.niveauBase as NiveauBanniere,
+    score: verdict.score,
+    signaux: verdict.signaux ?? [],
+  });
+
+  await etape("pose de la bannière", () =>
+    remplacerCorps(
+      travail.tenant_id,
+      travail.graph_user_id,
+      travail.message_id,
+      poserBanniere(origine, banniere),
+    ),
+  );
+
+  // ─────────────────────────────────────────────────────────────────────
+  // VÉRIFICATION APRÈS ÉCRITURE.
+  //
+  // Exchange normalise le HTML qu'on lui envoie. S'il retire nos marqueurs
+  // ET notre balise repère, la bannière devient indélébile : on n'a aucune
+  // copie du corps d'origine à réécrire. On relit donc ce qui a réellement
+  // été enregistré et on vérifie qu'on saurait le défaire.
+  //
+  // Si ce n'est pas le cas, l'original est encore en mémoire À CET INSTANT
+  // et nulle part ailleurs : c'est la seule fenêtre où l'annulation reste
+  // possible. On la saisit.
+  // ─────────────────────────────────────────────────────────────────────
+  const relu = await etape("relecture après pose", () =>
+    lireMessage(travail.tenant_id, travail.graph_user_id, travail.message_id),
+  );
+
+  if (!contientBanniere(relu.body?.content ?? "")) {
+    await etape("annulation de la bannière non vérifiable", () =>
+      remplacerCorps(
+        travail.tenant_id,
+        travail.graph_user_id,
+        travail.message_id,
+        origine,
+      ),
+    );
+    return {
+      mode,
+      categorie,
+      banniere: "annulee-non-verifiable",
+      erreur:
+        "La bannière n'était plus retrouvable après écriture : Exchange a " +
+        "retiré les marqueurs ET la balise repère. Corps d'origine rétabli.",
+    };
+  }
+
+  return { mode, categorie, banniere: "posee" };
+}
+
+/* ==========================================================================
    Traitement d'un message
    ========================================================================== */
 
@@ -177,6 +318,8 @@ type Resultat = {
   echecSecondaire?: string;
   /** Le contexte d'entreprise a-t-il pu être appliqué ? */
   contexte?: "applique" | "absent";
+  /** Ce qui a été posé sur le message, le cas échéant. */
+  action?: Action;
 };
 
 /** Exécute une étape en lui attachant son nom en cas d'échec. */
@@ -293,6 +436,41 @@ async function traiter(
     p_duree_ms: Date.now() - debut,
   });
 
+  // L'action vient APRÈS l'enregistrement du verdict, jamais avant : si elle
+  // échoue, on garde la trace de ce qu'on a décidé. L'inverse laisserait un
+  // message modifié sans qu'aucune ligne n'en témoigne — donc impossible à
+  // retrouver pour le défaire.
+  let action: Action = { mode: modeAction() };
+  try {
+    action = await agir(travail, message, verdict);
+
+    if (action.categorie || action.banniere === "posee") {
+      await rpc("marquer_action_graph", {
+        p_company_id: travail.company_id,
+        p_message_id: travail.message_id,
+        p_categorie: action.categorie ?? null,
+        p_banniere_posee: action.banniere === "posee",
+        p_erreur: action.erreur ?? null,
+      });
+    }
+  } catch (erreur) {
+    // Une action ratée ne doit pas faire retenter l'analyse : le verdict est
+    // écrit, et rejouer poserait la catégorie deux fois.
+    const detail = messageDe(erreur);
+    console.error(
+      `[worker] action impossible sur ${travail.message_id} — ` +
+        `étape « ${etapeDe(erreur)} » : ${detail}`,
+    );
+    action = { mode: modeAction(), erreur: detail };
+    await rpc("marquer_action_graph", {
+      p_company_id: travail.company_id,
+      p_message_id: travail.message_id,
+      p_categorie: null,
+      p_banniere_posee: false,
+      p_erreur: `[${etapeDe(erreur)}] ${detail}`.slice(0, 500),
+    }).catch(() => {});
+  }
+
   return {
     message_id: travail.message_id,
     statut: "analyse",
@@ -300,6 +478,7 @@ async function traiter(
     score: verdict.score,
     alerte: verdict.alerte,
     contexte: contexte ? "applique" : "absent",
+    action,
   };
 }
 
@@ -402,6 +581,14 @@ async function diagnostiquer(): Promise<Response> {
     "MS_CLIENT_SECRET",
   ];
   const absentes = requises.filter((v) => !process.env[v]);
+
+  ajouter(
+    "mode d'action (GRAPH_ACTIONS)",
+    "ok",
+    modeAction() === "off"
+      ? "off — aucune écriture dans les boîtes"
+      : `${modeAction()} — LE WORKER ÉCRIT DANS LES BOÎTES`,
+  );
   ajouter(
     "variables d'environnement",
     absentes.length === 0 ? "ok" : "échec",

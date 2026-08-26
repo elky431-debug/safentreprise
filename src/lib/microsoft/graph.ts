@@ -232,18 +232,134 @@ export function domainesDeAnnuaire(personnes: PersonneAnnuaire[]): string[] {
   return [...comptes.keys()].sort();
 }
 
+/* ==========================================================================
+   Catégories Outlook
+   ========================================================================== */
+
+/**
+ * Catégories posées selon le niveau.
+ *
+ * ⚠ JAMAIS DE CATÉGORIE POUR L'ABSENCE DE RISQUE. Il n'existe pas d'entrée
+ *   « rien à signaler » : on n'affiche que le risque. Une pastille verte sur
+ *   un message non analysé — parce que le worker n'est pas passé, parce que
+ *   l'abonnement a expiré — vaudrait caution, et c'est précisément ce qu'on
+ *   ne peut pas donner.
+ *
+ * Couleurs : preset0 rouge, preset1 orange, preset3 jaune.
+ */
+export const CATEGORIES: Record<string, { nom: string; couleur: string }> = {
+  eleve: { nom: "Safentreprise — Risque élevé", couleur: "preset0" },
+  modere: { nom: "Safentreprise — Suspect", couleur: "preset1" },
+  faible: { nom: "Safentreprise — À vérifier", couleur: "preset3" },
+};
+
+/** Toutes les catégories du produit, pour le nettoyage à la restauration. */
+export const NOMS_CATEGORIES = Object.values(CATEGORIES).map((c) => c.nom);
+
+type CategorieGraph = { id?: string; displayName?: string; color?: string };
+
+/**
+ * Crée la catégorie dans la boîte si elle n'y est pas encore.
+ *
+ * `displayName` doit être unique dans la liste maîtresse : on liste avant de
+ * créer. Une création concurrente reste possible entre les deux — deux
+ * messages de la même boîte traités en parallèle — donc un échec pour cause
+ * de doublon est traité comme un succès.
+ */
+export async function assurerCategorie(
+  tenantId: string,
+  graphUserId: string,
+  niveau: string,
+): Promise<string> {
+  const voulue = CATEGORIES[niveau] ?? CATEGORIES.faible;
+  const boite = encodeURIComponent(graphUserId);
+
+  const existantes = await appelGraph<{ value?: CategorieGraph[] }>(
+    tenantId,
+    "GET",
+    `/users/${boite}/outlook/masterCategories`,
+  );
+
+  if (existantes.value?.some((c) => c.displayName === voulue.nom)) {
+    return voulue.nom;
+  }
+
+  try {
+    await appelGraph(tenantId, "POST", `/users/${boite}/outlook/masterCategories`, {
+      displayName: voulue.nom,
+      color: voulue.couleur,
+    });
+  } catch (erreur) {
+    // Créée entre-temps par un traitement concurrent : c'est le résultat voulu.
+    const conflit =
+      erreur instanceof ErreurGraph &&
+      (erreur.statut === 409 ||
+        /already exists|duplicate/i.test(erreur.message));
+    if (!conflit) throw erreur;
+  }
+
+  return voulue.nom;
+}
+
+/**
+ * Remplace les catégories d'un message.
+ *
+ * On conserve celles que l'utilisateur a posées lui-même et on ne touche
+ * qu'aux nôtres : écraser le classement de quelqu'un serait une perte de
+ * données, silencieuse et sans rapport avec ce qu'on lui promet.
+ */
+export async function poserCategorie(
+  tenantId: string,
+  graphUserId: string,
+  messageId: string,
+  categoriesActuelles: string[],
+  ajouter: string | null,
+): Promise<string[]> {
+  const conservees = (categoriesActuelles ?? []).filter(
+    (c) => !NOMS_CATEGORIES.includes(c),
+  );
+  const finales = ajouter ? [...conservees, ajouter] : conservees;
+
+  await appelGraph(
+    tenantId,
+    "PATCH",
+    `/users/${encodeURIComponent(graphUserId)}/messages/${encodeURIComponent(messageId)}`,
+    { categories: finales },
+  );
+
+  return finales;
+}
+
+/** Remplace le corps d'un message. */
+export async function remplacerCorps(
+  tenantId: string,
+  graphUserId: string,
+  messageId: string,
+  contenu: string,
+  typeContenu: "html" | "text" = "html",
+): Promise<void> {
+  await appelGraph(
+    tenantId,
+    "PATCH",
+    `/users/${encodeURIComponent(graphUserId)}/messages/${encodeURIComponent(messageId)}`,
+    { body: { contentType: typeContenu, content: contenu } },
+  );
+}
+
 /** Ce que le worker lit d'un message. Aucun autre champ n'est demandé. */
 export type MessageGraph = {
   id: string;
   subject?: string;
   receivedDateTime?: string;
   isDraft?: boolean;
+  categories?: string[];
   from?: { emailAddress?: { name?: string; address?: string } };
   toRecipients?: { emailAddress?: { name?: string; address?: string } }[];
   body?: { contentType?: string; content?: string };
 };
 
-const CHAMPS = "id,subject,receivedDateTime,isDraft,from,toRecipients,body";
+const CHAMPS =
+  "id,subject,receivedDateTime,isDraft,categories,from,toRecipients,body";
 
 /**
  * Récupère un message.

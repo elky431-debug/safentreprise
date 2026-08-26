@@ -30,5 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "_commentaire_exclude": "Les suites .test.ts sont exécutées directement par Node avec --experimental-strip-types : elles s'importent avec l'extension .ts, que le compilateur de Next refuse. Elles ne partent pas dans le bundle, il n'y a rien à y vérifier ici.",
+  "exclude": ["node_modules", "**/*.test.ts"]
 }
