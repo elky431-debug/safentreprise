@@ -213,12 +213,19 @@ try {
   // 24 heures. Le plafond réel des ressources mail est annoncé entre 3 et 7
   // jours selon les pages de documentation ; 24 h est sûr dans les deux cas,
   // et le renouvellement passera bien avant.
-  const expiration = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  // Un abonnement à des messages Outlook vit au plus 10 080 minutes, soit un
+  // peu moins de 7 jours. On demande 9 600 minutes pour laisser de la marge au
+  // décalage d'horloge ; la maintenance le renouvellera 24 h avant l'échéance.
+  const expiration = new Date(Date.now() + 9600 * 60 * 1000).toISOString();
   const resource = `/users/${boite.id}/mailFolders('inbox')/messages`;
 
   const abonnement = await appelGraph(jeton, "POST", "/subscriptions", {
     changeType: "created",
     notificationUrl: NOTIFICATION_URL,
+    // Le même point d'entrée reçoit les notifications de cycle de vie : la
+    // documentation l'autorise, et cela évite une seconde URL à valider et à
+    // surveiller. Le webhook les distingue à la présence de lifecycleEvent.
+    lifecycleNotificationUrl: NOTIFICATION_URL,
     resource,
     clientState,
     expirationDateTime: expiration,

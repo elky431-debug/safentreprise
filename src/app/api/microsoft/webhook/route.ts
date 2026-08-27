@@ -36,7 +36,74 @@ type Notification = {
   changeType?: string;
   resource?: string;
   resourceData?: { id?: string };
+  /**
+   * Présent UNIQUEMENT sur les notifications de cycle de vie. C'est à ça
+   * qu'on les distingue : Microsoft les envoie sur le même point d'entrée,
+   * la documentation autorisant lifecycleNotificationUrl à valoir
+   * notificationUrl. Trois valeurs possibles :
+   *
+   *   reauthorizationRequired — réautoriser l'abonnement
+   *   subscriptionRemoved     — il a été supprimé, en recréer un
+   *   missed                  — des notifications ont été perdues
+   */
+  lifecycleEvent?: string;
 };
+
+/**
+ * Enregistre un événement de cycle de vie.
+ *
+ * On ne fait ici que le CONSTATER — marquer l'abonnement et, si des messages
+ * ont été perdus, demander un rattrapage. Recréer l'abonnement ou parcourir
+ * le delta prend bien plus que les 3 secondes accordées : c'est le travail de
+ * la route de maintenance.
+ */
+async function enregistrerCycleVie(
+  url: string,
+  cle: string,
+  notification: Notification,
+): Promise<boolean> {
+  if (!notification.subscriptionId || !notification.clientState) {
+    console.warn("[graph] événement de cycle de vie incomplet, ignoré");
+    return true;
+  }
+
+  const reponse = await fetch(
+    `${url}/rest/v1/rpc/enregistrer_evenement_cycle_vie`,
+    {
+      method: "POST",
+      headers: {
+        apikey: cle,
+        Authorization: `Bearer ${cle}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p_subscription_id: notification.subscriptionId,
+        p_client_state: notification.clientState,
+        p_evenement: notification.lifecycleEvent ?? "inconnu",
+      }),
+    },
+  );
+
+  if (!reponse.ok) {
+    console.error(`[graph] cycle de vie : HTTP ${reponse.status}`);
+    return false;
+  }
+
+  const reconnu = (await reponse.json()) as boolean;
+  if (!reconnu) {
+    // Abonnement inconnu ou clientState incorrect : ne pas faire retenter.
+    console.warn(
+      `[graph] événement de cycle de vie refusé pour ${notification.subscriptionId}`,
+    );
+    return true;
+  }
+
+  console.warn(
+    `[graph] cycle de vie « ${notification.lifecycleEvent} » sur ` +
+      `${notification.subscriptionId}`,
+  );
+  return true;
+}
 
 /**
  * Identifiant du message annoncé.
@@ -61,6 +128,12 @@ async function mettreEnFile(notification: Notification): Promise<boolean> {
   if (!url || !cle) {
     console.error("[graph] Supabase non configuré");
     return false;
+  }
+
+  // Notification de cycle de vie : aucun message à mettre en file, c'est
+  // l'abonnement lui-même qui est en cause.
+  if (notification.lifecycleEvent) {
+    return enregistrerCycleVie(url, cle, notification);
   }
 
   const messageId = extraireMessageId(notification);

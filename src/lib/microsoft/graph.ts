@@ -121,7 +121,13 @@ export async function appelGraph<T>(
 ): Promise<T> {
   const jeton = await obtenirJeton(tenantId);
 
-  const reponse = await fetch(`${BASE_GRAPH}${chemin}`, {
+  // Graph renvoie ses liens de pagination — @odata.nextLink, @odata.deltaLink —
+  // en URL ABSOLUE. Un deltaLink conservé en base revient donc ici tel quel :
+  // lui préfixer la base produirait « https://…/v1.0https://…/v1.0/users/… ».
+  // On accepte donc les deux formes.
+  const url = /^https?:\/\//i.test(chemin) ? chemin : `${BASE_GRAPH}${chemin}`;
+
+  const reponse = await fetch(url, {
     method: methode,
     headers: {
       Authorization: `Bearer ${jeton}`,
@@ -214,7 +220,7 @@ export async function listerAnnuaire(
     }
 
     const suivant = page["@odata.nextLink"];
-    chemin = suivant ? suivant.replace(BASE_GRAPH, "") : null;
+    chemin = suivant ?? null;
   }
 
   return personnes;
@@ -242,6 +248,76 @@ export function domainesDeAnnuaire(personnes: PersonneAnnuaire[]): string[] {
   }
 
   return [...comptes.keys()].sort();
+}
+
+/* ==========================================================================
+   Abonnements
+   ========================================================================== */
+
+export type AbonnementGraph = {
+  id: string;
+  expirationDateTime: string;
+  resource?: string;
+  clientState?: string;
+};
+
+/**
+ * Prolonge un abonnement existant.
+ *
+ * Un abonnement à des messages Outlook vit au plus 10 080 minutes, soit un peu
+ * moins de 7 jours. Au-delà, Graph refuse la date demandée.
+ *
+ * Un 404 ici veut dire que Microsoft a supprimé l'abonnement de son côté :
+ * il faut en créer un neuf, pas insister.
+ */
+export async function renouvelerAbonnement(
+  tenantId: string,
+  subscriptionId: string,
+  expiration: string,
+): Promise<AbonnementGraph> {
+  return appelGraph<AbonnementGraph>(
+    tenantId,
+    "PATCH",
+    `/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    { expirationDateTime: expiration },
+  );
+}
+
+/**
+ * Crée un abonnement aux messages d'une boîte.
+ *
+ * `lifecycleNotificationUrl` pointe sur le MÊME point d'entrée que les
+ * notifications ordinaires — la documentation l'autorise explicitement, et
+ * cela évite un second point d'entrée à valider et à surveiller. Le webhook
+ * distingue les deux à la présence de `lifecycleEvent`.
+ *
+ * `changeType: created` uniquement : sur « updated », notre propre pose de
+ * bannière déclencherait une notification, qui relancerait une analyse, qui
+ * reposerait une bannière — une boucle sans fin.
+ */
+export async function creerAbonnement(
+  tenantId: string,
+  graphUserId: string,
+  notificationUrl: string,
+  expiration: string,
+  clientState?: string,
+): Promise<AbonnementGraph & { clientState: string }> {
+  const secret =
+    clientState ??
+    Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map((o) => o.toString(16).padStart(2, "0"))
+      .join("");
+
+  const cree = await appelGraph<AbonnementGraph>(tenantId, "POST", "/subscriptions", {
+    changeType: "created",
+    notificationUrl,
+    lifecycleNotificationUrl: notificationUrl,
+    resource: `/users/${graphUserId}/mailFolders('inbox')/messages`,
+    expirationDateTime: expiration,
+    clientState: secret,
+  });
+
+  return { ...cree, clientState: secret };
 }
 
 /* ==========================================================================
