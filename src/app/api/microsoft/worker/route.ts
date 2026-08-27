@@ -197,9 +197,28 @@ function modeAction(): "off" | "categorie" | "complet" {
 
 type Action = {
   mode: string;
-  categorie?: string;
-  banniere?: "posee" | "ignoree-texte" | "deja-presente" | "annulee-non-verifiable";
-  erreur?: string;
+  categorie?: {
+    etat: "posee" | "echec";
+    nom?: string;
+    /** Sans la liste maîtresse, la catégorie s'affiche sans couleur. */
+    couleur?: "declaree" | "sans-couleur";
+    erreur?: string;
+  };
+  banniere?: {
+    etat:
+      | "posee"
+      | "echec"
+      | "ignoree-texte"
+      | "deja-presente"
+      | "annulee-non-verifiable";
+    erreur?: string;
+  };
+  /**
+   * L'action a réussi mais n'a pas pu être consignée en base. C'est grave :
+   * sans trace, graph:restaurer ne saura pas qu'il y a quelque chose à
+   * défaire sur ce message.
+   */
+  enregistrement?: string;
 };
 
 /**
@@ -217,35 +236,80 @@ async function agir(
 ): Promise<Action> {
   const mode = modeAction();
   if (mode === "off") return { mode: "off" };
-  if (!verdict.alerte) return { mode, banniere: undefined };
+  if (!verdict.alerte) return { mode };
 
-  const categorie = await etape("création de la catégorie", () =>
-    assurerCategorie(travail.tenant_id, travail.graph_user_id, verdict.niveauBase),
-  );
+  const action: Action = { mode };
 
-  await etape("pose de la catégorie", () =>
-    poserCategorie(
-      travail.tenant_id,
-      travail.graph_user_id,
-      travail.message_id,
-      message.categories ?? [],
-      categorie,
-    ),
-  );
+  // ─────────────────────────────────────────────────────────────────────
+  // LES DEUX ACTIONS SONT INDÉPENDANTES.
+  //
+  // La catégorie est un confort de tri ; la bannière est l'avertissement
+  // que l'utilisateur lira. Laisser la première empêcher la seconde revient
+  // à ne pas prévenir quelqu'un d'une tentative de fraude parce qu'on n'a
+  // pas pu colorier une pastille. Chacune a donc son propre try/catch, et
+  // aucune ne peut interrompre l'autre.
+  // ─────────────────────────────────────────────────────────────────────
 
-  if (mode === "categorie") return { mode, categorie };
+  try {
+    const categorie = await etape("création de la catégorie", () =>
+      assurerCategorie(travail.tenant_id, travail.graph_user_id, verdict.niveauBase),
+    );
 
+    await etape("pose de la catégorie", () =>
+      poserCategorie(
+        travail.tenant_id,
+        travail.graph_user_id,
+        travail.message_id,
+        message.categories ?? [],
+        categorie.nom,
+      ),
+    );
+
+    action.categorie = {
+      etat: "posee",
+      nom: categorie.nom,
+      couleur: categorie.enregistree ? "declaree" : "sans-couleur",
+      erreur: categorie.motif,
+    };
+  } catch (erreur) {
+    console.error(
+      `[worker] catégorie impossible sur ${travail.message_id} : ${messageDe(erreur)}`,
+    );
+    action.categorie = { etat: "echec", erreur: messageDe(erreur) };
+  }
+
+  if (mode === "categorie") return action;
+
+  try {
+    action.banniere = await poserBanniereSurMessage(travail, message, verdict);
+  } catch (erreur) {
+    console.error(
+      `[worker] bannière impossible sur ${travail.message_id} — ` +
+        `étape « ${etapeDe(erreur)} » : ${messageDe(erreur)}`,
+    );
+    action.banniere = { etat: "echec", erreur: messageDe(erreur) };
+  }
+
+  return action;
+}
+
+/** Pose la bannière et vérifie qu'on saurait la retirer. */
+async function poserBanniereSurMessage(
+  travail: Travail,
+  message: { body?: { contentType?: string; content?: string } },
+  verdict: { niveauBase: string; score: number; signaux: string[] },
+): Promise<NonNullable<Action["banniere"]>> {
   const origine = message.body?.content ?? "";
 
   // Un corps en texte brut afficherait les balises telles quelles. On s'en
   // tient à la catégorie plutôt que de convertir le message en HTML, ce qui
   // le transformerait bien au-delà de l'ajout d'un avertissement.
   if (message.body?.contentType === "text") {
-    return { mode, categorie, banniere: "ignoree-texte" };
+    return { etat: "ignoree-texte" };
   }
 
   if (contientBanniere(origine)) {
-    return { mode, categorie, banniere: "deja-presente" };
+    return { etat: "deja-presente" };
   }
 
   const banniere = construireBanniere({
@@ -289,16 +353,14 @@ async function agir(
       ),
     );
     return {
-      mode,
-      categorie,
-      banniere: "annulee-non-verifiable",
+      etat: "annulee-non-verifiable",
       erreur:
         "La bannière n'était plus retrouvable après écriture : Exchange a " +
         "retiré les marqueurs ET la balise repère. Corps d'origine rétabli.",
     };
   }
 
-  return { mode, categorie, banniere: "posee" };
+  return { etat: "posee" };
 }
 
 /* ==========================================================================
@@ -444,13 +506,23 @@ async function traiter(
   try {
     action = await agir(travail, message, verdict);
 
-    if (action.categorie || action.banniere === "posee") {
+    const categoriePosee =
+      action.categorie?.etat === "posee" ? (action.categorie.nom ?? null) : null;
+    const bannierePosee = action.banniere?.etat === "posee";
+
+    // On enregistre dès qu'une trace existe — y compris un échec seul, pour
+    // qu'il soit visible en base sans avoir à fouiller les journaux.
+    const erreurs = [action.categorie?.erreur, action.banniere?.erreur]
+      .filter(Boolean)
+      .join(" | ");
+
+    if (categoriePosee || bannierePosee || erreurs) {
       await rpc("marquer_action_graph", {
         p_company_id: travail.company_id,
         p_message_id: travail.message_id,
-        p_categorie: action.categorie ?? null,
-        p_banniere_posee: action.banniere === "posee",
-        p_erreur: action.erreur ?? null,
+        p_categorie: categoriePosee,
+        p_banniere_posee: bannierePosee,
+        p_erreur: erreurs ? erreurs.slice(0, 500) : null,
       });
     }
   } catch (erreur) {
@@ -461,7 +533,12 @@ async function traiter(
       `[worker] action impossible sur ${travail.message_id} — ` +
         `étape « ${etapeDe(erreur)} » : ${detail}`,
     );
-    action = { mode: modeAction(), erreur: detail };
+    // `agir` isole déjà chaque action et ne lève pas : arriver ici veut dire
+    // que c'est l'ENREGISTREMENT qui a échoué, pas l'action elle-même. On
+    // garde donc ce qu'`agir` a renvoyé — l'écraser ferait disparaître le
+    // fait qu'une bannière a bel et bien été posée, et donc la trace
+    // permettant de la retirer.
+    action = { ...action, enregistrement: detail };
     await rpc("marquer_action_graph", {
       p_company_id: travail.company_id,
       p_message_id: travail.message_id,

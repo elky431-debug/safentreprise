@@ -11,6 +11,18 @@
  * quand plusieurs messages sont traités dans la même invocation.
  */
 
+/**
+ * Adresses de Graph et d'Entra ID.
+ *
+ * Surchargeables par l'environnement, uniquement pour pouvoir faire tourner
+ * le worker contre un serveur d'essai. En production ces variables ne sont
+ * pas définies et les valeurs réelles s'appliquent.
+ */
+const BASE_GRAPH =
+  process.env.GRAPH_BASE_URL ?? "https://graph.microsoft.com/v1.0";
+const BASE_LOGIN =
+  process.env.MS_LOGIN_BASE_URL ?? "https://login.microsoftonline.com";
+
 /** Un jeton par locataire, avec sa date de péremption. */
 const cache = new Map<string, { jeton: string; expireA: number }>();
 
@@ -51,7 +63,7 @@ export async function obtenirJeton(tenantId: string): Promise<string> {
   const { clientId, clientSecret } = configuration();
 
   const reponse = await fetch(
-    `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`,
+    `${BASE_LOGIN}/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -109,7 +121,7 @@ export async function appelGraph<T>(
 ): Promise<T> {
   const jeton = await obtenirJeton(tenantId);
 
-  const reponse = await fetch(`https://graph.microsoft.com/v1.0${chemin}`, {
+  const reponse = await fetch(`${BASE_GRAPH}${chemin}`, {
     method: methode,
     headers: {
       Authorization: `Bearer ${jeton}`,
@@ -202,7 +214,7 @@ export async function listerAnnuaire(
     }
 
     const suivant = page["@odata.nextLink"];
-    chemin = suivant ? suivant.replace("https://graph.microsoft.com/v1.0", "") : null;
+    chemin = suivant ? suivant.replace(BASE_GRAPH, "") : null;
   }
 
   return personnes;
@@ -258,30 +270,71 @@ export const NOMS_CATEGORIES = Object.values(CATEGORIES).map((c) => c.nom);
 
 type CategorieGraph = { id?: string; displayName?: string; color?: string };
 
+export type ResultatCategorie = {
+  nom: string;
+  /** Déclarée dans la liste maîtresse, donc affichée avec sa couleur. */
+  enregistree: boolean;
+  motif?: string;
+};
+
 /**
- * Crée la catégorie dans la boîte si elle n'y est pas encore.
+ * Déclare la catégorie dans la liste maîtresse de la boîte — AU MIEUX.
  *
- * `displayName` doit être unique dans la liste maîtresse : on liste avant de
- * créer. Une création concurrente reste possible entre les deux — deux
- * messages de la même boîte traités en parallèle — donc un échec pour cause
- * de doublon est traité comme un succès.
+ * ⚠ CETTE ÉTAPE EST FACULTATIVE, et le code en dépend.
+ *
+ *   /outlook/masterCategories exige MailboxSettings.ReadWrite, sans
+ *   alternative moins privilégiée. Poser la catégorie SUR LE MESSAGE, en
+ *   revanche, ne demande que Mail.ReadWrite — `categories` est une propriété
+ *   modifiable d'un message reçu.
+ *
+ *   Sans cette permission, la catégorie s'affiche donc quand même, mais sans
+ *   couleur : Outlook montre son nom, et l'ajoute de lui-même à la liste de
+ *   l'utilisateur s'il la reprend. C'est une dégradation d'apparence, pas de
+ *   fonction — bien préférable à réclamer un accès en écriture aux réglages
+ *   de la boîte de tous les clients.
+ *
+ * Ne lève donc JAMAIS sur un refus de permission : elle rend compte et laisse
+ * l'appelant continuer.
  */
 export async function assurerCategorie(
   tenantId: string,
   graphUserId: string,
   niveau: string,
-): Promise<string> {
+): Promise<ResultatCategorie> {
   const voulue = CATEGORIES[niveau] ?? CATEGORIES.faible;
   const boite = encodeURIComponent(graphUserId);
 
-  const existantes = await appelGraph<{ value?: CategorieGraph[] }>(
-    tenantId,
-    "GET",
-    `/users/${boite}/outlook/masterCategories`,
-  );
+  const refus = (erreur: unknown): ResultatCategorie | null => {
+    if (!(erreur instanceof ErreurGraph)) return null;
+    const interdit =
+      erreur.statut === 403 ||
+      erreur.code === "ErrorAccessDenied" ||
+      /access is denied|accessdenied/i.test(erreur.message);
+    if (!interdit) return null;
+    return {
+      nom: voulue.nom,
+      enregistree: false,
+      motif:
+        "MailboxSettings.ReadWrite absent : la catégorie est posée sur le " +
+        "message mais n'a pas de couleur déclarée.",
+    };
+  };
+
+  let existantes: { value?: CategorieGraph[] };
+  try {
+    existantes = await appelGraph<{ value?: CategorieGraph[] }>(
+      tenantId,
+      "GET",
+      `/users/${boite}/outlook/masterCategories`,
+    );
+  } catch (erreur) {
+    const degrade = refus(erreur);
+    if (degrade) return degrade;
+    throw erreur;
+  }
 
   if (existantes.value?.some((c) => c.displayName === voulue.nom)) {
-    return voulue.nom;
+    return { nom: voulue.nom, enregistree: true };
   }
 
   try {
@@ -290,6 +343,9 @@ export async function assurerCategorie(
       color: voulue.couleur,
     });
   } catch (erreur) {
+    const degrade = refus(erreur);
+    if (degrade) return degrade;
+
     // Créée entre-temps par un traitement concurrent : c'est le résultat voulu.
     const conflit =
       erreur instanceof ErreurGraph &&
@@ -298,7 +354,7 @@ export async function assurerCategorie(
     if (!conflit) throw erreur;
   }
 
-  return voulue.nom;
+  return { nom: voulue.nom, enregistree: true };
 }
 
 /**
