@@ -222,6 +222,21 @@ type Action = {
 };
 
 /**
+ * Résume l'action en un état unique, conservé en base.
+ *
+ * C'est ce que la vue alertes_sans_banniere traduit en clair. Il n'existe
+ * PAS de valeur « rien à signaler » : une alerte sans bannière a toujours une
+ * raison, et cette raison doit être lisible sans ouvrir les journaux.
+ */
+function etatAction(action: Action): string {
+  if (action.mode === "off") return "mode-off";
+  if (action.banniere?.etat) return action.banniere.etat;
+  // Mode « categorie » : la bannière n'a délibérément pas été tentée.
+  if (action.categorie?.etat === "posee") return "categorie-seule";
+  return "echec";
+}
+
+/**
  * Pose la catégorie et, selon le mode, la bannière.
  *
  * ⚠ JAMAIS RIEN QUAND IL N'Y A PAS D'ALERTE. Pas de catégorie « analysé »,
@@ -510,19 +525,29 @@ async function traiter(
       action.categorie?.etat === "posee" ? (action.categorie.nom ?? null) : null;
     const bannierePosee = action.banniere?.etat === "posee";
 
-    // On enregistre dès qu'une trace existe — y compris un échec seul, pour
-    // qu'il soit visible en base sans avoir à fouiller les journaux.
     const erreurs = [action.categorie?.erreur, action.banniere?.erreur]
       .filter(Boolean)
       .join(" | ");
 
-    if (categoriePosee || bannierePosee || erreurs) {
+    // ─────────────────────────────────────────────────────────────────────
+    // TOUJOURS ENREGISTRER QUAND IL Y A ALERTE.
+    //
+    // La version précédente n'écrivait que si une catégorie ou une bannière
+    // avait été posée, ou qu'une erreur s'était produite. En mode « off »,
+    // aucun des trois : la ligne restait vierge, indiscernable d'une pose
+    // réussie. Une alerte sans bannière était donc invisible en base.
+    //
+    // Désormais, une alerte laisse TOUJOURS une trace de ce qui a été fait,
+    // y compris « rien, et voici pourquoi ».
+    // ─────────────────────────────────────────────────────────────────────
+    if (verdict.alerte) {
       await rpc("marquer_action_graph", {
         p_company_id: travail.company_id,
         p_message_id: travail.message_id,
         p_categorie: categoriePosee,
         p_banniere_posee: bannierePosee,
         p_erreur: erreurs ? erreurs.slice(0, 500) : null,
+        p_action_etat: etatAction(action),
       });
     }
   } catch (erreur) {
@@ -545,6 +570,7 @@ async function traiter(
       p_categorie: null,
       p_banniere_posee: false,
       p_erreur: `[${etapeDe(erreur)}] ${detail}`.slice(0, 500),
+      p_action_etat: "echec",
     }).catch(() => {});
   }
 
@@ -697,6 +723,27 @@ async function diagnostiquer(): Promise<Response> {
     } catch (erreur) {
       ajouter(`fonction ${nom}`, "échec", messageDe(erreur));
     }
+  }
+
+  // 2 bis. LE CONTRÔLE QUI COMPTE : une alerte sans bannière est un mail
+  //        frauduleux qui n'a pas été signalé à son destinataire.
+  try {
+    const [compte] = await rpc<
+      { total: number; reparables: number; plus_ancienne: string | null }[]
+    >("compter_alertes_sans_banniere", {});
+
+    ajouter(
+      "alertes sans bannière",
+      compte && compte.total > 0 ? "échec" : "ok",
+      !compte || compte.total === 0
+        ? "aucune"
+        : `${compte.total} alerte(s) sans bannière, dont ${compte.reparables} ` +
+          `réparable(s) au prochain passage de la maintenance. ` +
+          `La plus ancienne : ${compte.plus_ancienne}. ` +
+          `Détail : SELECT * FROM alertes_sans_banniere;`,
+    );
+  } catch (erreur) {
+    ajouter("alertes sans bannière", "échec", messageDe(erreur));
   }
 
   // 3. État de la file, par simple lecture.

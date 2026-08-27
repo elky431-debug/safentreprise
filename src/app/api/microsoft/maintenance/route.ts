@@ -22,8 +22,15 @@ import {
   ErreurGraph,
   appelGraph,
   creerAbonnement,
+  remplacerCorps,
   renouvelerAbonnement,
 } from "@/lib/microsoft/graph";
+import {
+  construireBanniere,
+  contientBanniere,
+  poserBanniere,
+  type NiveauBanniere,
+} from "@/lib/microsoft/banniere";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -316,6 +323,183 @@ async function rattraper(): Promise<Record<string, unknown>> {
 }
 
 /* ==========================================================================
+   Rattrapage des bannières manquantes
+   ========================================================================== */
+
+type AlerteSansBanniere = {
+  message_id: string;
+  company_id: string;
+  boite_id: string;
+  tenant_id: string;
+  graph_user_id: string;
+  upn: string;
+  niveau: NiveauBanniere;
+  score: number;
+  signaux: string[];
+  action_etat: string | null;
+  action_tentatives: number;
+};
+
+/**
+ * Repose les bannières qui manquent.
+ *
+ * POURQUOI CE TRAVAIL EXISTE. Une fois le verdict enregistré, le travail passe
+ * à « traite » et ne revient jamais dans la file. Sans ce rattrapage, une
+ * alerte dont l'action a échoué — ou n'a jamais été tentée, parce que
+ * l'écriture était désactivée à ce moment-là — reste sans bannière POUR
+ * TOUJOURS. C'est ce qui laissait passer un mail frauduleux sans avertissement.
+ *
+ * On ne réanalyse pas : les signaux sont déjà en base. La bannière reposée est
+ * donc exactement celle qu'on aurait posée sur le moment, indépendamment du
+ * contexte d'entreprise du jour.
+ */
+async function rattraperBannieres(): Promise<Record<string, unknown>> {
+  const mode = (process.env.GRAPH_ACTIONS ?? "off").trim().toLowerCase();
+  if (mode !== "complet") {
+    return { mode, posees: 0, details: [], note: "écriture non activée" };
+  }
+
+  const alertes = await rpc<AlerteSansBanniere[]>("alertes_a_bannieriser", {
+    p_limite: 10,
+  });
+
+  if (!Array.isArray(alertes) || alertes.length === 0) {
+    return { mode, examinees: 0, posees: 0, details: [] };
+  }
+
+  const details: Record<string, unknown>[] = [];
+  let posees = 0;
+
+  for (const alerte of alertes) {
+    try {
+      const message = await appelGraph<{
+        body?: { contentType?: string; content?: string };
+      }>(
+        alerte.tenant_id,
+        "GET",
+        `/users/${encodeURIComponent(alerte.graph_user_id)}/messages/` +
+          `${encodeURIComponent(alerte.message_id)}?$select=id,body`,
+      );
+
+      const origine = message.body?.content ?? "";
+
+      if (message.body?.contentType === "text") {
+        await rpc("marquer_action_graph", {
+          p_company_id: alerte.company_id,
+          p_message_id: alerte.message_id,
+          p_categorie: null,
+          p_banniere_posee: false,
+          p_erreur: null,
+          p_action_etat: "ignoree-texte",
+        });
+        details.push({ message: alerte.message_id.slice(0, 20), etat: "ignoree-texte" });
+        continue;
+      }
+
+      if (contientBanniere(origine)) {
+        // Elle était là : c'est l'enregistrement qui avait manqué, pas la pose.
+        await rpc("marquer_action_graph", {
+          p_company_id: alerte.company_id,
+          p_message_id: alerte.message_id,
+          p_categorie: null,
+          p_banniere_posee: true,
+          p_erreur: null,
+          p_action_etat: "posee",
+        });
+        posees += 1;
+        details.push({ message: alerte.message_id.slice(0, 20), etat: "deja-la-trace-corrigee" });
+        continue;
+      }
+
+      const banniere = construireBanniere({
+        niveau: alerte.niveau,
+        score: alerte.score,
+        signaux: Array.isArray(alerte.signaux) ? alerte.signaux : [],
+      });
+
+      await remplacerCorps(
+        alerte.tenant_id,
+        alerte.graph_user_id,
+        alerte.message_id,
+        poserBanniere(origine, banniere),
+      );
+
+      // Même vérification que dans le worker : si on ne saurait pas la
+      // retirer, on rétablit le corps d'origine tant qu'on l'a en mémoire.
+      const relu = await appelGraph<{ body?: { content?: string } }>(
+        alerte.tenant_id,
+        "GET",
+        `/users/${encodeURIComponent(alerte.graph_user_id)}/messages/` +
+          `${encodeURIComponent(alerte.message_id)}?$select=id,body`,
+      );
+
+      if (!contientBanniere(relu.body?.content ?? "")) {
+        await remplacerCorps(
+          alerte.tenant_id,
+          alerte.graph_user_id,
+          alerte.message_id,
+          origine,
+        );
+        await rpc("marquer_action_graph", {
+          p_company_id: alerte.company_id,
+          p_message_id: alerte.message_id,
+          p_categorie: null,
+          p_banniere_posee: false,
+          p_erreur: "bannière non retrouvable après écriture, corps rétabli",
+          p_action_etat: "annulee-non-verifiable",
+        });
+        details.push({ message: alerte.message_id.slice(0, 20), etat: "annulee-non-verifiable" });
+        continue;
+      }
+
+      await rpc("marquer_action_graph", {
+        p_company_id: alerte.company_id,
+        p_message_id: alerte.message_id,
+        p_categorie: null,
+        p_banniere_posee: true,
+        p_erreur: null,
+        p_action_etat: "posee",
+      });
+      posees += 1;
+      details.push({ message: alerte.message_id.slice(0, 20), etat: "posee" });
+    } catch (erreur) {
+      const graph = erreur instanceof ErreurGraph ? erreur : null;
+      const detail = messageDe(erreur);
+
+      // Message supprimé ou déplacé : il n'y a plus rien à bannièrer.
+      if (graph?.statut === 404) {
+        await rpc("abandonner_action_graph", {
+          p_company_id: alerte.company_id,
+          p_message_id: alerte.message_id,
+          p_erreur: "message introuvable — supprimé ou déplacé",
+        }).catch(() => {});
+        details.push({ message: alerte.message_id.slice(0, 20), etat: "abandonnee-404" });
+        continue;
+      }
+
+      await rpc("marquer_action_graph", {
+        p_company_id: alerte.company_id,
+        p_message_id: alerte.message_id,
+        p_categorie: null,
+        p_banniere_posee: false,
+        p_erreur: detail.slice(0, 500),
+        p_action_etat: "echec",
+      }).catch(() => {});
+
+      console.error(`[maintenance] bannière ${alerte.message_id} : ${detail}`);
+      details.push({
+        message: alerte.message_id.slice(0, 20),
+        etat: "echec",
+        erreur: detail.slice(0, 200),
+        tentatives: alerte.action_tentatives + 1,
+      });
+    }
+  }
+
+  return { mode, examinees: alertes.length, posees, details };
+}
+
+/* ==========================================================================
    Point d'entrée
    ========================================================================== */
 
@@ -355,6 +539,19 @@ export async function POST(request: Request) {
     } catch (erreur) {
       resultat.delta = { erreur: messageDe(erreur) };
       console.error("[maintenance] delta :", messageDe(erreur));
+    }
+  }
+
+  // Troisième travail, tout aussi indépendant : reposer les bannières
+  // manquantes. C'est le seul chemin qui rattrape une alerte dont l'action
+  // n'a pas abouti — le travail correspondant est « traite » et ne reviendra
+  // jamais dans la file.
+  if (seulement !== "abonnements" && seulement !== "delta") {
+    try {
+      resultat.bannieres = await rattraperBannieres();
+    } catch (erreur) {
+      resultat.bannieres = { erreur: messageDe(erreur) };
+      console.error("[maintenance] bannières :", messageDe(erreur));
     }
   }
 
