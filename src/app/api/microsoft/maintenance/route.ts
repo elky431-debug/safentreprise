@@ -404,6 +404,31 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         continue;
       }
 
+      // Même règle que le worker : pas de sauvegarde, pas de modification.
+      const sauvegarde = await rpc<string>("sauvegarder_corps_graph", {
+        p_company_id: alerte.company_id,
+        p_message_id: alerte.message_id,
+        p_contenu: origine,
+        p_content_type: texteBrut ? "text" : "html",
+      });
+
+      if (sauvegarde !== "sauvegarde" && sauvegarde !== "deja-sauvegarde") {
+        await rpc("marquer_action_graph", {
+          p_company_id: alerte.company_id,
+          p_message_id: alerte.message_id,
+          p_categorie: null,
+          p_banniere_posee: false,
+          p_erreur: `corps d'origine non sauvegardé (${sauvegarde}) — message NON modifié`,
+          p_action_etat: "echec",
+        });
+        details.push({
+          message: alerte.message_id.slice(0, 20),
+          etat: "echec",
+          erreur: `sauvegarde : ${sauvegarde}`,
+        });
+        continue;
+      }
+
       const contenu = {
         niveau: alerte.niveau,
         score: alerte.score,

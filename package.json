@@ -16,7 +16,8 @@
     "moteur:test-domaine": "node src/lib/detection/domaine.test.js",
     "graph:annuaire": "node scripts/graph-annuaire.mjs",
     "banniere:test": "node --experimental-strip-types src/lib/microsoft/banniere.test.ts",
-    "graph:restaurer": "node scripts/graph-restaurer.mjs"
+    "graph:restaurer": "node scripts/graph-restaurer.mjs",
+    "graph:essai-conversion": "node scripts/graph-essai-conversion.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

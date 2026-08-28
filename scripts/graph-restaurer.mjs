@@ -194,6 +194,59 @@ for (const cible of cibles) {
     );
     const categoriesARetirer = (actuel?.categories ?? []).length - categoriesRestantes.length;
 
+    // ─────────────────────────────────────────────────────────────────────
+    // D'ABORD LA SAUVEGARDE, LA DÉCOUPE EN SECOURS.
+    //
+    // Réécrire l'original conservé est exact et rend aussi le contentType
+    // d'avant — c'est ce qui autorise la conversion d'un corps texte en HTML.
+    // La découpe reste indispensable pour tout ce qui a été modifié avant la
+    // mise en place des sauvegardes, et pour les corps trop volumineux.
+    // ─────────────────────────────────────────────────────────────────────
+    const { rows: sauvegardes } = await db.query(
+      "SELECT * FROM corps_original_graph($1, $2)",
+      [cible.company_id, cible.message_id],
+    );
+    const original = sauvegardes[0] ?? null;
+
+    if (original) {
+      if (ESSAI) {
+        console.log(
+          `  → ${court}  ${objet}\n` +
+            `      original conservé (${original.content_type}, ` +
+            `${original.contenu.length} car.), ` +
+            `catégorie(s) : ${categoriesARetirer}`,
+        );
+        restaures += 1;
+        continue;
+      }
+
+      await graph(cible.tenant_id, "PATCH", `/users/${boite}/messages/${message}`, {
+        body: { contentType: original.content_type, content: original.contenu },
+      });
+
+      if (categoriesARetirer > 0) {
+        await graph(cible.tenant_id, "PATCH", `/users/${boite}/messages/${message}`, {
+          categories: categoriesRestantes,
+        });
+      }
+
+      await db.query("SELECT marquer_restauration_graph($1, $2)", [
+        cible.company_id, cible.message_id,
+      ]);
+      // Le corps n'a plus aucune raison d'être conservé.
+      await db.query("SELECT oublier_corps_graph($1, $2)", [
+        cible.company_id, cible.message_id,
+      ]);
+
+      console.log(
+        `  ✓ ${court}  ${objet}\n` +
+          `      original rétabli depuis la sauvegarde (${original.content_type}), ` +
+          `${categoriesARetirer} catégorie(s) retirée(s)`,
+      );
+      restaures += 1;
+      continue;
+    }
+
     if (retrait.retirees === 0 && categoriesARetirer === 0) {
       console.log(`  ○ ${court}  ${objet}\n      rien à retirer`);
       if (!ESSAI) {

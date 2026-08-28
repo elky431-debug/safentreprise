@@ -327,6 +327,35 @@ async function poserBanniereSurMessage(
     return { etat: "deja-presente" };
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // SAUVEGARDE AVANT TOUTE ÉCRITURE.
+  //
+  // Pas de sauvegarde, pas de modification. Un message altéré sans copie de
+  // son corps d'origine ne se rattrape que par découpe des marqueurs — ce qui
+  // marche, mais interdit toute conversion de format et ne survit pas à un
+  // nettoyage HTML d'Exchange.
+  //
+  // « deja-sauvegarde » est un succès : l'original est en base depuis un
+  // passage précédent, et il ne doit surtout pas être remplacé.
+  // ─────────────────────────────────────────────────────────────────────
+  const sauvegarde = await etape("sauvegarde du corps d'origine", () =>
+    rpc<string>("sauvegarder_corps_graph", {
+      p_company_id: travail.company_id,
+      p_message_id: travail.message_id,
+      p_contenu: origine,
+      p_content_type: texteBrut ? "text" : "html",
+    }),
+  );
+
+  if (sauvegarde !== "sauvegarde" && sauvegarde !== "deja-sauvegarde") {
+    return {
+      etat: "echec",
+      erreur:
+        `corps d'origine non sauvegardé (${sauvegarde}) — message NON modifié. ` +
+        `On ne touche pas à un message qu'on ne saurait pas remettre en état.`,
+    };
+  }
+
   const contenu = {
     niveau: verdict.niveauBase as NiveauBanniere,
     score: verdict.score,
