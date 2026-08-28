@@ -28,6 +28,7 @@ import {
   construireBanniere,
   construireBanniereTexte,
   contientBanniere,
+  corpsEstHtml,
   poserBanniere,
   poserBanniereTexte,
   type NiveauBanniere,
@@ -315,11 +316,12 @@ async function poserBanniereSurMessage(
 ): Promise<NonNullable<Action["banniere"]>> {
   const origine = message.body?.content ?? "";
 
-  // Un corps en texte brut reçoit une bannière EN TEXTE BRUT. Y mettre du HTML
-  // afficherait les balises ; le convertir en HTML casserait la restauration,
-  // qui rendrait alors du HTML là où il y avait du texte. On reste donc dans
-  // le format d'origine, et l'avertissement est le même.
-  const texteBrut = message.body?.contentType === "text";
+  // Le format se décide sur LE CONTENU, pas sur le contentType annoncé :
+  // Graph renvoie « html » par défaut même pour un message nativement en
+  // texte, et s'est déjà trompé dans l'autre sens. Un corps réellement en
+  // texte reçoit une bannière texte ; on ne le convertit jamais en HTML, ce
+  // qui casserait la restauration.
+  const texteBrut = !corpsEstHtml(message.body);
 
   if (contientBanniere(origine)) {
     return { etat: "deja-presente" };

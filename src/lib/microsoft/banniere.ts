@@ -53,12 +53,68 @@ export const MARQUEUR_FIN = "<!--SAFENTREPRISE-BANNIERE:FIN-->";
  *   bannière. La découpe doit rendre EXACTEMENT ce qu'il y avait avant, ce
  *   qui impose de rester dans le format d'origine.
  */
-export const MARQUEUR_TEXTE_DEBUT = "===== SAFENTREPRISE — AVERTISSEMENT =====";
+export const MARQUEUR_TEXTE_DEBUT =
+  "========== SAFENTREPRISE — AVERTISSEMENT ==========";
+/**
+ * Le marqueur de fin sert AUSSI de séparation avec le message d'origine.
+ * Sans lui, l'avertissement et le mail se confondaient en un seul bloc de
+ * texte et le lecteur ne voyait pas où commençait quoi.
+ */
 export const MARQUEUR_TEXTE_FIN =
-  "===== SAFENTREPRISE — FIN DE L'AVERTISSEMENT =====";
+  "===== SAFENTREPRISE — MESSAGE D'ORIGINE CI-DESSOUS =====";
 
 /** Au-delà, on coupe : un corps texte se lit mal en lignes trop longues. */
 const LARGEUR_TEXTE = 72;
+
+/**
+ * Anciens marqueurs texte, reconnus au RETRAIT uniquement.
+ *
+ * Des bannières posées avec eux se trouvent déjà dans des boîtes. Cesser de
+ * les reconnaître les rendrait indélébiles — on n'a aucune sauvegarde du corps
+ * d'origine, la découpe est le seul moyen de les enlever.
+ */
+const ANCIENS_MARQUEURS_TEXTE: [string, string][] = [
+  [
+    "===== SAFENTREPRISE — AVERTISSEMENT =====",
+    "===== SAFENTREPRISE — FIN DE L'AVERTISSEMENT =====",
+  ],
+];
+
+/**
+ * Le corps est-il réellement du HTML ?
+ *
+ * ⚠ NE PAS SE FIER AU SEUL contentType. La documentation de Graph est
+ *   formelle : sans l'en-tête « Prefer: outlook.body-content-type », body est
+ *   renvoyé EN HTML, même pour un message nativement en texte. Un
+ *   contentType valant « text » ne devrait donc jamais nous parvenir — et
+ *   pourtant c'est arrivé, ce qui veut dire que ce champ ne décrit pas de
+ *   façon fiable ce qu'on a réellement entre les mains.
+ *
+ *   On regarde donc LE CONTENU. Une balise ouvrante bien formée est un fait
+ *   observable ; le contentType n'est qu'un indice, utilisé pour départager
+ *   quand le contenu ne tranche pas.
+ *
+ *   L'erreur coûteuse est d'envoyer une bannière texte dans un corps HTML :
+ *   l'avertissement s'y perd au milieu du balisage. L'inverse — du HTML dans
+ *   un corps texte — affiche des balises, ce qui est visible immédiatement.
+ *   En cas de doute, on penche donc vers HTML.
+ */
+export function corpsEstHtml(body?: {
+  contentType?: string;
+  content?: string;
+}): boolean {
+  const contenu = String(body?.content ?? "");
+
+  // Une balise ouvrante reconnaissable, ou une entité HTML : ce sont des
+  // marques que du texte brut ne porte pas.
+  const balises =
+    /<(?:html|body|div|p|br|table|tr|td|span|a|img|ul|li|font|b|i|strong|em|h[1-6])\b[^>]*>/i;
+  if (balises.test(contenu)) return true;
+  if (/&(?:nbsp|amp|lt|gt|quot|#\d+);/.test(contenu)) return true;
+
+  // Aucune marque de HTML : c'est du texte, quoi qu'annonce le contentType.
+  return false;
+}
 
 /** Repère de repli, si les commentaires ne survivent pas à Exchange. */
 const ATTRIBUT = "data-safentreprise";
@@ -185,6 +241,24 @@ function replier(texte: string, largeur: number, retrait = ""): string[] {
   return lignes;
 }
 
+/**
+ * Retire d'un signal tout ce qui pourrait passer pour un marqueur.
+ *
+ * Les signaux citent le nom et l'adresse de l'expéditeur — du texte qu'il
+ * contrôle. Un marqueur glissé là découperait la bannière au mauvais endroit
+ * et la restauration rendrait un corps tronqué.
+ */
+function nettoyerSignal(signal: string): string {
+  let propre = String(signal ?? "");
+  const marqueurs = [
+    MARQUEUR_TEXTE_DEBUT,
+    MARQUEUR_TEXTE_FIN,
+    ...ANCIENS_MARQUEURS_TEXTE.flat(),
+  ];
+  for (const m of marqueurs) propre = propre.split(m).join("");
+  return propre.replace(/\s+/g, " ").trim();
+}
+
 const TITRES_TEXTE: Record<NiveauBanniere, string> = {
   eleve: "RISQUE ÉLEVÉ DE FRAUDE",
   modere: "MESSAGE SUSPECT",
@@ -205,40 +279,48 @@ const TITRES_TEXTE: Record<NiveauBanniere, string> = {
 export function construireBanniereTexte(contenu: ContenuBanniere): string {
   const titre = TITRES_TEXTE[contenu.niveau] ?? TITRES_TEXTE.faible;
 
+  // Tout le bloc est indenté de deux espaces : dans un client qui n'affiche
+  // aucune couleur ni cadre, c'est le seul moyen de faire lire l'ensemble
+  // comme un encart et non comme la suite du message.
+  const R = "  ";
+
   const lignes: string[] = [
     MARQUEUR_TEXTE_DEBUT,
-    `/!\\  ${titre}`,
+    "",
+    `${R}/!\\  ${titre}`,
+    "",
+    `${R}Ce message présente les signes suivants :`,
     "",
   ];
 
-  for (const signal of contenu.signaux.slice(0, 5)) {
+  contenu.signaux.slice(0, 5).forEach((signal, index) => {
     // Un signal ne doit jamais contenir un marqueur : il découperait la
     // bannière au mauvais endroit et rendrait la restauration fausse.
-    const propre = String(signal)
-      .split(MARQUEUR_TEXTE_DEBUT).join("")
-      .split(MARQUEUR_TEXTE_FIN).join("")
-      .replace(/\s+/g, " ")
-      .trim();
-    // La continuation s'aligne sous le texte, pas sous le tiret : une puce
+    const propre = nettoyerSignal(signal);
+    // La continuation s'aligne sous le texte, pas sous le numéro : une puce
     // qui se poursuit dans la marge se lit comme un nouveau point.
-    const [premiere, ...suite] = replier(propre, LARGEUR_TEXTE - 4, "");
-    lignes.push(`  - ${premiere}`);
-    for (const l of suite) lignes.push(`    ${l}`);
-  }
+    const [premiere, ...suite] = replier(propre, LARGEUR_TEXTE - 9, "");
+    lignes.push(`${R}  ${index + 1}. ${premiere}`);
+    for (const l of suite) lignes.push(`${R}     ${l}`);
+    // Une ligne vide entre les signaux : collés, ils forment un pavé illisible.
+    lignes.push("");
+  });
 
-  lignes.push("");
+  lignes.push(`${R}QUE FAIRE`);
   lignes.push(
     ...replier(
       "Ne donnez pas suite sans vérifier par un autre moyen : appelez " +
         "votre interlocuteur sur un numéro que vous connaissez déjà, jamais " +
         "sur un numéro indiqué dans ce message.",
-      LARGEUR_TEXTE,
+      LARGEUR_TEXTE - 2,
+      R,
     ),
   );
+  lignes.push("");
   lignes.push(MARQUEUR_TEXTE_FIN);
 
-  // Les deux sauts finaux séparent la bannière du message et font partie de
-  // ce que la découpe retire.
+  // Deux lignes vides avant le message : la respiration qui manquait, et qui
+  // fait partie de ce que la découpe retire.
   return lignes.join("\n") + "\n\n";
 }
 
@@ -271,13 +353,22 @@ function echapperRegex(texte: string): string {
 // Les deux sauts de ligne finaux font partie de la bannière : on les retire
 // avec elle. Ils sont tolérés absents — un corps vide n'en a pas — et en
 // \r\n, Exchange normalisant parfois les fins de ligne.
-const ENTRE_MARQUEURS_TEXTE = new RegExp(
-  echapperRegex(MARQUEUR_TEXTE_DEBUT) +
-    "[\\s\\S]*?" +
-    echapperRegex(MARQUEUR_TEXTE_FIN) +
-    "(?:\\r?\\n){0,2}",
-  "g",
-);
+function motifEntreMarqueurs(debut: string, fin: string): RegExp {
+  return new RegExp(
+    echapperRegex(debut) +
+      "[\\s\\S]*?" +
+      echapperRegex(fin) +
+      "(?:\\r?\\n){0,2}",
+    "g",
+  );
+}
+
+// L'actuel d'abord, puis les anciens : une bannière posée hier doit rester
+// retirable aujourd'hui, sans quoi elle deviendrait indélébile.
+const MOTIFS_TEXTE: RegExp[] = [
+  motifEntreMarqueurs(MARQUEUR_TEXTE_DEBUT, MARQUEUR_TEXTE_FIN),
+  ...ANCIENS_MARQUEURS_TEXTE.map(([d, f]) => motifEntreMarqueurs(d, f)),
+];
 
 export type Retrait = {
   html: string;
@@ -307,16 +398,17 @@ export function retirerBanniere(html: string): Retrait {
   }
   ENTRE_MARQUEURS.lastIndex = 0;
 
-  if (ENTRE_MARQUEURS_TEXTE.test(source)) {
-    ENTRE_MARQUEURS_TEXTE.lastIndex = 0;
-    const trouvees = source.match(ENTRE_MARQUEURS_TEXTE)?.length ?? 0;
+  for (const motif of MOTIFS_TEXTE) {
+    motif.lastIndex = 0;
+    if (!motif.test(source)) continue;
+    motif.lastIndex = 0;
+    const trouvees = source.match(motif)?.length ?? 0;
     return {
-      html: source.replace(ENTRE_MARQUEURS_TEXTE, ""),
+      html: source.replace(motif, ""),
       retirees: trouvees,
       methode: "marqueurs-texte",
     };
   }
-  ENTRE_MARQUEURS_TEXTE.lastIndex = 0;
 
   if (DIV_REPERE.test(source)) {
     DIV_REPERE.lastIndex = 0;

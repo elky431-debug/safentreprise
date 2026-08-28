@@ -29,6 +29,7 @@ import {
   construireBanniere,
   construireBanniereTexte,
   contientBanniere,
+  corpsEstHtml,
   poserBanniere,
   poserBanniereTexte,
   type NiveauBanniere,
@@ -384,9 +385,9 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
       );
 
       const origine = message.body?.content ?? "";
-      // Un corps texte reçoit une bannière texte : on ne le convertit jamais
-      // en HTML, sans quoi la restauration ne rendrait plus le format d'origine.
-      const texteBrut = message.body?.contentType === "text";
+      // Même règle que le worker : c'est le contenu qui décide, pas le
+      // contentType annoncé par Graph.
+      const texteBrut = !corpsEstHtml(message.body);
 
       if (contientBanniere(origine)) {
         // Elle était là : c'est l'enregistrement qui avait manqué, pas la pose.

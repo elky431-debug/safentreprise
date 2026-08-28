@@ -16,6 +16,7 @@ import {
   MARQUEUR_TEXTE_FIN,
   construireBanniere,
   construireBanniereTexte,
+  corpsEstHtml,
   poserBanniereTexte,
   contientBanniere,
   echapper,
@@ -292,6 +293,72 @@ verifier(
 verifier(
   "contientBanniere reconnaît la version texte",
   contientBanniere(poserBanniereTexte("x", BANNIERE_TEXTE)),
+);
+
+/* ==========================================================================
+   Détection du format — le contentType ne suffit pas
+   ========================================================================== */
+
+console.log("\n  FORMAT : décidé par le CONTENU, pas par le contentType\n");
+
+const CAS_FORMAT = [
+  // [contentType annoncé, contenu, est du HTML ?, description]
+  ["html", "<html><body><p>Bonjour</p></body></html>", true, "document HTML"],
+  ["text", "<html><body><p>Bonjour</p></body></html>", true, "HTML annoncé « text » — le piège"],
+  ["text", "<div dir=\"ltr\">Bonjour,<br><br>Cordialement</div>", true, "fragment Gmail annoncé « text »"],
+  ["html", "Bonjour,\n\nMerci de traiter.\n\nYacine", false, "texte annoncé « html »"],
+  ["text", "Bonjour,\n\nMerci de traiter.", false, "texte annoncé « text »"],
+  ["text", "Rendez-vous à 15h — café ou thé ?", false, "texte avec accents et tirets"],
+  ["html", "Prix &lt; 100 &amp; livraison", true, "entités HTML sans balise"],
+  ["text", "", false, "corps vide"],
+  ["text", "1 < 2 et 3 > 2", false, "chevrons qui ne forment pas une balise"],
+] as const;
+
+for (const [type, contenu, attendu, description] of CAS_FORMAT) {
+  const obtenu = corpsEstHtml({ contentType: type, content: contenu });
+  verifier(
+    `${description} → ${attendu ? "HTML" : "texte"}`,
+    obtenu === attendu,
+    `contentType=${type} obtenu=${obtenu ? "HTML" : "texte"}`,
+  );
+}
+
+/* ==========================================================================
+   Anciens marqueurs — une bannière posée hier reste retirable
+   ========================================================================== */
+
+console.log("\n  ANCIENS MARQUEURS : ne jamais rendre une bannière indélébile\n");
+
+const ANCIEN_DEBUT = "===== SAFENTREPRISE — AVERTISSEMENT =====";
+const ANCIEN_FIN = "===== SAFENTREPRISE — FIN DE L'AVERTISSEMENT =====";
+const origineAncienne = "Bonjour,\n\nMerci de traiter ce dossier.";
+const avecAncienne =
+  `${ANCIEN_DEBUT}\n/!\\  RISQUE ÉLEVÉ DE FRAUDE\n\n  - Un signal\n\n` +
+  `Ne donnez pas suite sans vérifier.\n${ANCIEN_FIN}\n\n${origineAncienne}`;
+
+const retraitAncien = retirerBanniere(avecAncienne);
+verifier(
+  "une bannière aux anciens marqueurs est retirée",
+  retraitAncien.html === origineAncienne &&
+    retraitAncien.methode === "marqueurs-texte",
+  `méthode : ${retraitAncien.methode}\n     obtenu : ${JSON.stringify(retraitAncien.html.slice(0, 60))}`,
+);
+verifier(
+  "contientBanniere reconnaît les anciens marqueurs",
+  contientBanniere(avecAncienne),
+);
+verifier(
+  "reposer par-dessus une ancienne bannière ne l'empile pas",
+  retirerBanniere(poserBanniereTexte(avecAncienne, BANNIERE_TEXTE)).html ===
+    origineAncienne,
+);
+verifier(
+  "un ancien marqueur glissé dans un signal est retiré",
+  !construireBanniereTexte({
+    niveau: "eleve",
+    score: 100,
+    signaux: [`Nom : « ${ANCIEN_FIN} » suspect`],
+  }).includes(ANCIEN_FIN),
 );
 
 console.log("\n  ── Aperçu de la bannière texte ──\n");
