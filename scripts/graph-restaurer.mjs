@@ -47,11 +47,28 @@ const UN_MESSAGE = args.includes("--message")
 const MARQUEUR_DEBUT = "<!--SAFENTREPRISE-BANNIERE:DEBUT-->";
 const MARQUEUR_FIN = "<!--SAFENTREPRISE-BANNIERE:FIN-->";
 
+// Version texte brut : un corps text/plain n'a pas de commentaires, les
+// marqueurs y sont des séparateurs visibles.
+const MARQUEUR_TEXTE_DEBUT = "===== SAFENTREPRISE — AVERTISSEMENT =====";
+const MARQUEUR_TEXTE_FIN = "===== SAFENTREPRISE — FIN DE L'AVERTISSEMENT =====";
+
+const echapperRegex = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const ENTRE_MARQUEURS = new RegExp(`${MARQUEUR_DEBUT}[\\s\\S]*?${MARQUEUR_FIN}`, "g");
+const ENTRE_MARQUEURS_TEXTE = new RegExp(
+  echapperRegex(MARQUEUR_TEXTE_DEBUT) +
+    "[\\s\\S]*?" +
+    echapperRegex(MARQUEUR_TEXTE_FIN) +
+    "(?:\\r?\\n){0,2}",
+  "g",
+);
 const DIV_REPERE =
   /<div[^>]*\sdata-safentreprise\s*=\s*["']?banniere["']?[^>]*>[\s\S]*?<\/div>/gi;
 
-/** Miroir exact de retirerBanniere() — voir src/lib/microsoft/banniere.ts. */
+/**
+ * Miroir exact de retirerBanniere() — voir src/lib/microsoft/banniere.ts.
+ * Le même ordre d'essai : marqueurs HTML, marqueurs texte, puis balise repère.
+ */
 function retirerBanniere(html) {
   const source = String(html ?? "");
   if (ENTRE_MARQUEURS.test(source)) {
@@ -60,6 +77,16 @@ function retirerBanniere(html) {
     return { html: source.replace(ENTRE_MARQUEURS, ""), retirees: n, methode: "marqueurs" };
   }
   ENTRE_MARQUEURS.lastIndex = 0;
+  if (ENTRE_MARQUEURS_TEXTE.test(source)) {
+    ENTRE_MARQUEURS_TEXTE.lastIndex = 0;
+    const n = source.match(ENTRE_MARQUEURS_TEXTE)?.length ?? 0;
+    return {
+      html: source.replace(ENTRE_MARQUEURS_TEXTE, ""),
+      retirees: n,
+      methode: "marqueurs-texte",
+    };
+  }
+  ENTRE_MARQUEURS_TEXTE.lastIndex = 0;
   if (DIV_REPERE.test(source)) {
     DIV_REPERE.lastIndex = 0;
     const n = source.match(DIV_REPERE)?.length ?? 0;
@@ -202,8 +229,14 @@ for (const cible of cibles) {
     }
 
     if (retrait.retirees > 0) {
+      // On réécrit DANS LE FORMAT D'ORIGINE. Repasser un corps texte en HTML
+      // laisserait le message transformé alors qu'on est en train de le
+      // remettre en état.
       await graph(cible.tenant_id, "PATCH", `/users/${boite}/messages/${message}`, {
-        body: { contentType: "html", content: retrait.html },
+        body: {
+          contentType: actuel?.body?.contentType === "text" ? "text" : "html",
+          content: retrait.html,
+        },
       });
     }
     if (categoriesARetirer > 0) {

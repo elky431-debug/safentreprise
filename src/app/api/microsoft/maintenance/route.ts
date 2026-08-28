@@ -27,8 +27,10 @@ import {
 } from "@/lib/microsoft/graph";
 import {
   construireBanniere,
+  construireBanniereTexte,
   contientBanniere,
   poserBanniere,
+  poserBanniereTexte,
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
 
@@ -382,19 +384,9 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
       );
 
       const origine = message.body?.content ?? "";
-
-      if (message.body?.contentType === "text") {
-        await rpc("marquer_action_graph", {
-          p_company_id: alerte.company_id,
-          p_message_id: alerte.message_id,
-          p_categorie: null,
-          p_banniere_posee: false,
-          p_erreur: null,
-          p_action_etat: "ignoree-texte",
-        });
-        details.push({ message: alerte.message_id.slice(0, 20), etat: "ignoree-texte" });
-        continue;
-      }
+      // Un corps texte reçoit une bannière texte : on ne le convertit jamais
+      // en HTML, sans quoi la restauration ne rendrait plus le format d'origine.
+      const texteBrut = message.body?.contentType === "text";
 
       if (contientBanniere(origine)) {
         // Elle était là : c'est l'enregistrement qui avait manqué, pas la pose.
@@ -411,17 +403,20 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         continue;
       }
 
-      const banniere = construireBanniere({
+      const contenu = {
         niveau: alerte.niveau,
         score: alerte.score,
         signaux: Array.isArray(alerte.signaux) ? alerte.signaux : [],
-      });
+      };
 
       await remplacerCorps(
         alerte.tenant_id,
         alerte.graph_user_id,
         alerte.message_id,
-        poserBanniere(origine, banniere),
+        texteBrut
+          ? poserBanniereTexte(origine, construireBanniereTexte(contenu))
+          : poserBanniere(origine, construireBanniere(contenu)),
+        texteBrut ? "text" : "html",
       );
 
       // Même vérification que dans le worker : si on ne saurait pas la
@@ -439,6 +434,7 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
           alerte.graph_user_id,
           alerte.message_id,
           origine,
+          texteBrut ? "text" : "html",
         );
         await rpc("marquer_action_graph", {
           p_company_id: alerte.company_id,

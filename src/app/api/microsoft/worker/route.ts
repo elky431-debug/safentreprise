@@ -26,8 +26,10 @@ import {
 } from "@/lib/microsoft/graph";
 import {
   construireBanniere,
+  construireBanniereTexte,
   contientBanniere,
   poserBanniere,
+  poserBanniereTexte,
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
 import { convertirCorps } from "@/lib/detection/html-texte.js";
@@ -205,12 +207,9 @@ type Action = {
     erreur?: string;
   };
   banniere?: {
-    etat:
-      | "posee"
-      | "echec"
-      | "ignoree-texte"
-      | "deja-presente"
-      | "annulee-non-verifiable";
+    // « ignoree-texte » n'existe plus : un corps en texte brut reçoit une
+    // bannière en texte brut. Soit elle est posée, soit c'est une erreur.
+    etat: "posee" | "echec" | "deja-presente" | "annulee-non-verifiable";
     erreur?: string;
   };
   /**
@@ -316,29 +315,33 @@ async function poserBanniereSurMessage(
 ): Promise<NonNullable<Action["banniere"]>> {
   const origine = message.body?.content ?? "";
 
-  // Un corps en texte brut afficherait les balises telles quelles. On s'en
-  // tient à la catégorie plutôt que de convertir le message en HTML, ce qui
-  // le transformerait bien au-delà de l'ajout d'un avertissement.
-  if (message.body?.contentType === "text") {
-    return { etat: "ignoree-texte" };
-  }
+  // Un corps en texte brut reçoit une bannière EN TEXTE BRUT. Y mettre du HTML
+  // afficherait les balises ; le convertir en HTML casserait la restauration,
+  // qui rendrait alors du HTML là où il y avait du texte. On reste donc dans
+  // le format d'origine, et l'avertissement est le même.
+  const texteBrut = message.body?.contentType === "text";
 
   if (contientBanniere(origine)) {
     return { etat: "deja-presente" };
   }
 
-  const banniere = construireBanniere({
+  const contenu = {
     niveau: verdict.niveauBase as NiveauBanniere,
     score: verdict.score,
     signaux: verdict.signaux ?? [],
-  });
+  };
+
+  const nouveau = texteBrut
+    ? poserBanniereTexte(origine, construireBanniereTexte(contenu))
+    : poserBanniere(origine, construireBanniere(contenu));
 
   await etape("pose de la bannière", () =>
     remplacerCorps(
       travail.tenant_id,
       travail.graph_user_id,
       travail.message_id,
-      poserBanniere(origine, banniere),
+      nouveau,
+      texteBrut ? "text" : "html",
     ),
   );
 
@@ -365,6 +368,7 @@ async function poserBanniereSurMessage(
         travail.graph_user_id,
         travail.message_id,
         origine,
+        texteBrut ? "text" : "html",
       ),
     );
     return {

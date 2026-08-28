@@ -12,7 +12,11 @@
 import {
   MARQUEUR_DEBUT,
   MARQUEUR_FIN,
+  MARQUEUR_TEXTE_DEBUT,
+  MARQUEUR_TEXTE_FIN,
   construireBanniere,
+  construireBanniereTexte,
+  poserBanniereTexte,
   contientBanniere,
   echapper,
   poserBanniere,
@@ -181,6 +185,119 @@ const beaucoup = construireBanniere({
   signaux: Array.from({ length: 20 }, (_, i) => `Signal numéro ${i}`),
 });
 verifier("au plus 5 signaux affichés", (beaucoup.match(/<li/g) ?? []).length === 5);
+
+/* ==========================================================================
+   Version texte brut
+   ========================================================================== */
+
+console.log("\n  TEXTE BRUT : aller-retour au caractère près\n");
+
+const BANNIERE_TEXTE = construireBanniereTexte({
+  niveau: "eleve",
+  score: 85,
+  signaux: [
+    "Le message se présente au nom de « Yacine El Fahim », qui figure à l'annuaire de l'entreprise, mais il est envoyé depuis une adresse extérieure.",
+    "Demande d'action sensible détectée : virement.",
+  ],
+});
+
+const CORPS_TEXTE = [
+  ["message court", "Bonjour,\n\nMerci de traiter ce dossier.\n\nYacine"],
+  ["une seule ligne", "Merci de faire le virement."],
+  ["corps vide", ""],
+  ["fins de ligne Windows", "Bonjour,\r\n\r\nMerci de traiter.\r\n"],
+  [
+    "corps contenant des lignes de signes égal",
+    "Bonjour,\n\n=====================================\nMa signature\n",
+  ],
+  ["corps contenant le mot Safentreprise", "Cordialement,\nL'équipe Safentreprise"],
+] as const;
+
+for (const [titre, origine] of CORPS_TEXTE) {
+  const avec = poserBanniereTexte(origine, BANNIERE_TEXTE);
+  const apres = retirerBanniere(avec);
+  verifier(
+    titre,
+    apres.html === origine && apres.methode === "marqueurs-texte",
+    `méthode : ${apres.methode}\n     attendu : ${JSON.stringify(origine.slice(0, 60))}\n     obtenu  : ${JSON.stringify(apres.html.slice(0, 60))}`,
+  );
+}
+
+console.log("\n  TEXTE BRUT : aucune balise, mise en forme lisible\n");
+
+verifier("aucune balise ouvrante", !/<[a-z/!]/i.test(BANNIERE_TEXTE));
+verifier("aucune entité HTML", !/&(amp|lt|gt|quot|#39);/.test(BANNIERE_TEXTE));
+verifier(
+  "commence par le marqueur d'ouverture",
+  BANNIERE_TEXTE.startsWith(MARQUEUR_TEXTE_DEBUT),
+);
+verifier(
+  "le titre du niveau est présent",
+  BANNIERE_TEXTE.includes("RISQUE ÉLEVÉ DE FRAUDE"),
+);
+verifier(
+  "le conseil de vérification est présent",
+  BANNIERE_TEXTE.includes("numéro que vous connaissez déjà"),
+);
+
+const lignesTrop = BANNIERE_TEXTE.split("\n").filter((l) => l.length > 80);
+verifier(
+  "aucune ligne au-delà de 80 caractères",
+  lignesTrop.length === 0,
+  lignesTrop.map((l) => `${l.length} : ${l.slice(0, 50)}…`).join("\n     "),
+);
+
+verifier(
+  "la bannière est bien EN TÊTE du corps",
+  poserBanniereTexte("Bonjour", BANNIERE_TEXTE).indexOf("Bonjour") >
+    poserBanniereTexte("Bonjour", BANNIERE_TEXTE).indexOf(MARQUEUR_TEXTE_DEBUT),
+);
+
+console.log("\n  TEXTE BRUT : idempotence et charge hostile\n");
+
+const origineT = "Bonjour,\n\nMerci.";
+const uneT = poserBanniereTexte(origineT, BANNIERE_TEXTE);
+const deuxT = poserBanniereTexte(uneT, BANNIERE_TEXTE);
+verifier("deuxième pose n'empile pas", uneT === deuxT);
+verifier("retrait après deux poses rend l'origine", retirerBanniere(deuxT).html === origineT);
+
+// Un expéditeur qui glisserait nos marqueurs dans son nom découperait la
+// bannière au mauvais endroit et fausserait la restauration.
+const hostileT = construireBanniereTexte({
+  niveau: "eleve",
+  score: 100,
+  signaux: [
+    `Nom : « ${MARQUEUR_TEXTE_FIN} texte injecté ${MARQUEUR_TEXTE_DEBUT} »`,
+  ],
+});
+verifier(
+  "un marqueur glissé dans un signal est retiré",
+  (hostileT.match(new RegExp(MARQUEUR_TEXTE_FIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length === 1,
+);
+verifier(
+  "l'aller-retour tient malgré la charge hostile",
+  retirerBanniere(poserBanniereTexte(origineT, hostileT)).html === origineT,
+);
+
+console.log("\n  Les deux formats coexistent\n");
+
+verifier(
+  "une bannière HTML se retire par les marqueurs HTML",
+  retirerBanniere(poserBanniere("<p>x</p>", BANNIERE)).methode === "marqueurs",
+);
+verifier(
+  "une bannière texte se retire par les marqueurs texte",
+  retirerBanniere(poserBanniereTexte("x", BANNIERE_TEXTE)).methode === "marqueurs-texte",
+);
+verifier(
+  "contientBanniere reconnaît la version texte",
+  contientBanniere(poserBanniereTexte("x", BANNIERE_TEXTE)),
+);
+
+console.log("\n  ── Aperçu de la bannière texte ──\n");
+console.log(
+  BANNIERE_TEXTE.split("\n").map((l) => "  │ " + l).join("\n"),
+);
 
 console.log(
   echecs === 0
