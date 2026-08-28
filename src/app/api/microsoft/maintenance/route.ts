@@ -32,6 +32,7 @@ import {
   corpsEstHtml,
   poserBanniere,
   poserBanniereTexte,
+  texteVersHtml,
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
 
@@ -435,14 +436,17 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         signaux: Array.isArray(alerte.signaux) ? alerte.signaux : [],
       };
 
+      // Comme le worker : on convertit en HTML, la sauvegarde vient d'être
+      // faite juste au-dessus donc la restauration reste exacte.
       await remplacerCorps(
         alerte.tenant_id,
         alerte.graph_user_id,
         alerte.message_id,
-        texteBrut
-          ? poserBanniereTexte(origine, construireBanniereTexte(contenu))
-          : poserBanniere(origine, construireBanniere(contenu)),
-        texteBrut ? "text" : "html",
+        poserBanniere(
+          texteBrut ? texteVersHtml(origine) : origine,
+          construireBanniere(contenu),
+        ),
+        "html",
       );
 
       // Même vérification que dans le worker : si on ne saurait pas la
@@ -522,6 +526,168 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
 }
 
 /* ==========================================================================
+   Conversion des bannières texte restantes
+   ========================================================================== */
+
+type ACconvertir = {
+  message_id: string;
+  company_id: string;
+  tenant_id: string;
+  graph_user_id: string;
+  upn: string;
+  niveau: NiveauBanniere;
+  score: number;
+  signaux: string[];
+  banniere_format: string | null;
+};
+
+/**
+ * Convertit en HTML les messages qui portent encore une bannière texte.
+ *
+ * Ces messages ont été traités avant que la conversion soit possible. On repart
+ * du CORPS D'ORIGINE conservé en base — jamais du corps actuel, qui contient
+ * déjà une bannière : le reconvertir figerait l'ancienne dedans.
+ *
+ * Le format inconnu (lignes antérieures à la colonne) est inspecté plutôt que
+ * supposé : si le corps est déjà en HTML, on se contente d'enregistrer le
+ * format sans rien modifier.
+ */
+async function convertirBannieres(): Promise<Record<string, unknown>> {
+  const mode = (process.env.GRAPH_ACTIONS ?? "off").trim().toLowerCase();
+  if (mode !== "complet") {
+    return { mode, converties: 0, details: [], note: "écriture non activée" };
+  }
+
+  const cibles = await rpc<ACconvertir[]>("bannieres_a_convertir", { p_limite: 10 });
+  if (!Array.isArray(cibles) || cibles.length === 0) {
+    return { mode, examinees: 0, converties: 0, details: [] };
+  }
+
+  const details: Record<string, unknown>[] = [];
+  let converties = 0;
+
+  for (const cible of cibles) {
+    const court = cible.message_id.slice(0, 20);
+    try {
+      const actuel = await appelGraph<{
+        body?: { contentType?: string; content?: string };
+      }>(
+        cible.tenant_id,
+        "GET",
+        `/users/${encodeURIComponent(cible.graph_user_id)}/messages/` +
+          `${encodeURIComponent(cible.message_id)}?$select=id,body`,
+      );
+
+      // Déjà en HTML : rien à convertir, seulement à consigner.
+      if (corpsEstHtml(actuel.body)) {
+        await rpc("marquer_action_graph", {
+          p_company_id: cible.company_id,
+          p_message_id: cible.message_id,
+          p_categorie: null,
+          p_banniere_posee: true,
+          p_erreur: null,
+          p_action_etat: "posee",
+          p_banniere_format: "html",
+        });
+        details.push({ message: court, etat: "deja-html" });
+        continue;
+      }
+
+      // On repart du corps D'ORIGINE, pas de celui qui porte la bannière.
+      const [original] = await rpc<
+        { contenu: string; content_type: string }[]
+      >("corps_original_graph", {
+        p_company_id: cible.company_id,
+        p_message_id: cible.message_id,
+      });
+
+      if (!original) {
+        // bannieres_a_convertir ne devrait pas les renvoyer, mais une purge
+        // peut passer entre la requête et ici.
+        details.push({ message: court, etat: "sans-original" });
+        continue;
+      }
+
+      const corpsHtml =
+        original.content_type === "text"
+          ? texteVersHtml(original.contenu)
+          : original.contenu;
+
+      await remplacerCorps(
+        cible.tenant_id,
+        cible.graph_user_id,
+        cible.message_id,
+        poserBanniere(
+          corpsHtml,
+          construireBanniere({
+            niveau: cible.niveau,
+            score: cible.score,
+            signaux: Array.isArray(cible.signaux) ? cible.signaux : [],
+          }),
+        ),
+        "html",
+      );
+
+      // Même vérification que partout ailleurs : si on ne saurait pas la
+      // retirer, on rétablit l'original — on l'a en main, ici.
+      const relu = await appelGraph<{ body?: { content?: string } }>(
+        cible.tenant_id,
+        "GET",
+        `/users/${encodeURIComponent(cible.graph_user_id)}/messages/` +
+          `${encodeURIComponent(cible.message_id)}?$select=id,body`,
+      );
+
+      if (!contientBanniere(relu.body?.content ?? "")) {
+        await remplacerCorps(
+          cible.tenant_id,
+          cible.graph_user_id,
+          cible.message_id,
+          original.contenu,
+          original.content_type === "text" ? "text" : "html",
+        );
+        await rpc("marquer_action_graph", {
+          p_company_id: cible.company_id,
+          p_message_id: cible.message_id,
+          p_categorie: null,
+          p_banniere_posee: false,
+          p_erreur: "bannière non retrouvable après conversion, original rétabli",
+          p_action_etat: "annulee-non-verifiable",
+        });
+        details.push({ message: court, etat: "annulee-non-verifiable" });
+        continue;
+      }
+
+      await rpc("marquer_action_graph", {
+        p_company_id: cible.company_id,
+        p_message_id: cible.message_id,
+        p_categorie: null,
+        p_banniere_posee: true,
+        p_erreur: null,
+        p_action_etat: "posee",
+        p_banniere_format: "html",
+      });
+      converties += 1;
+      details.push({ message: court, etat: "convertie" });
+    } catch (erreur) {
+      const detail = messageDe(erreur);
+      console.error(`[maintenance] conversion ${cible.message_id} : ${detail}`);
+      await rpc("marquer_action_graph", {
+        p_company_id: cible.company_id,
+        p_message_id: cible.message_id,
+        p_categorie: null,
+        p_banniere_posee: true,
+        p_erreur: `conversion impossible : ${detail}`.slice(0, 500),
+        p_action_etat: "posee",
+        p_banniere_format: "texte",
+      }).catch(() => {});
+      details.push({ message: court, etat: "echec", erreur: detail.slice(0, 200) });
+    }
+  }
+
+  return { mode, examinees: cibles.length, converties, details };
+}
+
+/* ==========================================================================
    Point d'entrée
    ========================================================================== */
 
@@ -574,6 +740,15 @@ export async function POST(request: Request) {
     } catch (erreur) {
       resultat.bannieres = { erreur: messageDe(erreur) };
       console.error("[maintenance] bannières :", messageDe(erreur));
+    }
+
+    // Quatrième travail : convertir en HTML les bannières texte posées avant
+    // que la conversion soit possible.
+    try {
+      resultat.conversions = await convertirBannieres();
+    } catch (erreur) {
+      resultat.conversions = { erreur: messageDe(erreur) };
+      console.error("[maintenance] conversions :", messageDe(erreur));
     }
   }
 

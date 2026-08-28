@@ -31,6 +31,7 @@ import {
   corpsEstHtml,
   poserBanniere,
   poserBanniereTexte,
+  texteVersHtml,
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
 import { convertirCorps } from "@/lib/detection/html-texte.js";
@@ -211,6 +212,8 @@ type Action = {
     // « ignoree-texte » n'existe plus : un corps en texte brut reçoit une
     // bannière en texte brut. Soit elle est posée, soit c'est une erreur.
     etat: "posee" | "echec" | "deja-presente" | "annulee-non-verifiable";
+    /** Format réellement posé — « texte » signale un repli après échec. */
+    format?: "html" | "texte";
     erreur?: string;
   };
   /**
@@ -362,19 +365,53 @@ async function poserBanniereSurMessage(
     signaux: verdict.signaux ?? [],
   };
 
-  const nouveau = texteBrut
-    ? poserBanniereTexte(origine, construireBanniereTexte(contenu))
-    : poserBanniere(origine, construireBanniere(contenu));
+  // ─────────────────────────────────────────────────────────────────────
+  // UN CORPS TEXTE EST CONVERTI EN HTML.
+  //
+  // Vérifié par expérience sur un locataire réel : Graph accepte de faire
+  // passer un message reçu de « text » à « html ». Tous les messages reçoivent
+  // donc la même bannière, celle qui se lit le mieux.
+  //
+  // Ce n'est possible QUE parce que le corps d'origine vient d'être sauvegardé
+  // juste au-dessus : la restauration réécrira le texte exact avec son
+  // contentType d'avant. Sans cette sauvegarde, la conversion serait
+  // irréversible — la découpe par marqueurs ne sait pas défaire un changement
+  // de format.
+  // ─────────────────────────────────────────────────────────────────────
+  let format: "html" | "texte" = "html";
 
-  await etape("pose de la bannière", () =>
-    remplacerCorps(
-      travail.tenant_id,
-      travail.graph_user_id,
-      travail.message_id,
-      nouveau,
-      texteBrut ? "text" : "html",
-    ),
-  );
+  try {
+    const corpsHtml = texteBrut ? texteVersHtml(origine) : origine;
+    await etape("pose de la bannière", () =>
+      remplacerCorps(
+        travail.tenant_id,
+        travail.graph_user_id,
+        travail.message_id,
+        poserBanniere(corpsHtml, construireBanniere(contenu)),
+        "html",
+      ),
+    );
+  } catch (erreur) {
+    // La conversion a échoué sur CE message. Plutôt que de ne rien signaler,
+    // on repose une bannière texte dans le format d'origine : un avertissement
+    // moins beau vaut infiniment mieux qu'aucun avertissement.
+    if (!texteBrut) throw erreur;
+
+    console.warn(
+      `[worker] conversion HTML refusée sur ${travail.message_id} ` +
+        `(${messageDe(erreur)}) — repli sur la bannière texte`,
+    );
+    format = "texte";
+    await etape("pose de la bannière texte (repli)", () =>
+      remplacerCorps(
+        travail.tenant_id,
+        travail.graph_user_id,
+        travail.message_id,
+        poserBanniereTexte(origine, construireBanniereTexte(contenu)),
+        "text",
+      ),
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────
   // VÉRIFICATION APRÈS ÉCRITURE.
@@ -393,6 +430,8 @@ async function poserBanniereSurMessage(
   );
 
   if (!contientBanniere(relu.body?.content ?? "")) {
+    // On rétablit le corps d'origine DANS SON FORMAT D'ORIGINE, y compris
+    // quand on venait de le convertir : c'est l'état d'avant qu'on rend.
     await etape("annulation de la bannière non vérifiable", () =>
       remplacerCorps(
         travail.tenant_id,
@@ -410,7 +449,7 @@ async function poserBanniereSurMessage(
     };
   }
 
-  return { etat: "posee" };
+  return { etat: "posee", format };
 }
 
 /* ==========================================================================
@@ -583,6 +622,7 @@ async function traiter(
         p_banniere_posee: bannierePosee,
         p_erreur: erreurs ? erreurs.slice(0, 500) : null,
         p_action_etat: etatAction(action),
+        p_banniere_format: action.banniere?.format ?? null,
       });
     }
   } catch (erreur) {

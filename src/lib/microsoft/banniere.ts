@@ -220,6 +220,60 @@ export function construireBanniere(contenu: ContenuBanniere): string {
 }
 
 /* ==========================================================================
+   Conversion texte → HTML
+   ========================================================================== */
+
+/**
+ * Enveloppe un corps en texte brut dans du HTML, sans rien en perdre.
+ *
+ * Graph accepte de faire passer un message reçu de « text » à « html » —
+ * vérifié par expérience sur un locataire réel, la documentation étant muette
+ * (elle affirme même que `body` n'est modifiable que sur un brouillon, ce qui
+ * est faux). La conversion permet de poser partout la même bannière HTML,
+ * et le corps d'origine est conservé en base, donc la restauration rend le
+ * texte exact avec son contentType d'avant.
+ *
+ * DEUX PIÈGES, tous deux traités ici :
+ *
+ *   1. L'ÉCHAPPEMENT. Un mail contenant « Prix < 100 & TVA » deviendrait du
+ *      balisage cassé, et « <script> » deviendrait exécutable. Tout passe par
+ *      `echapper` AVANT d'ajouter la moindre balise.
+ *
+ *   2. LA MISE EN PAGE. En HTML, les sauts de ligne et les espaces multiples
+ *      sont réduits à une seule espace : un message se retrouverait en un
+ *      unique paragraphe continu. On convertit donc les sauts en <br> et les
+ *      suites d'espaces en espaces insécables.
+ *
+ *      On n'utilise PAS « white-space: pre-wrap », plus élégant mais rendu de
+ *      façon inégale par Outlook pour Windows, qui s'appuie sur le moteur de
+ *      Word. <br> et &nbsp; sont compris partout.
+ */
+export function texteVersHtml(texte: string): string {
+  const source = String(texte ?? "");
+
+  // Fins de ligne unifiées AVANT tout : \r\n et \r isolés produiraient
+  // sinon des sauts en double ou aucun saut.
+  const lignes = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+
+  const corps = lignes
+    .map((ligne) => {
+      const echappee = echapper(ligne);
+      // Les suites d'espaces s'effondrent en HTML. On garde une espace
+      // ordinaire sur deux pour que le texte puisse encore se replier.
+      return echappee.replace(/ {2,}/g, (suite) =>
+        "&nbsp;".repeat(suite.length - 1) + " ",
+      );
+    })
+    .join("<br>");
+
+  return (
+    `<div data-safentreprise-converti="1" ` +
+    `style="font-family:Segoe UI,Helvetica,Arial,sans-serif;font-size:14px;` +
+    `line-height:1.5;">${corps}</div>`
+  );
+}
+
+/* ==========================================================================
    Version texte brut
    ========================================================================== */
 

@@ -17,6 +17,7 @@ import {
   construireBanniere,
   construireBanniereTexte,
   corpsEstHtml,
+  texteVersHtml,
   poserBanniereTexte,
   contientBanniere,
   echapper,
@@ -359,6 +360,78 @@ verifier(
     score: 100,
     signaux: [`Nom : « ${ANCIEN_FIN} » suspect`],
   }).includes(ANCIEN_FIN),
+);
+
+/* ==========================================================================
+   Conversion texte → HTML
+   ========================================================================== */
+
+console.log("\n  CONVERSION texte → HTML : échappement et mise en page\n");
+
+const CAS_CONVERSION = [
+  [
+    "chevrons et esperluettes",
+    "Prix < 100 & TVA > 20%",
+    (h: string) =>
+      h.includes("Prix &lt; 100 &amp; TVA &gt; 20%") && !/<(?!\/?div|br)/.test(h),
+  ],
+  [
+    "balise hostile neutralisée",
+    `Bonjour <script>vol()</script> et <img src=x onerror="a()">`,
+    (h: string) => !/<script|<img/i.test(h) && h.includes("&lt;script&gt;"),
+  ],
+  [
+    "sauts de ligne préservés",
+    "Bonjour,\n\nMerci de traiter.\n\nYacine",
+    (h: string) => (h.match(/<br>/g) ?? []).length === 4,
+  ],
+  [
+    "fins de ligne Windows : pas de saut en double",
+    "Bonjour,\r\n\r\nMerci.",
+    (h: string) => (h.match(/<br>/g) ?? []).length === 2,
+  ],
+  [
+    "retours chariot isolés",
+    "Ligne A\rLigne B",
+    (h: string) => (h.match(/<br>/g) ?? []).length === 1,
+  ],
+  [
+    "indentation préservée",
+    "Total :\n    1 200 EUR",
+    (h: string) => h.includes("&nbsp;&nbsp;&nbsp; 1 200 EUR"),
+  ],
+  [
+    "guillemets et apostrophes",
+    `L'entreprise a dit "oui"`,
+    (h: string) => h.includes("&#39;") && h.includes("&quot;"),
+  ],
+  ["corps vide", "", (h: string) => h.includes("data-safentreprise-converti")],
+] as const;
+
+for (const [titre, source, valide] of CAS_CONVERSION) {
+  const html = texteVersHtml(source);
+  verifier(titre, valide(html), html.slice(0, 200));
+}
+
+verifier(
+  "le résultat est reconnu comme du HTML",
+  corpsEstHtml({ contentType: "html", content: texteVersHtml("Bonjour") }),
+);
+verifier(
+  "la div de conversion n'est pas confondue avec la bannière",
+  !contientBanniere(texteVersHtml("Bonjour\nMerci")),
+);
+verifier(
+  "bannière HTML sur un corps converti : aller-retour par marqueurs",
+  retirerBanniere(poserBanniere(texteVersHtml("Bonjour"), BANNIERE)).html ===
+    texteVersHtml("Bonjour"),
+);
+
+console.log("\n  ── Aperçu d'une conversion ──\n");
+console.log(
+  texteVersHtml("Bonjour,\n\nMerci de régler la facture\n    1 200 EUR < 2 000.\n\nYacine")
+    .replace(/></g, ">\n<")
+    .split("\n").map((l) => "  │ " + l).join("\n"),
 );
 
 console.log("\n  ── Aperçu de la bannière texte ──\n");
