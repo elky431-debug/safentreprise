@@ -16,5 +16,10 @@
 #   RESEND_API_KEY
 #   SIMULATION_FROM_EMAIL
 #   SUPABASE_SECRET_KEY
+#   VEILLE_FROM_EMAIL / VEILLE_DESTINATAIRE
+#     ↳ alerte par mail quand une vue de contrôle cesse d'être vide.
+#       L'expéditeur doit être sur un domaine VÉRIFIÉ chez Resend :
+#       onboarding@resend.dev n'écrit qu'à l'adresse du compte Resend.
+#       Contrôler : POST /api/veille?verifier=1
 #
 # Après ajout des NEXT_PUBLIC_* : redéployer (elles sont injectées au build).

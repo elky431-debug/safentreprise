@@ -861,6 +861,41 @@ async function diagnostiquer(): Promise<Response> {
     ajouter("abonnements Graph", "échec", messageDe(erreur));
   }
 
+  // 2 quater. Et qui surveille la veille ? Elle note chaque passage : si la
+  //           dernière trace remonte à plus d'un jour, plus personne ne
+  //           regarde les deux vues, et le silence ne veut plus rien dire.
+  try {
+    const [veille] = await rpc<
+      {
+        dernier_controle_at: string | null;
+        muette: boolean;
+        probleme_en_cours: boolean;
+        envois: number;
+        echecs_consecutifs: number;
+        derniere_erreur: string | null;
+        secours_configure: boolean;
+      }[]
+    >("etat_veille", {});
+
+    const souci = !veille || veille.muette || veille.echecs_consecutifs > 0;
+    ajouter(
+      "veille (alerte par mail)",
+      souci ? "échec" : "ok",
+      !veille
+        ? "aucun état : migration 20260905 non appliquée ?"
+        : veille.muette
+          ? `AUCUN passage depuis ${veille.dernier_controle_at ?? "jamais"} — ` +
+            `la tâche pg_cron safentreprise-veille ne tourne plus.`
+          : veille.echecs_consecutifs > 0
+            ? `${veille.echecs_consecutifs} envoi(s) en échec — ${veille.derniere_erreur ?? "sans détail"}` +
+              (veille.secours_configure ? "" : " ; SECOURS NON CONFIGURÉ (parametres_systeme.resend_api_key)")
+            : `dernier passage ${veille.dernier_controle_at}, ` +
+              `${veille.probleme_en_cours ? "un problème est signalé" : "rien à signaler"}`,
+    );
+  } catch (erreur) {
+    ajouter("veille (alerte par mail)", "échec", messageDe(erreur));
+  }
+
   // 3. État de la file, par simple lecture.
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

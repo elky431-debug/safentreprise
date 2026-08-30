@@ -28,6 +28,8 @@ Application SaaS de simulation d'arnaques (président / faux fournisseur) pour f
 | **`NEXT_PUBLIC_APP_URL`** | **URL publique de l'app. Obligatoire pour envoyer une campagne** |
 | `RESEND_API_KEY` | Envoi des emails de simulation, serveur uniquement |
 | `SIMULATION_FROM_EMAIL` | Adresse d'expédition, sur un domaine vérifié chez Resend |
+| `VEILLE_FROM_EMAIL` | Expéditeur de l'alerte de veille. Domaine vérifié obligatoire |
+| `VEILLE_DESTINATAIRE` | Qui reçoit l'alerte (défaut `contact@safentreprise.com`) |
 | `SMSPARTNER_API_KEY` | Envoi des SMS de simulation, serveur uniquement |
 | `SMSPARTNER_SENDER` | Expéditeur alphanumérique validé (3–11 caractères) |
 | `DATABASE_URL` | Connexion Postgres directe, utilisée par `npm run db:apply` |
