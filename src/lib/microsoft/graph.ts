@@ -259,6 +259,13 @@ export type AbonnementGraph = {
   expirationDateTime: string;
   resource?: string;
   clientState?: string;
+  /**
+   * L'adresse à laquelle Microsoft envoie réellement les notifications.
+   * Renvoyée sur création comme sur prolongation : c'est la seule source
+   * autorisée sur ce point — la base ne fait que s'en souvenir.
+   */
+  notificationUrl?: string;
+  lifecycleNotificationUrl?: string;
 };
 
 /**

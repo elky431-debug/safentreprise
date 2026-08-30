@@ -60,6 +60,7 @@ type Abonnement = {
   expire_at: string;
   statut: string;
   tentatives: number;
+  notification_url: string | null;
 };
 
 type Boite = {
@@ -101,24 +102,109 @@ async function rpc<T>(nom: string, parametres: Record<string, unknown>): Promise
 }
 
 /* ==========================================================================
+   Où Microsoft doit envoyer les notifications
+   ========================================================================== */
+
+/**
+ * Le chemin du point d'entrée qui reçoit les notifications Graph.
+ *
+ * C'est `src/app/api/microsoft/webhook/route.ts`. Si ce fichier était déplacé,
+ * cette constante devrait suivre — c'est la seule chose qui les relie.
+ */
+const CHEMIN_WEBHOOK = "/api/microsoft/webhook";
+
+type Origine = { url: string; source: string };
+
+/**
+ * Une adresse candidate, normalisée et vérifiée.
+ *
+ * Microsoft appelle cette adresse depuis l'extérieur, en HTTPS, avant même
+ * d'accepter de créer l'abonnement. Une adresse en http, ou pointant sur la
+ * machine locale, ne peut pas fonctionner : mieux vaut l'écarter ici que
+ * laisser Graph refuser sans qu'on sache pourquoi.
+ *
+ * Une base sans chemin (« https://exemple.fr ») se voit compléter du chemin du
+ * webhook. Un chemin déjà présent est respecté tel quel : quelqu'un qui a
+ * configuré un mandataire sur une autre adresse a ses raisons.
+ */
+function candidate(valeur: string | undefined | null, source: string): Origine | null {
+  if (!valeur || !valeur.trim()) return null;
+  let analysee: URL;
+  try {
+    analysee = new URL(valeur.trim());
+  } catch {
+    return null;
+  }
+  if (analysee.protocol !== "https:") return null;
+  if (/^(localhost|127\.|0\.0\.0\.0|\[?::1\]?)/i.test(analysee.hostname)) return null;
+
+  const chemin = analysee.pathname.replace(/\/+$/, "");
+  return { url: `${analysee.origin}${chemin === "" ? CHEMIN_WEBHOOK : chemin}`, source };
+}
+
+/**
+ * L'adresse à donner à Microsoft, par ordre de confiance décroissant.
+ *
+ * POURQUOI CETTE CASCADE. Un abonnement est mort le 26 août après dix
+ * tentatives, toutes avec la même cause : GRAPH_NOTIFICATION_URL n'était pas
+ * définie sur Netlify. Une variable oubliée ne doit pas pouvoir arrêter la
+ * surveillance : le code sait déjà, par trois autres chemins, à quelle adresse
+ * il est joignable.
+ *
+ *   1. la variable, si elle existe — une décision explicite l'emporte ;
+ *   2. l'adresse que CET abonnement utilisait quand il fonctionnait, telle que
+ *      Microsoft nous l'a renvoyée ;
+ *   3. l'adresse du déploiement courant (Netlify la fournit) ;
+ *   4. l'adresse par laquelle la maintenance vient d'être appelée.
+ *
+ * Le 4 vient en dernier parce qu'il repose sur un en-tête fourni par
+ * l'appelant. Ce n'est pas ouvert pour autant : la maintenance exige déjà
+ * WORKER_SECRET. Et la source retenue est renvoyée dans la réponse puis
+ * enregistrée en base — si elle change, cela se voit.
+ */
+function urlNotification(requete: Request, abonnement?: Abonnement): Origine | null {
+  const enTetes = requete.headers;
+  const hote = enTetes.get("x-forwarded-host") ?? enTetes.get("host");
+  const protocole = enTetes.get("x-forwarded-proto") ?? "https";
+
+  return (
+    candidate(process.env.GRAPH_NOTIFICATION_URL, "GRAPH_NOTIFICATION_URL") ??
+    candidate(abonnement?.notification_url, "adresse déjà utilisée par cet abonnement") ??
+    candidate(process.env.DEPLOY_PRIME_URL, "DEPLOY_PRIME_URL (déploiement Netlify)") ??
+    candidate(process.env.URL, "URL (site Netlify)") ??
+    candidate(hote ? `${protocole}://${hote}` : null, "adresse d'appel de la maintenance")
+  );
+}
+
+/* ==========================================================================
    Renouvellement
    ========================================================================== */
 
-async function renouveler(): Promise<Record<string, unknown>> {
+async function renouveler(requete: Request): Promise<Record<string, unknown>> {
   const abonnements = await rpc<Abonnement[]>("abonnements_a_renouveler", {
     p_marge_heures: MARGE_HEURES,
   });
 
   if (!Array.isArray(abonnements) || abonnements.length === 0) {
-    return { examines: 0, renouveles: 0, recrees: 0, echecs: 0, details: [] };
+    // Rien à renouveler, mais on dit quand même à quelle adresse on recréerait
+    // un abonnement : c'est le seul moyen de vérifier la configuration AVANT
+    // d'en avoir besoin.
+    const origine = urlNotification(requete);
+    return {
+      examines: 0,
+      renouveles: 0,
+      recrees: 0,
+      echecs: 0,
+      details: [],
+      adresse_notification: origine?.url ?? "AUCUNE ADRESSE UTILISABLE",
+      source_adresse: origine?.source ?? "aucune",
+    };
   }
 
   const details: Record<string, unknown>[] = [];
   let renouveles = 0;
   let recrees = 0;
   let echecs = 0;
-
-  const notificationUrl = process.env.GRAPH_NOTIFICATION_URL;
 
   for (const abonnement of abonnements) {
     const expiration = new Date(Date.now() + DUREE_MINUTES * 60_000).toISOString();
@@ -127,15 +213,18 @@ async function renouveler(): Promise<Record<string, unknown>> {
       // « perdu » : Microsoft l'a supprimé. Le renouveler renverrait 404 —
       // il faut en créer un nouveau.
       if (abonnement.statut === "perdu") {
-        if (!notificationUrl) {
+        const origine = urlNotification(requete, abonnement);
+        if (!origine) {
           throw new Error(
-            "GRAPH_NOTIFICATION_URL absent : impossible de recréer l'abonnement.",
+            "Aucune adresse de notification utilisable : ni GRAPH_NOTIFICATION_URL, " +
+              "ni adresse enregistrée sur l'abonnement, ni adresse de déploiement " +
+              "(DEPLOY_PRIME_URL / URL), ni en-tête d'hôte exploitable en HTTPS.",
           );
         }
         const cree = await creerAbonnement(
           abonnement.tenant_id,
           abonnement.graph_user_id,
-          notificationUrl,
+          origine.url,
           expiration,
         );
         await rpc("maj_abonnement_graph", {
@@ -147,9 +236,18 @@ async function renouveler(): Promise<Record<string, unknown>> {
           // Le nouveau secret partagé DOIT remplacer l'ancien : sans ça, les
           // notifications du nouvel abonnement seraient toutes refusées.
           p_client_state: cree.clientState,
+          // On retient l'adresse que Microsoft dit utiliser, pas celle qu'on
+          // croit avoir demandée.
+          p_notification_url: cree.notificationUrl ?? origine.url,
         });
         recrees += 1;
-        details.push({ upn: abonnement.upn, action: "recree", expire: cree.expirationDateTime });
+        details.push({
+          upn: abonnement.upn,
+          action: "recree",
+          expire: cree.expirationDateTime,
+          adresse: cree.notificationUrl ?? origine.url,
+          source: origine.source,
+        });
         continue;
       }
 
@@ -164,9 +262,18 @@ async function renouveler(): Promise<Record<string, unknown>> {
         p_expire_at: maj.expirationDateTime,
         p_statut: "actif",
         p_erreur: null,
+        // Prolonger ne change pas l'adresse chez Microsoft ; sa réponse la
+        // contient, et c'est l'occasion de la retenir pour les abonnements
+        // créés avant que la colonne existe.
+        p_notification_url: maj.notificationUrl ?? null,
       });
       renouveles += 1;
-      details.push({ upn: abonnement.upn, action: "renouvele", expire: maj.expirationDateTime });
+      details.push({
+        upn: abonnement.upn,
+        action: "renouvele",
+        expire: maj.expirationDateTime,
+        adresse: maj.notificationUrl ?? abonnement.notification_url ?? "inconnue",
+      });
     } catch (erreur) {
       const graph = erreur instanceof ErreurGraph ? erreur : null;
       const detail = messageDe(erreur);
@@ -714,7 +821,7 @@ export async function POST(request: Request) {
 
   if (seulement !== "delta") {
     try {
-      resultat.abonnements = await renouveler();
+      resultat.abonnements = await renouveler(request);
     } catch (erreur) {
       resultat.abonnements = { erreur: messageDe(erreur) };
       console.error("[maintenance] renouvellement :", messageDe(erreur));

@@ -233,8 +233,9 @@ try {
 
   await db.query(
     `INSERT INTO graph_abonnements
-       (company_id, boite_id, subscription_id, resource, client_state, expire_at)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+       (company_id, boite_id, subscription_id, resource, client_state, expire_at,
+        notification_url)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       cible.id,
       boiteId,
@@ -242,6 +243,10 @@ try {
       resource,
       clientState,
       abonnement.expirationDateTime,
+      // On garde l'adresse renvoyée par Microsoft, pas celle qu'on a demandée :
+      // c'est elle que la maintenance réutilisera pour recréer l'abonnement si
+      // la variable d'environnement venait à manquer.
+      abonnement.notificationUrl ?? NOTIFICATION_URL,
     ],
   );
 

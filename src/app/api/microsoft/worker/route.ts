@@ -767,6 +767,17 @@ async function diagnostiquer(): Promise<Response> {
       ? "off — aucune écriture dans les boîtes"
       : `${modeAction()} — LE WORKER ÉCRIT DANS LES BOÎTES`,
   );
+  // Pas dans « requises » : la maintenance sait retrouver l'adresse du webhook
+  // sans elle (déploiement Netlify, adresse déjà utilisée, en-tête d'appel).
+  // La signaler reste utile — une adresse explicite vaut mieux qu'une déduite.
+  ajouter(
+    "GRAPH_NOTIFICATION_URL",
+    "ok",
+    process.env.GRAPH_NOTIFICATION_URL
+      ? "définie"
+      : "absente — l'adresse du webhook sera déduite du déploiement. " +
+        "Vérifier : POST /api/microsoft/maintenance?seulement=abonnements",
+  );
   ajouter(
     "variables d'environnement",
     absentes.length === 0 ? "ok" : "échec",
@@ -819,6 +830,35 @@ async function diagnostiquer(): Promise<Response> {
     );
   } catch (erreur) {
     ajouter("alertes sans bannière", "échec", messageDe(erreur));
+  }
+
+  // 2 ter. L'AUTRE CONTRÔLE QUI COMPTE. Une alerte sans bannière est un mail
+  //        non signalé ; un abonnement mort, c'est toute une boîte qui n'est
+  //        plus regardée — et cette panne-là ne produit aucune alerte, donc
+  //        rien ne manque nulle part. Elle est passée inaperçue dix jours.
+  try {
+    const [compte] = await rpc<
+      {
+        total: number;
+        morts: number;
+        expire_bientot: number;
+        prochaine_expiration: string | null;
+      }[]
+    >("compter_abonnements_en_alerte", {});
+
+    const enPanne = compte ? compte.morts + compte.expire_bientot : 0;
+    ajouter(
+      "abonnements Graph",
+      !compte || compte.total === 0 || enPanne > 0 ? "échec" : "ok",
+      !compte || compte.total === 0
+        ? "AUCUN abonnement : plus aucune boîte n'est surveillée."
+        : enPanne === 0
+          ? `${compte.total} actif(s), prochaine expiration ${compte.prochaine_expiration}`
+          : `${compte.morts} mort(s), ${compte.expire_bientot} expirant sous 48 h, ` +
+            `sur ${compte.total}. Détail : SELECT * FROM abonnements_en_alerte;`,
+    );
+  } catch (erreur) {
+    ajouter("abonnements Graph", "échec", messageDe(erreur));
   }
 
   // 3. État de la file, par simple lecture.
