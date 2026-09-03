@@ -101,17 +101,6 @@ export default function MentionsLegalesPage() {
             </LienExterne>
           </p>
 
-          <p className="mt-4">
-            <span className="font-medium text-foreground">
-              Messagerie professionnelle
-            </span>
-            <br />
-            Zoho Corporation — données hébergées dans l&apos;Union européenne
-            <br />
-            <LienExterne href="https://www.zoho.com">
-              https://www.zoho.com
-            </LienExterne>
-          </p>
         </Coordonnees>
 
         <H2 id="propriete-intellectuelle">3. Propriété intellectuelle</H2>
@@ -144,16 +133,17 @@ export default function MentionsLegalesPage() {
 
         <H2 id="nature-du-service">4. Nature du service</H2>
         <P>
-          Safentreprise est une plateforme logicielle en ligne (SaaS), complétée
-          par une extension pour navigateur, destinée à sensibiliser et protéger
-          les entreprises contre les tentatives de fraude et les risques de
-          cybersécurité.
+          Safentreprise est une plateforme logicielle en ligne (SaaS) destinée à
+          sensibiliser et protéger les entreprises contre les tentatives de
+          fraude et les risques de cybersécurité.
         </P>
         <P>
           Le service comprend notamment la simulation de campagnes de test
           auprès des collaborateurs de l’entreprise cliente, le suivi des
-          interactions, la formation, ainsi que la production de rapports et
-          d’attestations.
+          interactions, la formation, la production de rapports et
+          d’attestations, ainsi que l’analyse des messages reçus dans les boîtes
+          Microsoft 365 raccordées et l’annotation de ceux qui présentent les
+          caractéristiques d’une fraude.
         </P>
         <P>
           Ces simulations sont réalisées à la demande et sous la responsabilité

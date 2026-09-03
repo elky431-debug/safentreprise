@@ -15,7 +15,7 @@ import {
 export const metadata: Metadata = {
   title: "Politique de confidentialité — Safentreprise",
   description:
-    "Traitement des données personnelles par Safentreprise : rôles de responsable de traitement et de sous-traitant, extension Safentreprise Guard, finalités, durées de conservation, sous-traitants et exercice des droits.",
+    "Traitement des données personnelles par Safentreprise : rôles de responsable de traitement et de sous-traitant, surveillance des messages Microsoft 365, données conservées et durées, sous-traitants et exercice des droits.",
   robots: { index: true, follow: true },
 };
 
@@ -27,7 +27,7 @@ export default function PolitiqueConfidentialitePage() {
           Politique de confidentialité et de protection des données personnelles
         </h1>
         <p className="mt-3 text-[13.5px] text-faint">
-          Dernière mise à jour : 21 août 2026
+          Dernière mise à jour : 3 septembre 2026
         </p>
       </header>
 
@@ -45,11 +45,11 @@ export default function PolitiqueConfidentialitePage() {
         </P>
         <P>
           <Fort>Sous-traitant</Fort> — pour les données des collaborateurs de
-          l’entreprise cliente, traitées uniquement sur instruction de celle-ci
-          dans le cadre des campagnes de sensibilisation. Dans ce cas,
-          l’entreprise cliente est le responsable de traitement ; elle détermine
-          les finalités et les moyens, et assume les obligations
-          correspondantes.
+          l’entreprise cliente, traitées uniquement sur instruction de celle-ci :
+          les campagnes de sensibilisation d’une part, la surveillance des
+          messages Microsoft 365 d’autre part. Dans ces deux cas, l’entreprise
+          cliente est le responsable de traitement ; elle détermine les
+          finalités et les moyens, et assume les obligations correspondantes.
         </P>
 
         {/* ------------------------------------------------------------------ */}
@@ -157,9 +157,12 @@ export default function PolitiqueConfidentialitePage() {
 
         <H3 id="perimetre">2.1 Périmètre</H3>
         <P>
-          Dans le cadre des campagnes de sensibilisation, Safentreprise traite
-          pour le compte de l’entreprise cliente les données de ses
-          collaborateurs :
+          Safentreprise traite pour le compte de l’entreprise cliente les
+          données de ses collaborateurs, au titre de deux services distincts.
+        </P>
+        <P>
+          <Fort>Campagnes de sensibilisation</Fort> — envoi de messages de
+          simulation et formation :
         </P>
         <Ul>
           <Li>
@@ -179,6 +182,14 @@ export default function PolitiqueConfidentialitePage() {
             comportements observés
           </Li>
         </Ul>
+        <P>
+          <Fort>Surveillance des messages Microsoft 365</Fort> — analyse des
+          messages reçus dans les boîtes surveillées, et annotation de ceux qui
+          présentent les caractéristiques d’une fraude. Ce service lit le
+          contenu des messages et modifie ceux qu’il signale. Il fait l’objet du
+          point 2.5, qui détaille ce qui est lu, ce qui est conservé, combien de
+          temps, et comment une modification se défait.
+        </P>
 
         <H3 id="instructions">2.2 Instructions et finalité</H3>
         <P>
@@ -276,113 +287,231 @@ export default function PolitiqueConfidentialitePage() {
           </Li>
         </Ul>
 
-        <H3 id="extension">2.5 Extension Safentreprise Guard</H3>
+        <H3 id="microsoft-365">2.5 Surveillance des messages Microsoft 365</H3>
         <P>
-          Safentreprise Guard est une extension pour navigateur, installée
-          volontairement par le collaborateur sur son poste de travail, qui
-          l’avertit lorsqu’un message reçu présente les caractéristiques d’une
-          tentative d’usurpation d’identité.
+          Safentreprise se raccorde aux boîtes Microsoft 365 de l’entreprise
+          cliente, examine les messages qui y arrivent, et signale ceux qui
+          présentent les caractéristiques d’une fraude au président ou d’une
+          fraude au fournisseur.
         </P>
         <P>
-          Le traitement décrit au présent point relève du même régime que le
-          reste de la Partie 2 : <Fort>l’entreprise cliente</Fort> en est le
-          responsable de traitement, <Fort>Safentreprise</Fort> agit en qualité
-          de sous-traitant et ne traite ces données que sur son instruction
-          documentée.
+          Le traitement décrit ici relève du même régime que le reste de la
+          Partie 2 : <Fort>l’entreprise cliente</Fort> en est le responsable de
+          traitement, <Fort>Safentreprise</Fort> agit comme sous-traitant et ne
+          traite ces données que sur son instruction.
+        </P>
+
+        <Encadre titre="Ce service modifie les messages reçus">
+          Lorsqu’un message est jugé frauduleux, Safentreprise le modifie dans
+          la boîte du destinataire : un avertissement est inséré en tête du
+          message, et une catégorie de couleur est posée dessus. Le message
+          d’origine n’est pas supprimé — il figure sous l’avertissement. Cette
+          modification peut être défaite ; les conditions sont détaillées plus
+          bas.
+        </Encadre>
+
+        <P>
+          <Fort>Comment le service est raccordé.</Fort> Un administrateur
+          Microsoft 365 de l’entreprise donne son accord une fois. Safentreprise
+          reçoit alors deux autorisations, et deux seulement : lire et modifier
+          les messages des boîtes surveillées, et lire l’annuaire des
+          collaborateurs. Le service se connecte avec sa propre identité
+          applicative, jamais avec le compte ni le mot de passe d’un
+          collaborateur.
         </P>
 
         <P>
-          <Fort>Ce que l’extension lit.</Fort> L’extension accède au contenu des
-          messages affichés dans Gmail sur le poste du collaborateur, afin d’en
-          examiner l’expéditeur, la signature et les formulations
-          caractéristiques d’une fraude. Cette analyse est réalisée{" "}
-          <Fort>localement, dans le navigateur</Fort>. Le contenu des messages
-          n’est ni copié, ni transmis, ni conservé en dehors du poste.
-        </P>
-
-        <P>
-          <Fort>Ce qui est transmis, uniquement en cas d’alerte.</Fort> Lorsque
-          l’analyse conclut à une tentative d’usurpation, seules les métadonnées
-          suivantes sont envoyées aux serveurs de Safentreprise :
+          <Fort>Ce que le service demande à Microsoft, pour chaque message.</Fort>
         </P>
         <Ul>
-          <Li>le nom et l’adresse électronique de l’expéditeur ;</Li>
-          <Li>le nom signé dans le message ;</Li>
-          <Li>l’objet du message ;</Li>
-          <Li>le niveau de risque et le score attribués ;</Li>
-          <Li>les signaux ayant motivé l’alerte ;</Li>
-          <Li>l’adresse professionnelle du collaborateur alerté ;</Li>
-          <Li>la date et l’heure de la détection.</Li>
+          <Li>l’identifiant technique du message ;</Li>
+          <Li>l’objet ;</Li>
+          <Li>la date et l’heure de réception ;</Li>
+          <Li>le nom affiché et l’adresse de l’expéditeur ;</Li>
+          <Li>les destinataires ;</Li>
+          <Li>le corps du message ;</Li>
+          <Li>les catégories déjà posées sur le message.</Li>
         </Ul>
 
         <P>
-          <Fort>Ce qui n’est jamais transmis.</Fort>
-        </P>
-        <Ul>
-          <Li>
-            le corps du message, même partiellement et même sous forme
-            d’extrait ;
-          </Li>
-          <Li>les pièces jointes, ni leur contenu, ni leur nom ;</Li>
-          <Li>les en-têtes techniques bruts ;</Li>
-          <Li>
-            les messages jugés sans risque, qui ne donnent lieu à aucune
-            transmission — l’absence d’alerte ne laisse aucune trace sur nos
-            serveurs.
-          </Li>
-        </Ul>
-
-        <P>
-          <Fort>Données d’activation.</Fort> À la première ouverture,
-          l’extension demande le code d’activation de l’entreprise. Sont alors
-          transmis l’adresse électronique professionnelle du collaborateur et un
-          identifiant de poste (<Fort>poste_id</Fort>), tiré aléatoirement par
-          l’extension et conservé dans son stockage local. Cet identifiant sert
-          uniquement à dénombrer les postes équipés ; il n’est associé à aucune
-          caractéristique matérielle du poste et ne permet aucun suivi en dehors
-          du service.
+          <Fort>Ce que le service ne demande jamais.</Fort> Les pièces jointes —
+          ni leur contenu, ni leur nom — et les en-têtes techniques bruts. Ces
+          éléments ne sont pas écartés après coup : ils ne sont pas demandés à
+          Microsoft.
         </P>
 
         <P>
-          <Fort>Hébergement.</Fort> Les alertes et les données d’activation sont
-          enregistrées dans la base de données Supabase, hébergée dans l’Union
-          européenne. Aucun transfert hors Union européenne n’est effectué pour
-          ce traitement.
-        </P>
-
-        <P>
-          <Fort>Durées de conservation.</Fort>
+          <Fort>Ce qui est conservé, et combien de temps.</Fort>
         </P>
         <Tableau
-          entetes={["Données", "Durée de conservation"]}
+          entetes={["Donnée", "Durée de conservation"]}
           lignes={[
             [
-              "Alertes remontées par l’extension",
-              "12 mois à compter de la détection, puis suppression automatique",
+              "Corps d’un message, copié avant que le message soit modifié",
+              "30 jours au maximum, et effacé immédiatement dès que la modification a été défaite",
             ],
             [
-              "Données d’activation (adresse professionnelle, identifiant de poste)",
-              "Durée de l’abonnement ; supprimées à la résiliation",
+              "Résultat d’analyse d’un message signalé : objet, expéditeur, destinataire, score, motifs du signalement",
+              "12 mois à compter de l’analyse",
+            ],
+            [
+              "Résultat d’analyse d’un message non signalé : mêmes données",
+              "30 jours à compter de l’analyse",
+            ],
+            [
+              "Annuaire de l’entreprise : nom et adresse des collaborateurs",
+              "Copie remplacée à chaque mise à jour ; une personne retirée de l’annuaire Microsoft en disparaît. Supprimée à la fin du contrat",
+            ],
+            [
+              "File de traitement interne : identifiants de messages en attente d’analyse",
+              "7 jours après traitement, 30 jours en cas d’échec",
+            ],
+            [
+              "Journaux techniques des appels internes",
+              "7 jours",
+            ],
+            [
+              "Raccordement Microsoft : adresses des boîtes surveillées, identifiants techniques",
+              "Durée du contrat",
             ],
           ]}
         />
-
         <P>
-          <Fort>Droits des personnes.</Fort> Le collaborateur dispose des droits
-          d’accès, de rectification, de suppression et d’opposition sur les
-          données traitées par l’extension. La demande peut être adressée à son
-          employeur, responsable de traitement, ou directement à{" "}
-          <a
-            href="mailto:contact@safentreprise.com"
-            className="text-accent-text underline decoration-accent-line underline-offset-[3px] transition-colors hover:text-foreground"
-          >
-            contact@safentreprise.com
-          </a>
-          , auquel cas Safentreprise la transmet à l’entreprise concernée et
-          l’assiste dans son traitement. La désinstallation de l’extension
-          interrompt immédiatement toute collecte.
+          Ces suppressions sont automatiques : elles s’exécutent chaque nuit,
+          sans intervention. Une seule exception, volontaire : tant qu’un
+          message porte encore un avertissement qui n’a pas été retiré, la ligne
+          qui le décrit est conservée, quelle que soit son ancienneté. Sans
+          elle, plus rien n’indiquerait qu’un message a été modifié, ni ne
+          permettrait de le remettre en état.
         </P>
 
+        <P>
+          <Fort>Le corps des messages : le point le plus sensible.</Fort> Il
+          mérite d’être détaillé, parce que c’est là que se trouve le contenu
+          des échanges.
+        </P>
+        <Ul>
+          <Li>
+            Pour analyser un message, le service en lit le corps sur son
+            serveur. Cette lecture ne laisse aucune copie : seule la{" "}
+            <Fort>longueur</Fort> du texte est enregistrée, avec le résultat de
+            l’analyse.
+          </Li>
+          <Li>
+            Une copie du corps n’est écrite en base que dans un seul cas :{" "}
+            <Fort>juste avant de modifier le message</Fort>, pour pouvoir le
+            remettre exactement dans son état d’origine.
+          </Li>
+          <Li>
+            Cette copie est effacée dès que la modification est défaite, et au
+            plus tard au bout de 30 jours.
+          </Li>
+          <Li>
+            <Fort>Personne ne peut la lire</Fort> : ni Safentreprise par
+            l’application, ni l’entreprise cliente, ni le collaborateur. Elle
+            n’est accessible qu’au programme qui remet le message en état.
+          </Li>
+          <Li>
+            Au-delà d’un mégaoctet, la copie est refusée — et dans ce cas le
+            message <Fort>n’est pas modifié du tout</Fort>. Mieux vaut un
+            message non annoté qu’un message modifié sans retour possible.
+          </Li>
+        </Ul>
+
+        <P>
+          <Fort>Tous les messages sont analysés, pas seulement ceux qui sont
+          signalés.</Fort>{" "}
+          Chaque message reçu dans une boîte surveillée donne lieu à une ligne
+          en base, y compris lorsque l’analyse conclut qu’il n’y a rien à
+          signaler. Cette ligne contient l’objet, l’expéditeur et le
+          destinataire. C’est la raison pour laquelle elle est effacée au bout
+          de 30 jours, alors qu’un message signalé est conservé douze mois.
+        </P>
+
+        <P>
+          <Fort>Les coordonnées bancaires.</Fort> Lorsqu’un message annonce un
+          changement de compte bancaire, le motif du signalement mentionne le
+          compte concerné sous forme <Fort>masquée</Fort> : seuls les quatre
+          premiers et les quatre derniers caractères sont conservés. Un IBAN
+          complet n’est jamais enregistré.
+        </P>
+
+        <P>
+          <Fort>Qui peut voir quoi.</Fort> Chaque entreprise cliente ne voit que
+          ses propres données ; ce cloisonnement est appliqué par la base de
+          données elle-même, pas seulement par l’application. Le dirigeant
+          client accède en lecture aux résultats d’analyse, à l’annuaire copié
+          et à la liste de ses boîtes surveillées. Il n’a accès à aucun corps de
+          message. Safentreprise accède à l’ensemble pour exploiter et dépanner
+          le service.
+        </P>
+
+        <P>
+          <Fort>La modification des messages, en détail.</Fort> Quand un message
+          est signalé :
+        </P>
+        <Ul>
+          <Li>
+            un avertissement est inséré en tête du corps, encadré par deux
+            repères invisibles à la lecture, qui permettent de le retrouver et
+            de le retirer ;
+          </Li>
+          <Li>
+            une catégorie de couleur est posée sur le message, visible dans la
+            liste des messages ;
+          </Li>
+          <Li>
+            un message reçu au format texte simple est converti au format HTML à
+            cette occasion.
+          </Li>
+        </Ul>
+        <P>
+          <Fort>Cette modification est réversible</Fort>, par deux moyens : la
+          copie du corps d’origine, tant qu’elle existe, qui permet de rétablir
+          le message au caractère près ; et, à défaut, le retrait de tout ce qui
+          se trouve entre les deux repères.
+        </P>
+        <P>
+          <Fort>Une limite doit être dite clairement.</Fort> Passé 30 jours, la
+          copie du corps a été effacée. Le retrait de l’avertissement reste
+          possible, mais un message qui était en texte simple restera au format
+          HTML. Sa mise en forme peut donc différer légèrement de l’original.
+        </P>
+
+        <P>
+          <Fort>Ce qui n’est jamais fait.</Fort> Safentreprise ne supprime
+          aucun message, n’en déplace aucun, n’en envoie aucun depuis les boîtes
+          surveillées, et ne lit aucun message envoyé — seuls les messages
+          reçus dans la boîte de réception sont examinés.
+        </P>
+
+        <P>
+          <Fort>Alertes internes de bon fonctionnement.</Fort> Safentreprise
+          reçoit des messages d’alerte automatiques lorsque le service
+          rencontre un problème. Ces messages ne contiennent{" "}
+          <Fort>que des compteurs et la nature du problème</Fort> : ni objet de
+          message, ni adresse d’expéditeur, ni adresse de boîte surveillée.
+        </P>
+
+        <P>
+          <Fort>Hébergement.</Fort> Les données sont enregistrées dans la base
+          Supabase et traitées par l’application hébergée chez Netlify. Les
+          messages eux-mêmes restent chez Microsoft, dans le locataire de
+          l’entreprise cliente : Safentreprise les lit, les annote, mais ne les
+          déplace pas.
+        </P>
+
+        <P>
+          <Fort>Information des collaborateurs.</Fort> L’entreprise cliente est
+          responsable de traitement : c’est à elle d’informer ses collaborateurs
+          que leurs messages entrants sont analysés et, le cas échéant, annotés,
+          et de consulter les représentants du personnel lorsque la loi
+          l’impose. Safentreprise recommande que cette information soit donnée{" "}
+          <Fort>avant</Fort> le premier raccordement, et fournit sur demande un
+          texte type. Le dispositif est conçu pour ne rien mesurer de
+          l’activité des personnes : il ne produit ni statistique par
+          collaborateur, ni indicateur de comportement individuel.
+        </P>
         {/* ------------------------------------------------------------------ */}
 
         <H2 id="partie-3">PARTIE 3 — Dispositions communes</H2>
@@ -403,13 +532,13 @@ export default function PolitiqueConfidentialitePage() {
             ],
             [
               "Resend, Inc.",
-              "Envoi des e-mails transactionnels et de simulation",
+              "Envoi des e-mails de simulation et des alertes techniques internes",
               "États-Unis",
             ],
             [
-              "Zoho Corporation",
-              "Messagerie professionnelle",
-              "Union européenne",
+              "SMS Partner",
+              "Envoi des SMS de simulation, lorsque ce canal est utilisé",
+              "France",
             ],
             [
               "Stripe, Inc.",
@@ -418,6 +547,13 @@ export default function PolitiqueConfidentialitePage() {
             ],
           ]}
         />
+        <P>
+          <Fort>Microsoft.</Fort> Microsoft n’est pas un sous-traitant de
+          Safentreprise. Microsoft 365 est le service de l’entreprise cliente,
+          choisi par elle ; les messages y restent hébergés. Safentreprise s’y
+          raccorde sur autorisation de son administrateur, dans les limites
+          décrites au point 2.5.
+        </P>
         <P>
           <Fort>Transferts hors Union européenne.</Fort> Certains prestataires
           sont établis aux États-Unis. Ces transferts sont encadrés par les
@@ -486,6 +622,24 @@ export default function PolitiqueConfidentialitePage() {
             traitement.
           </Li>
         </Ul>
+        <P>
+          <Fort>Comment l’effacement est réalisé aujourd’hui.</Fort> L’entreprise
+          cliente n’a pas encore, dans son espace, de bouton permettant
+          d’effacer elle-même les données d’un collaborateur. Une demande
+          d’effacement est exécutée manuellement par Safentreprise, à réception,
+          et dans le délai d’un mois prévu par le RGPD. Une fonction permettant
+          au client de le faire seul est prévue. Ce point est indiqué ici parce
+          qu’il est vrai, et non parce qu’il est satisfaisant.
+        </P>
+        <P>
+          Deux limites tiennent à la nature du service. L’effacement ne peut
+          porter sur les messages eux-mêmes, qui restent la propriété de
+          l’entreprise et sont hébergés chez Microsoft. Et lorsqu’un message a
+          été annoté, la ligne qui le décrit est conservée tant que
+          l’annotation n’a pas été retirée : c’est la seule trace permettant de
+          la défaire. Retirer l’annotation d’abord, puis effacer, lève cette
+          limite.
+        </P>
         <P>
           Une pièce justificative d’identité peut être demandée en cas de doute
           raisonnable sur l’identité du demandeur.
