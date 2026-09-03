@@ -790,6 +790,33 @@ async function diagnostiquer(): Promise<Response> {
     return Response.json({ diagnostic: controles }, { status: 500 });
   }
 
+  // 1 bis. OÙ CE CODE S'EXÉCUTE. La politique de confidentialité affirme que
+  //        le contenu des messages ne sort jamais de l'Union européenne : c'est
+  //        ici que le corps d'un message est lu et analysé. Un réglage remis
+  //        sur une région américaine rendrait cette phrase fausse en silence.
+  //
+  //        On lit la région réelle du processus, pas la valeur attendue.
+  //        Netlify exécute les fonctions sur AWS Lambda, qui renseigne
+  //        AWS_REGION. Si rien n'est renseigné, on le dit plutôt que de
+  //        conclure.
+  {
+    const region =
+      process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? null;
+    const europeenne = region ? /^eu-/.test(region) : false;
+    ajouter(
+      "région d'exécution",
+      region === null ? "ok" : europeenne ? "ok" : "échec",
+      region === null
+        ? "non renseignée par l'hébergeur — à vérifier dans Netlify : " +
+          "Build & deploy → Functions region"
+        : europeenne
+          ? `${region} — Union européenne`
+          : `${region} — HORS UNION EUROPÉENNE. Le corps des messages y est ` +
+            `analysé, ce que la politique de confidentialité exclut. ` +
+            `Corriger dans Netlify : Build & deploy → Functions region.`,
+    );
+  }
+
   // 2. Les trois fonctions du worker répondent-elles ?
   //    On les appelle avec des paramètres inoffensifs : un UUID nul ne
   //    correspond à aucun travail, donc rien n'est modifié.

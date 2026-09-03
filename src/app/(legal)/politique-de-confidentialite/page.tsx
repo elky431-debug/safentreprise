@@ -496,10 +496,12 @@ export default function PolitiqueConfidentialitePage() {
         <P>
           <Fort>Hébergement.</Fort> Toutes les données décrites ci-dessus sont
           enregistrées dans la base Supabase, <Fort>hébergée en France</Fort>{" "}
-          (région AWS eu-west-3, Paris). Elles sont traitées par l’application
-          hébergée chez Netlify. Les messages eux-mêmes restent chez Microsoft,
-          dans le locataire de l’entreprise cliente : Safentreprise les lit, les
-          annote, mais ne les déplace pas.
+          (région AWS eu-west-3, Paris). L’analyse elle-même, qui lit le corps
+          des messages, s’exécute <Fort>en Allemagne</Fort> (Netlify, région AWS
+          eu-central-1, Francfort). Les messages restent chez Microsoft, dans le
+          locataire de l’entreprise cliente : Safentreprise les lit, les annote,
+          mais ne les déplace pas. À aucun moment le contenu d’un message ne
+          sort de l’Union européenne.
         </P>
 
         <P>
@@ -528,8 +530,8 @@ export default function PolitiqueConfidentialitePage() {
             ],
             [
               "Netlify, Inc.",
-              "Hébergement du site et de l’application",
-              "États-Unis",
+              "Hébergement du site, exécution de l’application",
+              "Allemagne (région AWS eu-central-1, Francfort)",
             ],
             [
               "Resend, Inc.",
@@ -556,28 +558,48 @@ export default function PolitiqueConfidentialitePage() {
           décrites au point 2.5.
         </P>
         <P>
-          <Fort>Transferts hors Union européenne.</Fort> Certains prestataires
-          sont établis aux États-Unis. Ces transferts sont encadrés par les
-          garanties appropriées prévues au chapitre V du RGPD : clauses
-          contractuelles types de la Commission européenne (décision 2021/914)
-          et, lorsque le prestataire y est certifié, cadre de protection des
-          données UE–États-Unis (EU–US Data Privacy Framework).
-        </P>
-        <P>
           <Fort>
-            La base de données, où sont enregistrées toutes les données des
-            entreprises clientes et de leurs collaborateurs, est hébergée en
-            France
+            Les données des entreprises clientes et de leurs collaborateurs
+            restent dans l’Union européenne.
           </Fort>{" "}
-          (Supabase, région AWS eu-west-3, Paris). Aucune de ces données n’est
-          stockée hors de l’Union européenne.
+          La base de données, où tout est enregistré, est hébergée{" "}
+          <Fort>en France</Fort> (Supabase, région AWS eu-west-3, Paris).
+          L’application qui traite ces données — et qui lit le contenu des
+          messages le temps de chaque analyse — s’exécute{" "}
+          <Fort>en Allemagne</Fort> (Netlify, région AWS eu-central-1,
+          Francfort). Les messages eux-mêmes ne quittent pas le locataire
+          Microsoft 365 de l’entreprise cliente.
         </P>
         <P>
-          Les prestataires établis aux États-Unis interviennent sur des flux
-          précis, et non sur la base : Netlify exécute l’application, qui traite
-          les données en mémoire le temps de chaque requête ; Resend achemine
-          les messages de simulation et les alertes techniques internes ; Stripe
-          traite les paiements, le cas échéant.
+          <Fort>Transferts hors Union européenne.</Fort> Deux flux seulement
+          sortent de l’Union européenne, et aucun ne porte le contenu d’un
+          message :
+        </P>
+        <Ul>
+          <Li>
+            <Fort>Resend</Fort> — l’acheminement des messages de simulation
+            envoyés aux collaborateurs dans le cadre des campagnes, et les
+            alertes techniques internes, qui ne contiennent que des compteurs
+            et la nature du problème rencontré ;
+          </Li>
+          <Li>
+            <Fort>Stripe</Fort> — le traitement des paiements, le cas échéant,
+            qui ne porte que sur des données de facturation.
+          </Li>
+        </Ul>
+        <P>
+          Ces transferts sont encadrés par les garanties appropriées prévues au
+          chapitre V du RGPD : clauses contractuelles types de la Commission
+          européenne (décision 2021/914) et, lorsque le prestataire y est
+          certifié, cadre de protection des données UE–États-Unis (EU–US Data
+          Privacy Framework).
+        </P>
+        <P>
+          <Fort>Une précision utile.</Fort> Supabase et Netlify sont des
+          sociétés établies aux États-Unis, alors que les données qu’elles
+          traitent pour Safentreprise restent en France et en Allemagne. Les
+          mêmes garanties contractuelles s’appliquent donc à elles, pour couvrir
+          les accès depuis les États-Unis que leur exploitation peut supposer.
         </P>
 
         <H3 id="securite">3.2 Sécurité</H3>

@@ -3,6 +3,32 @@
   command = "npm run build"
   publish = ".next"
 
+# =============================================================================
+# RÉGION D'EXÉCUTION — Francfort (eu-central-1)
+# =============================================================================
+#
+# ⚠ CE RÉGLAGE EST DANS L'INTERFACE NETLIFY, PAS ICI.
+#   Project configuration → Build & deploy → Continuous deployment →
+#   Functions region → Frankfurt (eu-central-1)
+#
+#   Il n'est pas écrit dans ce fichier À DESSEIN : la clé correspondante n'a
+#   pas pu être vérifiée dans la documentation Netlify, et une clé inventée
+#   dans netlify.toml fait échouer le build — donc tomber le site. Tant que la
+#   syntaxe n'est pas confirmée, ce commentaire tient lieu de trace.
+#
+#   POURQUOI ÇA COMPTE. La politique de confidentialité affirme que le contenu
+#   des messages ne sort jamais de l'Union européenne. C'est ce réglage qui
+#   rend cette phrase vraie. Le remettre sur « US East » la rendrait fausse
+#   sans que rien ne le signale.
+#
+#   COMMENT VÉRIFIER, sur le déploiement en cours :
+#     POST /api/microsoft/worker?verifier=1   → contrôle « région d'exécution »
+#   Il lit la région réelle du processus, pas la valeur attendue.
+#
+#   À FAIRE : confirmer dans la documentation Netlify s'il existe une clé de
+#   région pour netlify.toml. Si oui, la poser ici et la tester d'abord sur un
+#   déploiement de branche, jamais directement en production.
+
 # Variables OBLIGATOIRES (à définir dans Netlify UI, pas ici) :
 #   NEXT_PUBLIC_SUPABASE_URL
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY
