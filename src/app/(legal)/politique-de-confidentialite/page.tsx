@@ -494,11 +494,12 @@ export default function PolitiqueConfidentialitePage() {
         </P>
 
         <P>
-          <Fort>Hébergement.</Fort> Les données sont enregistrées dans la base
-          Supabase et traitées par l’application hébergée chez Netlify. Les
-          messages eux-mêmes restent chez Microsoft, dans le locataire de
-          l’entreprise cliente : Safentreprise les lit, les annote, mais ne les
-          déplace pas.
+          <Fort>Hébergement.</Fort> Toutes les données décrites ci-dessus sont
+          enregistrées dans la base Supabase, <Fort>hébergée en France</Fort>{" "}
+          (région AWS eu-west-3, Paris). Elles sont traitées par l’application
+          hébergée chez Netlify. Les messages eux-mêmes restent chez Microsoft,
+          dans le locataire de l’entreprise cliente : Safentreprise les lit, les
+          annote, mais ne les déplace pas.
         </P>
 
         <P>
@@ -523,7 +524,7 @@ export default function PolitiqueConfidentialitePage() {
             [
               "Supabase (AWS)",
               "Base de données, authentification",
-              "Union européenne",
+              "France (région AWS eu-west-3, Paris)",
             ],
             [
               "Netlify, Inc.",
@@ -563,8 +564,20 @@ export default function PolitiqueConfidentialitePage() {
           données UE–États-Unis (EU–US Data Privacy Framework).
         </P>
         <P>
-          Les données de la base principale sont hébergées dans l’Union
-          européenne.
+          <Fort>
+            La base de données, où sont enregistrées toutes les données des
+            entreprises clientes et de leurs collaborateurs, est hébergée en
+            France
+          </Fort>{" "}
+          (Supabase, région AWS eu-west-3, Paris). Aucune de ces données n’est
+          stockée hors de l’Union européenne.
+        </P>
+        <P>
+          Les prestataires établis aux États-Unis interviennent sur des flux
+          précis, et non sur la base : Netlify exécute l’application, qui traite
+          les données en mémoire le temps de chaque requête ; Resend achemine
+          les messages de simulation et les alertes techniques internes ; Stripe
+          traite les paiements, le cas échéant.
         </P>
 
         <H3 id="securite">3.2 Sécurité</H3>
