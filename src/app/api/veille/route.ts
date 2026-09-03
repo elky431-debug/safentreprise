@@ -25,12 +25,19 @@ export const maxDuration = 30;
 /** Écarte les alertes trop récentes pour être un problème. */
 const AGE_MINUTES = 120;
 
+/**
+ * Une ligne du mail : une source, un motif, un nombre.
+ *
+ * ⚠ RIEN QUI DÉSIGNE UN MESSAGE, UNE PERSONNE OU UNE BOÎTE. Ce mail part chez
+ *   Resend, aux États-Unis, vers une adresse de Safentreprise — donc hors de
+ *   l'entreprise cliente, qui est responsable de ces données. L'objet des
+ *   messages, l'adresse des expéditeurs et celle des boîtes surveillées n'ont
+ *   rien à y faire. Le détail se lit en base, avec problemes_de_veille().
+ */
 type Ligne = {
   source: string;
-  identite: string;
-  intitule: string;
   motif: string;
-  depuis: string | null;
+  nombre: number;
 };
 
 type Preparation = {
@@ -149,14 +156,20 @@ function corpsTexte(p: Preparation): string {
   }
 
   for (const [source, lignes] of parSource) {
-    l.push("", `${source.toUpperCase()} (${lignes.length})`, "-".repeat(60));
+    const total = lignes.reduce((somme, ligne) => somme + ligne.nombre, 0);
+    l.push("", `${source.toUpperCase()} (${total})`, "-".repeat(60));
     for (const ligne of lignes) {
-      l.push("", `  ${ligne.intitule}`, `  → ${ligne.motif}`);
-      if (ligne.depuis) {
-        l.push(`  depuis le ${new Date(ligne.depuis).toLocaleString("fr-FR")}`);
-      }
+      l.push("", `  ${ligne.nombre} ×`, `  → ${ligne.motif}`);
     }
   }
+
+  l.push(
+    "",
+    "",
+    "Ce message ne nomme volontairement ni les expéditeurs, ni les objets,",
+    "ni les boîtes concernées. Le détail se lit en base :",
+    "    SELECT * FROM problemes_de_veille(120);",
+  );
 
   l.push("", "", "QUE FAIRE", "-".repeat(60), "");
   if (p.nb_abonnements > 0) {
@@ -207,7 +220,7 @@ function corpsHtml(p: Preparation): string {
       <tr>
         <td style="padding:12px 14px;border-bottom:1px solid #e5e7eb;vertical-align:top">
           <div style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">${echapper(ligne.source)}</div>
-          <div style="font-weight:600;color:#111827;margin-top:2px">${echapper(ligne.intitule)}</div>
+          <div style="font-weight:600;color:#111827;margin-top:2px">${ligne.nombre} ×</div>
           <div style="color:${couleur};margin-top:4px">${echapper(ligne.motif)}</div>
         </td>
       </tr>`,
@@ -408,12 +421,10 @@ export async function POST(request: Request) {
           lignes: [
             {
               source: "essai",
-              identite: "essai",
-              intitule: "Ceci est un envoi d'essai",
+              nombre: 1,
               motif:
                 "Si vous lisez ce message, la veille sait vous joindre. " +
                 "Les deux vues de contrôle sont vides en ce moment.",
-              depuis: new Date().toISOString(),
             },
           ],
         };
