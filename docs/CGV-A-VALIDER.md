@@ -2,7 +2,12 @@
 
 **À remettre tel quel au conseil.** Ce document accompagne les conditions
 générales publiées sur `https://safentreprise.com/cgv` (fichier
-`src/app/(legal)/cgv/page.tsx`, version 1.1 du 4 septembre 2026).
+`src/app/(legal)/cgv/page.tsx`, version 1.2 du 4 septembre 2026).
+
+**Priorité de relecture.** Si le temps du conseil est compté, l'ordre est :
+**article 11** (réécrit, non relu, c'est là que le risque se concentre), puis
+**article 15** (une qualification juridique affirmée sans vérification), puis
+**article 8**.
 
 ---
 
@@ -17,14 +22,15 @@ Microsoft 365** de l'entreprise cliente, **lit le contenu des messages reçus**,
 et **modifie dans la boîte du destinataire** ceux qu'il juge frauduleux — un
 avertissement est inséré en tête du message.
 
-La version 1.1 des CGV décrit ce nouveau service (article 4.3) et les
+La version 1.2 des CGV décrit ce nouveau service (article 4.3) et les
 obligations qui en découlent pour le client (article 9). **Ces parties reposent
 sur des faits techniques vérifiés dans le code et peuvent être tenues pour
 exactes.** Elles n'ont pas été relues par un juriste.
 
-**Trois articles n'ont volontairement pas été touchés** et sont listés
-ci-dessous. Ils portent des qualifications juridiques, non des descriptions du
-produit.
+**Trois articles portent des qualifications juridiques, non des descriptions
+du produit.** Les articles 8 et 15 n'ont pas été touchés. **L'article 11 a été
+réécrit le 4 septembre sur instruction du dirigeant** — il est signalé comme
+tel, et c'est celui qui appelle la relecture la plus attentive.
 
 ---
 
@@ -47,6 +53,11 @@ courrier des salariés en conséquence.
 
 ## 2. Article 11 — Limitation de responsabilité
 
+> **Cet article a été RÉÉCRIT le 4 septembre 2026**, sur instruction du
+> dirigeant, qui a arrêté lui-même le plafond et les exclusions. Il n'a pas été
+> relu par un juriste. C'est l'article où cette absence de relecture pèse le
+> plus lourd.
+
 **Ce qui a changé sous cet article.** Deux risques nouveaux, tous deux absents
 du produit d'origine.
 
@@ -59,12 +70,41 @@ du produit d'origine.
 - **Préjudice financier direct en cas de faux négatif.** Le montant d'un
   virement frauduleux, sans rapport avec le prix de l'abonnement.
 
-**Les questions.**
+### Ce que la nouvelle rédaction dit
 
-- Le plafond actuel est-il tenable face à ces deux risques ?
-- Les exclusions couvrent-elles la modification irréversible d'un message ?
-- Un tiers non contractant (le fournisseur dont le message a été dégradé)
-  peut-il agir, et contre qui — le client ou l'éditeur ?
+| Sous-article | Contenu |
+|---|---|
+| **11.1** *(nouveau)* | Le Service **émet des alertes, il ne décide pas**. Un avertissement ne certifie pas la fraude, une absence d'avertissement ne certifie pas la légitimité. La vérification d'un virement et la décision de l'exécuter relèvent du seul Client |
+| **11.2** | Faute prouvée, dommages directs et prévisibles seulement *(inchangé)* |
+| **11.3** | Exclusions, désormais en liste, avec en tête **le montant d'une opération frauduleuse exécutée sur un message non signalé** (faux négatif), puis pertes d'exploitation, manque à gagner, image, données, réclamations de tiers |
+| **11.4** | Plafond = sommes HT versées au titre de l'Abonnement sur les **12 mois** précédant le fait générateur ; au prorata si le contrat a moins de douze mois |
+| **11.5** | Exceptions d'ordre public : faute lourde, faute dolosive, **dommage corporel**, cas où la loi interdit la limitation ; et réserve expresse de l'article 1170 du Code civil |
+| **11.6** | Prescription contractuelle de 12 mois *(inchangé, renuméroté)* |
+
+### Les questions, par ordre d'importance
+
+1. **La contrepartie subsiste-t-elle ?** C'est la question centrale. Le
+   plafond est limité au prix payé, et l'exclusion 11.3 retire le seul
+   préjudice que le produit prétend éviter — le montant d'un virement
+   frauduleux. **Un juge peut-il y voir une clause vidant l'obligation
+   essentielle de sa substance, donc non écrite au sens de l'article 1170 du
+   Code civil ?** La réserve ajoutée en 11.5 suffit-elle, ou faut-il un
+   mécanisme de réparation minimal pour que la clause tienne ?
+2. **Le faux positif n'est pas traité.** Aucune réparation n'est prévue pour
+   un message de fournisseur légitime dégradé durablement. Faut-il une
+   réparation en nature — le retrait de l'avertissement, que le produit sait
+   faire — plutôt que rien ?
+3. **Un tiers non contractant** (le fournisseur dont le message a été dégradé)
+   peut-il agir, et contre qui : le client, qui a autorisé la surveillance, ou
+   l'éditeur, qui a modifié le message ?
+4. **11.6, prescription de douze mois.** L'article 2254 du Code civil encadre
+   l'aménagement conventionnel des délais. Douze mois est-il au plancher
+   admis, et cette rédaction est-elle valable en l'état ?
+5. **11.1 est-il un atout ou un aveu ?** Rappeler que le Service n'est
+   qu'une aide à la vigilance renforce la limitation, mais peut être opposé
+   comme une reconnaissance que le produit ne tient pas ce que la promesse
+   commerciale laisse entendre. La cohérence avec les supports de vente
+   mérite d'être vérifiée.
 
 ## 3. Article 15 — Données personnelles
 
@@ -159,5 +199,6 @@ pour acquis.
 
 ---
 
-*Document établi le 4 septembre 2026, sur le code à l'état du commit de la
-version 1.1 des CGV. À mettre à jour si le produit change.*
+*Document établi le 4 septembre 2026, mis à jour le même jour après la
+réécriture de l'article 11, sur le code à l'état du commit de la version 1.2
+des CGV. À mettre à jour si le produit change.*

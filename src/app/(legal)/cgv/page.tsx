@@ -29,7 +29,7 @@ export default function CgvPage() {
           Conditions générales de vente et d’utilisation
         </h1>
         <p className="mt-3 text-[13.5px] text-faint">
-          Version 1.1 — en vigueur au 4 septembre 2026
+          Version 1.2 — en vigueur au 4 septembre 2026
         </p>
       </header>
 
@@ -476,54 +476,122 @@ export default function CgvPage() {
         </P>
 
         {/* ====================================================================
-            ⚠ ARTICLE 11 — À FAIRE VALIDER PAR UN JURISTE. TEXTE NON MODIFIÉ.
+            ⚠ ARTICLE 11 — À FAIRE VALIDER PAR UN JURISTE. TEXTE RÉÉCRIT.
 
-            Le plafond de responsabilité a été calibré pour de la simulation de
-            phishing. Le Service peut aujourd'hui dégrader durablement le
-            courrier professionnel d'un tiers — un fournisseur légitime marqué
-            à tort — et un faux négatif peut coûter au Client le montant d'un
-            virement frauduleux. Ni le plafond ni les exclusions n'ont été
-            revus pour ces deux risques.
+            Réécrit le 4 septembre 2026 sur instruction du dirigeant, qui a
+            arrêté lui-même le plafond et les exclusions. La rédaction n'a PAS
+            été relue par un juriste, et c'est l'article où cela compte le
+            plus.
+
+            Ce qui a été ajouté : 11.1 (le Service alerte, il ne décide pas —
+            la vérification d'un virement reste au Client), l'exclusion
+            expresse du montant d'une opération frauduleuse non signalée
+            (11.3), le plafond au prorata pour un contrat de moins de douze
+            mois (11.4), et le dommage corporel nommé parmi les exceptions
+            d'ordre public (11.5).
+
+            Deux garde-fous posés par le dirigeant et respectés : pas
+            d'exonération totale — elle serait écartée et le laisserait sans
+            aucun plafond — et les exceptions d'ordre public sont conservées.
+
+            CE QUE LE JURISTE DOIT TRANCHER : le plafond tient-il face au
+            risque réel ? La combinaison plafond + exclusion du faux négatif
+            laisse-t-elle subsister une contrepartie suffisante, ou vide-t-elle
+            l'obligation essentielle de sa substance (art. 1170 C. civ.) ?
+            Aucune réparation n'est prévue pour un faux positif ayant dégradé
+            durablement le message d'un tiers.
 
             Voir docs/CGV-A-VALIDER.md
             ==================================================================== */}
         <H2 id="article-11">Article 11 — Limitation de responsabilité</H2>
 
-        <H3 id="article-11-1">11.1 Étendue</H3>
+        <H3 id="article-11-1">11.1 Nature du Service et rôle du Client</H3>
+        <P>
+          Le Service <Fort>émet des alertes ; il ne décide pas</Fort>. Un
+          avertissement posé sur un message signale une suspicion : il ne vaut
+          ni certification qu’un message est frauduleux, ni garantie qu’un
+          message non signalé est légitime.
+        </P>
+        <P>
+          <Fort>
+            La vérification d’une demande de virement ou de changement de
+            coordonnées bancaires, et la décision de l’exécuter, relèvent du
+            seul Client
+          </Fort>
+          . Le Client conserve la maîtrise de ses procédures internes de
+          paiement et de contrôle, que le Service ne remplace pas.
+        </P>
+        <P>
+          Les stipulations qui suivent s’apprécient au regard de cette nature :
+          le Service est un outil d’aide à la vigilance, dont le prix est sans
+          commune mesure avec les montants susceptibles d’être engagés par une
+          opération de paiement.
+        </P>
+
+        <H3 id="article-11-2">11.2 Étendue</H3>
         <P>
           La responsabilité du Prestataire ne peut être engagée qu’en cas de
           faute prouvée et pour les seuls dommages directs et prévisibles.
         </P>
 
-        <H3 id="article-11-2">11.2 Exclusions</H3>
+        <H3 id="article-11-3">11.3 Exclusions</H3>
         <P>
           Sont expressément exclus de toute indemnisation les dommages
-          indirects, et notamment : pertes financières résultant d’une fraude
-          effectivement subie, pertes d’exploitation, pertes de chiffre
-          d’affaires, de marge, de clientèle, de données, atteinte à l’image ou
-          à la réputation, préjudice commercial, ainsi que les réclamations de
-          tiers.
+          indirects, et notamment :
         </P>
+        <Ul>
+          <Li>
+            <Fort>
+              le montant de toute opération frauduleuse exécutée par le Client,
+              y compris lorsque le message à l’origine de cette opération n’a
+              pas été signalé par le Service
+            </Fort>{" "}
+            (faux négatif), ainsi que les frais et pertes en découlant ;
+          </Li>
+          <Li>
+            les pertes d’exploitation, le manque à gagner, les pertes de chiffre
+            d’affaires, de marge ou de clientèle ;
+          </Li>
+          <Li>l’atteinte à l’image ou à la réputation, le préjudice commercial ;</Li>
+          <Li>
+            la perte de données, sous réserve des obligations du Prestataire au
+            titre de l’article 18 ;
+          </Li>
+          <Li>les réclamations de tiers.</Li>
+        </Ul>
 
-        <H3 id="article-11-3">11.3 Plafond</H3>
+        <H3 id="article-11-4">11.4 Plafond</H3>
         <P>
           En tout état de cause, la responsabilité totale et cumulée du
           Prestataire, toutes causes confondues, est{" "}
           <Fort>
             plafonnée au montant hors taxes des sommes effectivement versées par
-            le Client au cours des douze (12) mois précédant le fait générateur
+            le Client au titre de l’Abonnement au cours des douze (12) mois
+            précédant le fait générateur
           </Fort>
           .
         </P>
-
-        <H3 id="article-11-4">11.4 Limites légales</H3>
         <P>
-          Les stipulations du présent article ne s’appliquent pas en cas de
-          faute lourde ou dolosive du Prestataire, ni dans les cas où la loi
-          interdit une telle limitation.
+          Lorsque le contrat a pris effet depuis moins de douze mois, le plafond
+          est égal aux sommes effectivement versées depuis sa prise d’effet.
         </P>
 
-        <H3 id="article-11-5">11.5 Prescription</H3>
+        <H3 id="article-11-5">11.5 Limites légales</H3>
+        <P>
+          <Fort>
+            Les stipulations du présent article ne s’appliquent pas, et ne
+            sauraient être invoquées, en cas de faute lourde ou dolosive du
+            Prestataire, en cas de dommage corporel, ni dans les cas où la loi
+            interdit une telle limitation.
+          </Fort>
+        </P>
+        <P>
+          Elles ne s’appliquent pas davantage à l’obligation essentielle du
+          contrat, dont la privation de substance rendrait la limitation non
+          écrite au sens de l’article 1170 du Code civil.
+        </P>
+
+        <H3 id="article-11-6">11.6 Prescription</H3>
         <P>
           Toute action fondée sur le contrat doit être engagée dans un délai de{" "}
           <Fort>douze (12) mois</Fort> à compter de la survenance du fait
