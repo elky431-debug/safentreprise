@@ -58,13 +58,25 @@ async function preparer(
   });
 
   if (error) {
-    console.error("[consentement] demarrer_consentement_graph :", error.message);
+    console.error("[consentement] demarrer_consentement_graph :", error);
+
+    // ⚠ NE PAS DEVINER LA CAUSE. La première version de cette route renvoyait
+    //   « votre compte est-il rattaché à une société ? » pour n'importe quelle
+    //   erreur. L'échec réel était tout autre — une fonction Postgres
+    //   introuvable — et le message a envoyé chercher au mauvais endroit.
+    //
+    //   On distingue donc le seul cas qu'on sait reconnaître, et on rend le
+    //   message de Postgres pour tous les autres.
+    const brut = `${error.message ?? ""} ${error.details ?? ""}`.trim();
+    const sansSociete = /Aucune soci[ée]t[ée] pour cette session/i.test(brut);
+
     return {
       ok: false,
-      statut: 500,
-      erreur:
-        "Impossible de préparer le raccordement. Votre compte est-il bien " +
-        "rattaché à une société ?",
+      statut: sansSociete ? 409 : 500,
+      erreur: sansSociete
+        ? "Votre compte n'est rattaché à aucune société. Contactez le support."
+        : `Le raccordement n'a pas pu être préparé. Erreur renvoyée par la ` +
+          `base : ${brut || "sans détail"}`,
     };
   }
 
