@@ -29,7 +29,7 @@ export default function CgvPage() {
           Conditions générales de vente et d’utilisation
         </h1>
         <p className="mt-3 text-[13.5px] text-faint">
-          Version 1.0 — en vigueur au 19 août 2026
+          Version 1.1 — en vigueur au 4 septembre 2026
         </p>
       </header>
 
@@ -64,8 +64,18 @@ export default function CgvPage() {
         <H2 id="article-2">Article 2 — Définitions</H2>
         <P>
           <Fort>Plateforme</Fort> : la solution logicielle en ligne
-          Safentreprise, accessible par navigateur, ainsi que l’extension
-          navigateur associée.
+          Safentreprise, accessible par navigateur.
+        </P>
+        <P>
+          <Fort>Surveillance</Fort> : l’analyse automatisée des messages reçus
+          dans les Boîtes raccordées et, le cas échéant, l’ajout d’un
+          avertissement sur les messages présentant les caractéristiques d’une
+          fraude.
+        </P>
+        <P>
+          <Fort>Boîtes raccordées</Fort> : les boîtes aux lettres Microsoft 365
+          du Client que celui-ci a expressément désignées comme relevant de la
+          Surveillance.
         </P>
         <P>
           <Fort>Collaborateurs</Fort> : les personnes physiques employées par le
@@ -128,9 +138,9 @@ export default function CgvPage() {
 
         <H3 id="article-4-2">4.2 Abonnement</H3>
         <P>
-          L’Abonnement donne accès, pendant sa durée, à la Plateforme, à
-          l’extension navigateur, aux Campagnes récurrentes, aux modules de
-          formation, au score de risque, aux tableaux de bord et aux
+          L’Abonnement donne accès, pendant sa durée, à la Plateforme, à la
+          Surveillance décrite au point 4.3, aux Campagnes récurrentes, aux
+          modules de formation, au score de risque, aux tableaux de bord et aux
           attestations.
         </P>
         <P>
@@ -138,7 +148,68 @@ export default function CgvPage() {
           est déterminé par l’effectif du Client à la date de la commande.
         </P>
 
-        <H3 id="article-4-3">4.3 Évolutions</H3>
+        <H3 id="article-4-3">4.3 Surveillance des messages Microsoft 365</H3>
+        <P>
+          <Fort>Raccordement.</Fort> La Surveillance suppose qu’un
+          administrateur Microsoft 365 du Client autorise l’application
+          Safentreprise à accéder aux boîtes de son organisation. Cette
+          autorisation est donnée par le Client, sur son propre environnement
+          Microsoft, et peut être retirée par lui à tout moment. Son retrait
+          interrompt la Surveillance.
+        </P>
+        <P>
+          <Fort>Choix des Boîtes.</Fort> Le Client désigne les Boîtes
+          raccordées. La Surveillance ne porte que sur elles, et uniquement sur
+          les messages <Fort>reçus</Fort> dans leur boîte de réception. Les
+          messages envoyés ne sont pas analysés.
+        </P>
+        <P>
+          <Fort>Restriction préalable.</Fort> Les autorisations délivrées par
+          Microsoft portent, par construction, sur l’ensemble des boîtes du
+          Client. Le Client doit donc restreindre l’accès de l’application aux
+          seules Boîtes raccordées, au moyen du script que le Prestataire lui
+          fournit. <Fort>Tant que cette restriction n’a pas été constatée par
+          le Prestataire, aucun message n’est analysé et la Surveillance ne
+          démarre pas.</Fort>
+        </P>
+        <P>
+          <Fort>Ce qui est examiné.</Fort> Pour chaque message reçu dans une
+          Boîte raccordée, le Service examine l’expéditeur, l’objet, les
+          destinataires, la date de réception et le corps du message. Les pièces
+          jointes ne sont ni téléchargées, ni examinées, ni conservées.
+        </P>
+        <P>
+          <Fort>Modification des messages signalés.</Fort> Lorsqu’un message
+          présente les caractéristiques d’une fraude, le Service{" "}
+          <Fort>modifie ce message dans la boîte du destinataire</Fort> : un
+          avertissement est inséré en tête du corps et une catégorie de couleur
+          est posée. Le message d’origine n’est ni supprimé ni déplacé ; il
+          figure sous l’avertissement. Un message reçu au format texte simple
+          est converti au format HTML à cette occasion.
+        </P>
+        <P>
+          <Fort>Réversibilité.</Fort> Cette modification peut être défaite, par
+          deux moyens : la copie du corps d’origine, conservée trente (30) jours
+          au plus, qui permet de rétablir le message à l’identique ; et, à
+          défaut, le retrait de l’avertissement, encadré par des repères
+          techniques prévus à cet effet.{" "}
+          <Fort>
+            Au-delà de trente jours, un message reçu au format texte simple
+            conserve le format HTML issu de la conversion, sa mise en forme
+            pouvant différer de l’original.
+          </Fort>
+        </P>
+        <P>
+          <Fort>Limites de la détection.</Fort> La Surveillance repose sur des
+          règles d’analyse automatisées. Elle peut signaler un message légitime
+          (faux positif) ou ne pas signaler un message frauduleux (faux
+          négatif). Elle ne constitue ni un antivirus, ni un filtre
+          anti-pourriel, ni un dispositif de contrôle de l’activité des
+          Collaborateurs, et ne produit aucun indicateur individuel de
+          comportement.
+        </P>
+
+        <H3 id="article-4-4">4.4 Évolutions</H3>
         <P>
           Le Prestataire peut faire évoluer les fonctionnalités du Service. Il
           s’interdit toute évolution qui réduirait substantiellement les
@@ -256,6 +327,18 @@ export default function CgvPage() {
           l’effectif du Client prend effet à la date anniversaire du contrat.
         </P>
 
+        {/* ====================================================================
+            ⚠ ARTICLE 8 — À FAIRE VALIDER PAR UN JURISTE. TEXTE NON MODIFIÉ.
+
+            Cet article a été rédigé pour un produit de simulation de phishing.
+            Le Service modifie désormais le courrier reçu des Collaborateurs,
+            de façon potentiellement définitive au-delà de trente jours, et
+            promet de détecter la fraude. La formulation de l'obligation de
+            moyens n'a pas été revue à l'aune de ce risque : elle peut être
+            insuffisante, et je ne suis pas en mesure d'en juger.
+
+            Voir docs/CGV-A-VALIDER.md
+            ==================================================================== */}
         <H2 id="article-8">Article 8 — Nature de l’engagement</H2>
         <P>
           Le Service a pour objet de réduire l’exposition du Client au risque de
@@ -304,11 +387,41 @@ export default function CgvPage() {
         <P>
           <Fort>De l’information préalable de ses Collaborateurs.</Fort> Le
           Client garantit avoir informé ses Collaborateurs de l’existence du
-          dispositif de sensibilisation, préalablement à toute Campagne,
-          conformément aux articles 12 et 13 du RGPD et à l’article L.1222-4 du
-          Code du travail. Il garantit également avoir procédé, le cas échéant,
-          à l’information et à la consultation de son comité social et
-          économique.
+          dispositif de sensibilisation, préalablement à toute Campagne, et{" "}
+          <Fort>
+            de la Surveillance de leurs messages entrants, préalablement au
+            raccordement de leur Boîte
+          </Fort>
+          , en précisant que les messages signalés seront modifiés dans leur
+          boîte. Cette information est due conformément aux articles 12 et 13 du
+          RGPD et à l’article L.1222-4 du Code du travail. Le Client garantit
+          également avoir procédé, le cas échéant, à l’information et à la
+          consultation de son comité social et économique. Le Prestataire
+          fournit sur demande un texte type ; sa transmission ne décharge pas le
+          Client de cette obligation.
+        </P>
+        <P>
+          <Fort>Du raccordement Microsoft 365.</Fort> Le Client garantit que
+          l’autorisation d’accès est donnée par une personne habilitée à
+          engager son organisation, et qu’il dispose des droits nécessaires sur
+          les Boîtes qu’il désigne.
+        </P>
+        <P>
+          <Fort>De la restriction des accès.</Fort> Le Client fait exécuter, par
+          son administrateur Microsoft, la restriction limitant l’accès de
+          l’application aux seules Boîtes raccordées. Il reconnaît qu’en
+          l’absence de cette restriction, les autorisations délivrées par
+          Microsoft portent sur l’ensemble des boîtes de son organisation, et
+          que la Surveillance ne démarre pas tant que le Prestataire n’a pas
+          constaté cette restriction.
+        </P>
+        <P>
+          <Fort>De la vérification des messages signalés.</Fort> Un
+          avertissement posé par le Service est une alerte, non une décision. Le
+          Client demeure seul responsable des suites qu’il donne à un message
+          signalé comme à un message non signalé, notamment de la vérification
+          de toute demande de virement ou de changement de coordonnées
+          bancaires par un canal indépendant du message reçu.
         </P>
         <P>
           <Fort>De sa qualité de responsable de traitement</Fort> au sens du
@@ -362,6 +475,18 @@ export default function CgvPage() {
           l’absence de stipulation expresse au devis.
         </P>
 
+        {/* ====================================================================
+            ⚠ ARTICLE 11 — À FAIRE VALIDER PAR UN JURISTE. TEXTE NON MODIFIÉ.
+
+            Le plafond de responsabilité a été calibré pour de la simulation de
+            phishing. Le Service peut aujourd'hui dégrader durablement le
+            courrier professionnel d'un tiers — un fournisseur légitime marqué
+            à tort — et un faux négatif peut coûter au Client le montant d'un
+            virement frauduleux. Ni le plafond ni les exclusions n'ont été
+            revus pour ces deux risques.
+
+            Voir docs/CGV-A-VALIDER.md
+            ==================================================================== */}
         <H2 id="article-11">Article 11 — Limitation de responsabilité</H2>
 
         <H3 id="article-11-1">11.1 Étendue</H3>
@@ -437,7 +562,7 @@ export default function CgvPage() {
 
         <H2 id="article-14">Article 14 — Propriété intellectuelle</H2>
         <P>
-          La Plateforme, l’extension, le code source, les contenus pédagogiques,
+          La Plateforme, le code source, les contenus pédagogiques,
           les gabarits de Campagne, les interfaces, la documentation et la
           marque Safentreprise demeurent la propriété exclusive du Prestataire.
         </P>
@@ -456,6 +581,19 @@ export default function CgvPage() {
         </P>
         <P>Les données transmises par le Client demeurent sa propriété.</P>
 
+        {/* ====================================================================
+            ⚠ ARTICLE 15 — À FAIRE VALIDER PAR UN JURISTE. TEXTE NON MODIFIÉ.
+
+            Il affirme que la Politique de confidentialité « vaut accord de
+            sous-traitance au sens de l'article 28 du RGPD ». C'est une
+            qualification juridique, pas un fait technique : l'article 28 exige
+            des clauses précises (durée, nature, sous-traitants ultérieurs,
+            assistance, sort des données en fin de contrat, audit) dont la
+            présence dans la Politique n'a pas été vérifiée par un juriste.
+            L'AIPD conclut d'ailleurs que le contrat de sous-traitance manque.
+
+            Voir docs/CGV-A-VALIDER.md
+            ==================================================================== */}
         <H2 id="article-15">Article 15 — Données personnelles</H2>
         <P>
           Le traitement des données personnelles est régi par la{" "}
