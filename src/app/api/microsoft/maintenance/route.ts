@@ -22,6 +22,8 @@ import {
   ErreurGraph,
   appelGraph,
   creerAbonnement,
+  domainesDeAnnuaire,
+  listerAnnuaire,
   remplacerCorps,
   renouvelerAbonnement,
 } from "@/lib/microsoft/graph";
@@ -798,6 +800,71 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
    Point d'entrée
    ========================================================================== */
 
+
+/* ==========================================================================
+   Rafraîchissement des annuaires
+   ========================================================================== */
+
+/**
+ * L'annuaire vieillit en silence, et c'est lui qui alimente la détection
+ * d'usurpation.
+ *
+ * Jusqu'ici il n'était rempli qu'une fois, par un script lancé à la main au
+ * raccordement. Chez un client, un dirigeant recruté ensuite n'aurait jamais
+ * été reconnu — et une usurpation de son identité serait passée inaperçue,
+ * sans que rien ne le signale.
+ *
+ * ⚠ UN ANNUAIRE VIDE NE REMPLACE RIEN. rafraichir_annuaire_graph refuse déjà
+ *   une charge vide, mais on ne l'appelle même pas : un appel Graph qui rend
+ *   zéro personne est un appel raté, pas une entreprise sans salariés.
+ */
+async function rafraichirAnnuaires(): Promise<Record<string, unknown>> {
+  const locataires = await rpc<
+    { tenant_uid: string; tenant_id: string; personnes: number }[]
+  >("tenants_a_rafraichir", { p_age_heures: 24, p_limite: 5 });
+
+  if (!Array.isArray(locataires) || locataires.length === 0) {
+    return { examines: 0, rafraichis: 0, details: [] };
+  }
+
+  const details: Record<string, unknown>[] = [];
+  let rafraichis = 0;
+  const limite = Date.now() + BUDGET_MS;
+
+  for (const l of locataires) {
+    if (Date.now() > limite) break;
+    try {
+      const personnes = await listerAnnuaire(l.tenant_id);
+      if (personnes.length === 0) {
+        details.push({ tenant: l.tenant_id, etat: "vide-ignore" });
+        continue;
+      }
+      const bilan = await rpc<{ personnes: number; domaines: number }[]>(
+        "rafraichir_annuaire_graph",
+        {
+          p_tenant_uid: l.tenant_uid,
+          p_personnes: personnes,
+          p_domaines: domainesDeAnnuaire(personnes),
+        },
+      );
+      const r = Array.isArray(bilan) ? bilan[0] : bilan;
+      rafraichis += 1;
+      details.push({
+        tenant: l.tenant_id,
+        etat: "rafraichi",
+        personnes: r?.personnes ?? personnes.length,
+        domaines: r?.domaines ?? 0,
+      });
+    } catch (erreur) {
+      const detail = messageDe(erreur);
+      console.error(`[maintenance] annuaire ${l.tenant_id} : ${detail}`);
+      details.push({ tenant: l.tenant_id, etat: "echec", erreur: detail.slice(0, 200) });
+    }
+  }
+
+  return { examines: locataires.length, rafraichis, details };
+}
+
 function autorise(request: Request): boolean {
   const attendu = process.env.WORKER_SECRET;
   if (!attendu) return false;
@@ -856,6 +923,14 @@ export async function POST(request: Request) {
     } catch (erreur) {
       resultat.conversions = { erreur: messageDe(erreur) };
       console.error("[maintenance] conversions :", messageDe(erreur));
+    }
+
+    // Cinquième travail : rafraîchir les annuaires qui vieillissent.
+    try {
+      resultat.annuaires = await rafraichirAnnuaires();
+    } catch (erreur) {
+      resultat.annuaires = { erreur: messageDe(erreur) };
+      console.error("[maintenance] annuaires :", messageDe(erreur));
     }
   }
 
