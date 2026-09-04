@@ -42,6 +42,11 @@
 #   RESEND_API_KEY
 #   SIMULATION_FROM_EMAIL
 #   SUPABASE_SECRET_KEY
+#   MS_REDIRECT_URI
+#     ↳ retour du consentement administrateur Microsoft. Doit correspondre AU
+#       CARACTÈRE PRÈS à l'URI déclarée dans Azure. Sans elle, aucun client
+#       ne peut se raccorder — le parcours refuse de partir plutôt que de se
+#       faire rejeter par Microsoft au milieu.
 #   VEILLE_FROM_EMAIL / VEILLE_DESTINATAIRE
 #     ↳ alerte par mail quand une vue de contrôle cesse d'être vide.
 #       L'expéditeur doit être sur un domaine VÉRIFIÉ chez Resend :

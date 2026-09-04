@@ -778,6 +778,36 @@ async function diagnostiquer(): Promise<Response> {
       : "absente — l'adresse du webhook sera déduite du déploiement. " +
         "Vérifier : POST /api/microsoft/maintenance?seulement=abonnements",
   );
+  // Le raccordement d'un nouveau client en dépend, et une valeur qui ne
+  // correspond pas au caractère près à Azure échoue au milieu du parcours.
+  // Ici on ne vérifie que ce qui est vérifiable sans appeler Microsoft.
+  {
+    const brute = process.env.MS_REDIRECT_URI?.trim();
+    const attendu = "/api/microsoft/consentement";
+    let etat: "ok" | "échec" = "ok";
+    let detail: string;
+    if (!brute) {
+      detail =
+        "absente — aucun client ne peut se raccorder. Poser la valeur exacte " +
+        "déclarée dans Azure.";
+      etat = "échec";
+    } else {
+      try {
+        const u = new URL(brute);
+        if (u.protocol !== "https:" || u.pathname !== attendu) {
+          etat = "échec";
+          detail = `${brute} — attendu : https + chemin ${attendu}, sans barre oblique finale`;
+        } else {
+          detail = `${brute} — doit correspondre au caractère près à Azure`;
+        }
+      } catch {
+        etat = "échec";
+        detail = `${brute} — n'est pas une URL`;
+      }
+    }
+    ajouter("MS_REDIRECT_URI", etat, detail);
+  }
+
   ajouter(
     "variables d'environnement",
     absentes.length === 0 ? "ok" : "échec",
