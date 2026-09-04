@@ -17,6 +17,7 @@
     "graph:annuaire": "node scripts/graph-annuaire.mjs",
     "banniere:test": "node --experimental-strip-types src/lib/microsoft/banniere.test.ts",
     "consentement:test": "node --experimental-strip-types --test src/lib/microsoft/consentement.test.ts",
+    "restriction:test": "node --experimental-strip-types --test src/lib/microsoft/restriction.test.ts",
     "graph:restaurer": "node scripts/graph-restaurer.mjs",
     "graph:essai-conversion": "node scripts/graph-essai-conversion.mjs"
   },

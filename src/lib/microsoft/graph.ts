@@ -520,3 +520,102 @@ export async function lireMessage(
     `/users/${boite}/messages/${message}?$select=${CHAMPS}`,
   );
 }
+
+/* ==========================================================================
+   Raccordement d'un client : lister ses boîtes, et sonder la restriction
+   ========================================================================== */
+
+export type BoiteCandidate = {
+  graph_user_id: string;
+  upn: string;
+  nom: string;
+};
+
+/**
+ * Les boîtes que le client peut choisir de faire surveiller.
+ *
+ * User.Read.All rend les COMPTES, pas les boîtes : rien n'y dit qui possède
+ * une boîte aux lettres. On écarte donc ce qu'on peut écarter avec certitude —
+ * comptes désactivés, comptes sans adresse — et on laisse le client trancher
+ * le reste. Mieux vaut lui montrer une boîte de trop qu'en cacher une.
+ */
+export async function listerBoites(
+  tenantId: string,
+  plafond = 2000,
+): Promise<BoiteCandidate[]> {
+  const boites: BoiteCandidate[] = [];
+  let chemin: string | null =
+    "/users?$select=id,displayName,mail,userPrincipalName,accountEnabled&$top=999";
+
+  while (chemin && boites.length < plafond) {
+    const page: {
+      value?: (UtilisateurGraph & { accountEnabled?: boolean })[];
+      "@odata.nextLink"?: string;
+    } = await appelGraph(tenantId, "GET", chemin);
+
+    for (const u of page.value ?? []) {
+      const adresse = (u.mail ?? u.userPrincipalName ?? "").trim().toLowerCase();
+      if (!u.id || !adresse || u.accountEnabled === false) continue;
+      boites.push({
+        graph_user_id: u.id,
+        upn: adresse,
+        nom: (u.displayName ?? "").trim() || adresse,
+      });
+    }
+
+    chemin = page["@odata.nextLink"] ?? null;
+  }
+
+  return boites.sort((a, b) => a.upn.localeCompare(b.upn, "fr"));
+}
+
+/** Ce qu'a donné une tentative de lecture sur une boîte. */
+export type Sondage =
+  | { etat: "lisible" }
+  | { etat: "refuse"; code: string; message: string }
+  | { etat: "introuvable"; message: string }
+  | { etat: "indetermine"; message: string };
+
+/**
+ * Tente de lire une boîte, sans rien y modifier ni rien en rapporter.
+ *
+ * ⚠ LA DISTINCTION QUI FAIT TOUTE LA PREUVE. Un échec ne vaut pas un refus.
+ *   Un compte sans boîte aux lettres rend 404 : conclure de ce 404 que la
+ *   restriction fonctionne serait une preuve fausse, et le produit
+ *   prétendrait un cloisonnement qu'il n'a pas. Seul un refus explicite —
+ *   403, ou un code d'accès refusé — prouve quelque chose.
+ */
+export async function sonderBoite(
+  tenantId: string,
+  graphUserId: string,
+): Promise<Sondage> {
+  try {
+    await appelGraph(
+      tenantId,
+      "GET",
+      `/users/${encodeURIComponent(graphUserId)}/mailFolders/inbox?$select=id`,
+    );
+    return { etat: "lisible" };
+  } catch (erreur) {
+    if (!(erreur instanceof ErreurGraph)) {
+      return { etat: "indetermine", message: String(erreur) };
+    }
+
+    const code = erreur.code ?? "";
+    const refus =
+      erreur.statut === 403 ||
+      /accessdenied|accessdenied|authorization|forbidden|applicationaccesspolicy/i.test(
+        `${code} ${erreur.message}`,
+      );
+
+    if (refus) return { etat: "refuse", code: code || "403", message: erreur.message };
+
+    // 404 : la boîte n'existe pas, ou le compte n'en a pas. Ce n'est PAS un
+    // refus, et cela ne prouve rien sur la restriction.
+    if (erreur.statut === 404) {
+      return { etat: "introuvable", message: erreur.message };
+    }
+
+    return { etat: "indetermine", message: erreur.message };
+  }
+}
