@@ -19,7 +19,11 @@
  *   cas d'échec il ENREGISTRE la liste des paramètres réellement reçus. Le
  *   premier essai réel dira la vérité, au lieu de laisser deviner.
  */
-import { ErreurGraph, obtenirJeton } from "@/lib/microsoft/graph";
+import {
+  ErreurGraph,
+  obtenirJeton,
+  obtenirServicePrincipal,
+} from "@/lib/microsoft/graph";
 import { adresseAppelante, rpcService } from "@/lib/microsoft/consentement";
 
 export const runtime = "nodejs";
@@ -231,7 +235,31 @@ export async function GET(requete: Request) {
     );
   }
 
-  // 6. Reste les étapes 5 à 7 : choisir les boîtes, restreindre, vérifier.
+  // 6. L'ObjectId de notre service principal dans CE locataire. Il est exigé
+  //    par New-ServicePrincipal, côté Exchange, et il servira à écrire le
+  //    script de restriction sans imposer le module Microsoft.Graph à
+  //    l'administrateur du client.
+  //
+  //    ⚠ UN ÉCHEC ICI N'ANNULE PAS LE RACCORDEMENT. Le consentement est acquis
+  //      et prouvé ; renvoyer une page d'erreur ferait tout recommencer pour
+  //      un identifiant que la route de restriction sait aller rechercher plus
+  //      tard. On enregistre ce qu'on peut, on note le reste.
+  if (validation.tenant_uid) {
+    try {
+      const sp = await obtenirServicePrincipal(tenantId);
+      await rpcService("enregistrer_sp_graph", {
+        p_tenant_uid: validation.tenant_uid,
+        p_sp_object_id: sp.objectId,
+      });
+    } catch (erreur) {
+      console.error(
+        "[consentement] service principal introuvable :",
+        messageDe(erreur),
+      );
+    }
+  }
+
+  // 7. Reste les étapes 5 à 7 : choisir les boîtes, restreindre, vérifier.
   return page(
     "Microsoft 365 est autorisé",
     `<p>L'accord de votre administrateur est enregistré, et nous avons vérifié

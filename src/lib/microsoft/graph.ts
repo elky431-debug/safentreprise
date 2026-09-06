@@ -636,3 +636,76 @@ export async function sonderBoite(
     return { etat: "indetermine", message: erreur.message };
   }
 }
+
+/* ==========================================================================
+   Le service principal de Safentreprise dans le locataire du client
+   ========================================================================== */
+
+/**
+ * L'ObjectId du service principal de NOTRE application, dans l'annuaire du
+ * client.
+ *
+ * POURQUOI CÔTÉ SERVEUR. New-ServicePrincipal, dans Exchange, exige cet
+ * identifiant en plus de l'AppId. Le script le cherchait avec
+ * Get-MgServicePrincipal — c'est-à-dire en imposant le module
+ * Microsoft.Graph.Applications à l'administrateur du client. Constaté sur un
+ * locataire réel : le module 2.39 ne se charge pas en PowerShell 5.1
+ * (TypeLoadException), il oblige donc à installer PowerShell 7, et il entre en
+ * conflit avec WAM au point de faire échouer Connect-ExchangeOnline
+ * (NullReferenceException). Le script l'appelait de surcroît sans
+ * Connect-MgGraph préalable : il n'aurait de toute façon pas fonctionné.
+ *
+ * Nous le lisons donc nous-mêmes, une fois, juste après le consentement, et
+ * nous l'inscrivons en dur dans le script remis au client.
+ *
+ * ⚠ AUCUNE PERMISSION SUPPLÉMENTAIRE N'EST DEMANDÉE AU CLIENT. Microsoft
+ *   documente qu'« un service principal peut lire ses propres détails
+ *   d'application et de service principal sans qu'aucune permission
+ *   d'application lui soit accordée ». On ne lit que NOUS-MÊMES : passer
+ *   l'appId d'un tiers ici serait refusé, et n'aurait aucun sens.
+ *
+ *   Cela n'a pas pu être constaté sur un locataire réel depuis
+ *   l'environnement de développement. Si Microsoft refusait malgré tout,
+ *   l'erreur remonte telle quelle : le parcours dit ce qui manque au lieu de
+ *   produire un script inutilisable.
+ */
+export async function obtenirServicePrincipal(
+  tenantId: string,
+): Promise<{ objectId: string; nom: string | null }> {
+  const { clientId } = configuration();
+
+  const sp = await appelGraph<{
+    id?: string;
+    appId?: string;
+    displayName?: string;
+  }>(
+    tenantId,
+    "GET",
+    `/servicePrincipals(appId='${encodeURIComponent(clientId)}')?$select=id,appId,displayName`,
+  );
+
+  if (!sp?.id) {
+    throw new ErreurGraph(
+      "Microsoft n'a pas rendu d'identifiant pour le service principal de " +
+        "Safentreprise dans ce locataire.",
+      404,
+      null,
+      false,
+    );
+  }
+
+  // ⚠ On vérifie que c'est bien NOUS. Un identifiant pris pour un autre
+  //   entrerait dans le script du client et y attribuerait un rôle Exchange à
+  //   une application tierce.
+  if (sp.appId && sp.appId.toLowerCase() !== clientId.toLowerCase()) {
+    throw new ErreurGraph(
+      `Le service principal rendu ne correspond pas à Safentreprise ` +
+        `(appId ${sp.appId}).`,
+      409,
+      null,
+      false,
+    );
+  }
+
+  return { objectId: sp.id, nom: sp.displayName ?? null };
+}
