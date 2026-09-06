@@ -221,6 +221,8 @@ export function EcranRestriction({
         </p>
       </Encadre>
 
+      <Prerequis />
+
       {chargement && (
         <p className="px-1 py-8 text-center text-[13px] text-muted">
           Préparation du script…
@@ -371,6 +373,86 @@ export function EcranRestriction({
         />
       )}
     </div>
+  );
+}
+
+/* ==========================================================================
+   Les prérequis
+   ========================================================================== */
+
+/**
+ * Ce qu'il faut avoir AVANT de lancer le script.
+ *
+ * ⚠ ÉCRIT APRÈS UN ESSAI RÉEL, ET CHAQUE LIGNE Y CORRESPOND À UN ÉCHEC
+ *   CONSTATÉ. Le compte était administrateur général du locataire, et
+ *   Connect-ExchangeOnline répondait quand même « vous n'êtes pas autorisé à
+ *   accéder à cette ressource » : le rôle Administrateur Exchange doit être
+ *   attribué explicitement, et sa propagation prend jusqu'à une heure. Sans
+ *   ces trois lignes, l'administrateur cherche le défaut dans le script.
+ */
+function Prerequis() {
+  return (
+    <section className="overflow-hidden rounded-xl border border-warning/30 bg-warning-soft">
+      <div className="border-b border-warning/25 px-5 py-3.5">
+        <h3 className="text-[14px] font-semibold text-foreground">
+          À vérifier avant de transmettre le script
+        </h3>
+        <p className="mt-0.5 text-[12.5px] text-muted">
+          Trois points, tous constatés en installation réelle. Les ignorer fait
+          échouer le script sur des messages difficiles à interpréter.
+        </p>
+      </div>
+
+      <ol className="divide-y divide-warning/20">
+        <li className="px-5 py-3.5">
+          <p className="text-[13px] font-semibold text-foreground">
+            1. Le rôle « Administrateur Exchange », attribué explicitement
+          </p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
+            <strong className="font-medium text-foreground">
+              Être administrateur général ne suffit pas.
+            </strong>{" "}
+            Sans ce rôle, la connexion à Exchange répond «&nbsp;vous n&apos;êtes
+            pas autorisé à accéder à cette ressource&nbsp;», sans dire pourquoi.
+            Il s&apos;attribue dans le centre d&apos;administration Microsoft
+            365, sur le compte qui exécutera le script.
+          </p>
+        </li>
+
+        <li className="px-5 py-3.5">
+          <p className="text-[13px] font-semibold text-foreground">
+            2. Le module ExchangeOnlineManagement
+          </p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
+            Une seule commande, une seule fois. Le script s&apos;arrête de
+            lui-même en l&apos;affichant si le module manque.
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-foreground">
+            Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force
+          </pre>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
+            Rien d&apos;autre n&apos;est nécessaire : le script fonctionne en
+            PowerShell 5.1, celui installé d&apos;origine sur Windows, et
+            n&apos;utilise aucun module Microsoft Graph.
+          </p>
+        </li>
+
+        <li className="px-5 py-3.5">
+          <p className="text-[13px] font-semibold text-foreground">
+            3. Le délai de propagation
+          </p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
+            Un rôle qui vient d&apos;être attribué peut mettre{" "}
+            <strong className="font-medium text-foreground">
+              jusqu&apos;à une heure
+            </strong>{" "}
+            à être pris en compte par Microsoft. Si la connexion est refusée
+            juste après l&apos;attribution, ce n&apos;est pas une erreur de
+            configuration : il faut attendre.
+          </p>
+        </li>
+      </ol>
+    </section>
   );
 }
 

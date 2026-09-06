@@ -21,6 +21,7 @@
  */
 import {
   listerBoites,
+  obtenirServicePrincipal,
   sonderBoite,
   type BoiteCandidate,
   type Sondage,
@@ -47,6 +48,8 @@ type Locataire = {
   tenant_id: string;
   temoin_graph_user_id: string | null;
   temoin_upn: string | null;
+  /** ObjectId de notre service principal chez le client. Voir sp_object_id. */
+  sp_object_id: string | null;
 };
 type Choisie = { graph_user_id: string; upn: string; actif: boolean };
 
@@ -66,7 +69,9 @@ async function contexte(requete: Request): Promise<
   const supabase = await createClient();
   const { data: locataire } = await supabase
     .from("microsoft_tenants")
-    .select("id, tenant_id, temoin_graph_user_id, temoin_upn")
+    .select(
+      "id, tenant_id, temoin_graph_user_id, temoin_upn, sp_object_id",
+    )
     .eq("id", tenantUid)
     .maybeSingle();
 
@@ -133,6 +138,39 @@ export async function GET(requete: Request) {
     );
   }
 
+  // L'ObjectId du service principal. Il est normalement inscrit au moment du
+  // consentement ; on le rattrape ici pour les locataires raccordés avant que
+  // ce soit fait, et si l'appel avait échoué ce jour-là.
+  //
+  // ⚠ ON NE PRODUIT PAS DE SCRIPT SANS LUI. Sans cet identifiant, la commande
+  //   New-ServicePrincipal du script échouerait chez le client, après qu'il a
+  //   mobilisé son administrateur. Autant le dire ici.
+  let spObjectId = ctx.locataire.sp_object_id?.trim() || null;
+  if (!spObjectId) {
+    try {
+      const sp = await obtenirServicePrincipal(ctx.locataire.tenant_id);
+      spObjectId = sp.objectId;
+      await rpcService("enregistrer_sp_graph", {
+        p_tenant_uid: ctx.locataire.id,
+        p_sp_object_id: spObjectId,
+      });
+    } catch (erreur) {
+      console.error("[restriction] service principal :", messageDe(erreur));
+      return Response.json(
+        {
+          erreur:
+            "Safentreprise n'a pas pu retrouver son identifiant d'application " +
+            "dans votre annuaire Microsoft. Le script ne peut pas être produit " +
+            "sans lui. L'autorisation administrateur est-elle toujours en " +
+            "place ? Relancez le raccordement, ou transmettez le détail " +
+            "ci-dessous au support.",
+          detail: messageDe(erreur),
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   // On regarde l'annuaire AVANT d'écrire le script : s'il reste déjà une boîte
   // hors périmètre, le script n'a aucune boîte à créer chez le client.
   const choisiesIds = new Set(ctx.choisies.map((b) => b.graph_user_id));
@@ -158,6 +196,7 @@ export async function GET(requete: Request) {
   const { script, nomPerimetre, adresses, ignorees, temoinACreer } =
     construireScript(
       clientId,
+      spObjectId,
       ctx.choisies,
       ctx.societe,
       etat,

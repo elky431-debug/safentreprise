@@ -133,9 +133,25 @@ export function commandeCreationTemoin(adresse: string): string {
  *   développement. Plutôt que de partir sur une supposition dans un script
  *   remis à un client, le script liste les rôles disponibles et s'arrête avec
  *   un message clair si celui qu'il attend n'y est pas.
+ *
+ * ⚠ AUCUNE COMMANDE Mg* — ET ÇA NE DOIT PAS REVENIR. Un essai réel a montré
+ *   ce que coûtait la dépendance à Microsoft.Graph.Applications, seulement
+ *   pour lire l'ObjectId du service principal :
+ *
+ *     • le module 2.39 ne se charge pas en PowerShell 5.1
+ *       (TypeLoadException), il oblige donc à installer PowerShell 7 ;
+ *     • installé, il entre en conflit avec WAM et fait échouer
+ *       Connect-ExchangeOnline sur une NullReferenceException ;
+ *     • et l'appel se faisait sans Connect-MgGraph : il n'aurait de toute
+ *       façon rien rendu.
+ *
+ *   L'ObjectId est désormais lu par le serveur et passé en paramètre. Un test
+ *   vérifie qu'aucune commande Mg* ne réapparaît dans le script.
  */
 export function construireScript(
   clientId: string,
+  /** ObjectId du service principal, lu côté serveur. Voir obtenirServicePrincipal. */
+  spObjectId: string,
   boites: BoiteChoisie[],
   nomSociete: string,
   temoin: EtatTemoin = { etat: "aucun" },
@@ -176,7 +192,7 @@ export function construireScript(
   const blocTemoin =
     temoin.etat === "existant"
       ? `# ------------------------------------------------------------
-# 6. Boîte témoin — rien à faire
+# 8. Boîte témoin — rien à faire
 # ------------------------------------------------------------
 # ${temoin.upn} existe déjà et reste hors du périmètre ci-dessus.
 # C'est elle qui servira à prouver que la restriction fonctionne.
@@ -184,7 +200,7 @@ export function construireScript(
 `
       : temoinACreer
         ? `# ------------------------------------------------------------
-# 6. Boîte témoin — à créer
+# 8. Boîte témoin — à créer
 # ------------------------------------------------------------
 # Aucune boîte de votre organisation ne reste hors du périmètre : il n'y a
 # donc rien qui permette de VÉRIFIER que la restriction fonctionne.
@@ -215,7 +231,7 @@ if (-not $Temoin) {
 }
 `
         : `# ------------------------------------------------------------
-# 6. Boîte témoin — rien pour l'instant
+# 8. Boîte témoin — rien pour l'instant
 # ------------------------------------------------------------
 # L'annuaire de votre organisation n'a pas pu être lu au moment où ce script
 # a été produit : nous ne savons donc pas s'il reste une boîte hors du
@@ -239,13 +255,89 @@ if (-not $Temoin) {
 ${liste}
 #
 # ------------------------------------------------------------
-# 1. Se connecter
+# Pourquoi tout est dans une fonction
 # ------------------------------------------------------------
-# Install-Module ExchangeOnlineManagement -Scope CurrentUser   # une seule fois
-Connect-ExchangeOnline
+# Les contrôles ci-dessous s'arrêtent avec « return » quand un prérequis
+# manque. Au premier niveau d'une console, « return » ne met pas toujours fin
+# à un bloc collé : la suite s'exécuterait quand même, et l'arrêt propre
+# n'arrêterait rien. Dans une fonction, il met fin à la fonction — que le
+# script soit collé dans une console ou enregistré en .ps1.
+
+function Invoke-SafentrepriseRestriction {
 
 # ------------------------------------------------------------
-# 2. Vérifier que le rôle attendu existe sur votre locataire
+# PRÉREQUIS
+# ------------------------------------------------------------
+#   • le rôle « Administrateur Exchange » attribué au compte utilisé.
+#     Administrateur général NE SUFFIT PAS : Connect-ExchangeOnline répond
+#     « vous n'êtes pas autorisé à accéder à cette ressource ». Après
+#     attribution, comptez jusqu'à une heure de propagation.
+#   • le module ExchangeOnlineManagement. Rien d'autre : ce script n'utilise
+#     aucun module Microsoft.Graph, et fonctionne en PowerShell 5.1.
+#
+# ------------------------------------------------------------
+# 1. Vérifier le module, avant toute chose
+# ------------------------------------------------------------
+if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+    Write-Host ""
+    Write-Host "ARRET : le module ExchangeOnlineManagement n'est pas installe." -ForegroundColor Red
+    Write-Host "Installez-le avec la commande ci-dessous, puis relancez ce script :" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "    Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force" -ForegroundColor Cyan
+    Write-Host ""
+    return
+}
+
+Import-Module ExchangeOnlineManagement -ErrorAction Stop
+
+# ------------------------------------------------------------
+# 2. Se connecter
+# ------------------------------------------------------------
+try {
+    Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+} catch {
+    Write-Host ""
+    Write-Host "ARRET : la connexion a Exchange Online a echoue." -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Cause la plus frequente : le compte utilise n'a pas le role" -ForegroundColor Yellow
+    Write-Host "'Administrateur Exchange'. Etre administrateur general ne suffit pas." -ForegroundColor Yellow
+    Write-Host "Attribuez-le dans le centre d'administration Microsoft 365, puis" -ForegroundColor Yellow
+    Write-Host "attendez la propagation - jusqu'a une heure - avant de reessayer." -ForegroundColor Yellow
+    return
+}
+
+# ------------------------------------------------------------
+# 3. Vérifier que ce compte peut réellement administrer Exchange
+# ------------------------------------------------------------
+# Exchange Online ne construit la session qu'avec les commandes autorisees par
+# les roles du compte. Une commande absente n'est donc pas un bug du script :
+# c'est le role qui manque. On le dit avant d'echouer plus loin sur une erreur
+# incomprehensible.
+$Compte = (Get-ConnectionInformation | Select-Object -First 1).UserPrincipalName
+$Manquantes = @()
+foreach ($Commande in 'Get-ManagementRole','New-ManagementScope','New-ManagementRoleAssignment','New-ServicePrincipal') {
+    if (-not (Get-Command $Commande -ErrorAction SilentlyContinue)) {
+        $Manquantes += $Commande
+    }
+}
+
+if ($Manquantes.Count -gt 0) {
+    Write-Host ""
+    Write-Host "ARRET : le compte connecte n'a pas les droits necessaires." -ForegroundColor Red
+    Write-Host "Compte : $Compte" -ForegroundColor Yellow
+    Write-Host "Commandes indisponibles dans cette session :" -ForegroundColor Yellow
+    $Manquantes | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+    Write-Host ""
+    Write-Host "Il lui faut le role 'Administrateur Exchange', attribue explicitement." -ForegroundColor Yellow
+    Write-Host "Comptez jusqu'a une heure de propagation apres l'attribution." -ForegroundColor Yellow
+    return
+}
+
+Write-Host "Connecte en tant que $Compte" -ForegroundColor Green
+
+# ------------------------------------------------------------
+# 4. Vérifier que le rôle attendu existe sur votre locataire
 # ------------------------------------------------------------
 $RoleAttendu = 'Application Mail.ReadWrite'
 $Role = Get-ManagementRole | Where-Object { $_.Name -eq $RoleAttendu }
@@ -262,24 +354,33 @@ if (-not $Role) {
 }
 
 # ------------------------------------------------------------
-# 3. Déclarer l'application dans Exchange
+# 5. Déclarer l'application dans Exchange
 # ------------------------------------------------------------
+# Les deux identifiants viennent de Safentreprise : nous les avons lus dans
+# VOTRE annuaire, avec l'autorisation que vous avez accordee. Aucun module
+# Microsoft.Graph n'est donc necessaire ici.
 $AppId = '${doublerApostrophes(clientId)}'
+$SpObjectId = '${doublerApostrophes(spObjectId)}'
 $Sp = Get-ServicePrincipal -Identity $AppId -ErrorAction SilentlyContinue
 
 if (-not $Sp) {
-    $Entra = Get-MgServicePrincipal -Filter "AppId eq '$AppId'" -ErrorAction SilentlyContinue
-    if (-not $Entra) {
+    try {
+        $Sp = New-ServicePrincipal -AppId $AppId -ObjectId $SpObjectId \`
+            -DisplayName 'Safentreprise' -ErrorAction Stop
+    } catch {
         Write-Host ""
-        Write-Host "ARRET : application introuvable dans votre annuaire." -ForegroundColor Red
-        Write-Host "L'autorisation administrateur a-t-elle bien ete accordee ?" -ForegroundColor Yellow
+        Write-Host "ARRET : impossible de declarer l'application dans Exchange." -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Si le message parle d'un objet introuvable, l'autorisation" -ForegroundColor Yellow
+        Write-Host "administrateur a peut-etre ete retiree depuis. Relancez le" -ForegroundColor Yellow
+        Write-Host "raccordement depuis Safentreprise." -ForegroundColor Yellow
         return
     }
-    $Sp = New-ServicePrincipal -AppId $AppId -ObjectId $Entra.Id -DisplayName 'Safentreprise'
 }
 
 # ------------------------------------------------------------
-# 4. Créer le périmètre : les boîtes choisies, et elles seules
+# 6. Créer le périmètre : les boîtes choisies, et elles seules
 # ------------------------------------------------------------
 $NomPerimetre = '${doublerApostrophes(nomPerimetre)}'
 $Filtre = "${filtre}"
@@ -292,7 +393,7 @@ if ($Perimetre) {
 }
 
 # ------------------------------------------------------------
-# 5. Attribuer le rôle, limité à ce périmètre
+# 7. Attribuer le rôle, limité à ce périmètre
 # ------------------------------------------------------------
 $NomAttribution = "$NomPerimetre-MailReadWrite"
 if (-not (Get-ManagementRoleAssignment -Identity $NomAttribution -ErrorAction SilentlyContinue)) {
@@ -304,7 +405,7 @@ if (-not (Get-ManagementRoleAssignment -Identity $NomAttribution -ErrorAction Si
 
 ${blocTemoin}
 # ------------------------------------------------------------
-# 7. Contrôle
+# 9. Contrôle
 # ------------------------------------------------------------
 Write-Host ""
 Write-Host "Termine. Perimetre applique :" -ForegroundColor Green
@@ -313,6 +414,10 @@ Get-ManagementRoleAssignment -Identity $NomAttribution |
 Write-Host ""
 Write-Host "Retournez sur Safentreprise et lancez la verification." -ForegroundColor Cyan
 Write-Host "La prise en compte par Exchange peut demander quelques minutes." -ForegroundColor Yellow
+
+}
+
+Invoke-SafentrepriseRestriction
 `;
 
   return { script, nomPerimetre, adresses, ignorees, temoinACreer };
