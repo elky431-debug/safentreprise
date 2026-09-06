@@ -8,9 +8,20 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { adressePlausible, construireScript } from "./restriction.ts";
+import {
+  adressePlausible,
+  adresseTemoin,
+  candidatsTemoin,
+  commandeCreationTemoin,
+  construireScript,
+} from "./restriction.ts";
 
 const CLIENT_ID = "11112222-3333-4444-5555-666677778888";
+
+/** Une boîte de l'annuaire, pour les essais de témoin. */
+function boite(upn: string, partagee = false) {
+  return { graph_user_id: upn.split("@")[0]!, upn, partagee };
+}
 
 test("les adresses douteuses sont écartées, pas échappées à la va-vite", () => {
   assert.equal(adressePlausible("dg@essai.fr"), true);
@@ -142,4 +153,130 @@ test("les boîtes surveillées sont listées en clair, en commentaire", () => {
   );
   assert.ok(script.includes("#     dg@essai.fr"));
   assert.ok(script.includes("#     compta@essai.fr"));
+});
+
+/* ==========================================================================
+   La boîte témoin
+   ========================================================================== */
+
+test("on cherche un témoin existant avant d'en créer un", () => {
+  const annuaire = [
+    boite("dg@essai.fr"),
+    boite("compta@essai.fr"),
+    boite("salle-reunion@essai.fr", true),
+  ];
+  const candidats = candidatsTemoin(annuaire, new Set(["dg", "compta"]));
+
+  assert.deepEqual(
+    candidats.map((b) => b.upn),
+    ["salle-reunion@essai.fr"],
+  );
+});
+
+test("les boîtes partagées passent avant les boîtes nominatives", () => {
+  // Une boîte nominative peut être mise sous surveillance plus tard, et la
+  // preuve serait perdue. La salle de réunion, elle, ne bouge pas.
+  const annuaire = [
+    boite("alice@essai.fr"),
+    boite("salle@essai.fr", true),
+    boite("bob@essai.fr"),
+    boite("imprimante@essai.fr", true),
+  ];
+  const candidats = candidatsTemoin(annuaire, new Set());
+
+  assert.deepEqual(
+    candidats.map((b) => b.upn),
+    ["imprimante@essai.fr", "salle@essai.fr", "alice@essai.fr", "bob@essai.fr"],
+  );
+});
+
+test("le témoin déjà retenu reste le témoin", () => {
+  // En changer sans raison ferait mentir la preuve enregistrée la fois d'avant.
+  const annuaire = [boite("salle@essai.fr", true), boite("bob@essai.fr")];
+  const candidats = candidatsTemoin(annuaire, new Set(), "bob");
+
+  assert.equal(candidats[0]?.upn, "bob@essai.fr");
+});
+
+test("une boîte surveillée n'est jamais proposée comme témoin", () => {
+  // Elle serait dans le périmètre, donc lisible : elle « prouverait » que la
+  // restriction ne marche pas, alors qu'elle marche.
+  const annuaire = [boite("dg@essai.fr"), boite("compta@essai.fr", true)];
+  const candidats = candidatsTemoin(
+    annuaire,
+    new Set(["dg", "compta"]),
+    "compta",
+  );
+
+  assert.deepEqual(candidats, [], "aucune boîte hors périmètre");
+});
+
+test("un témoin existant : le script ne crée rien", () => {
+  const { script, temoinACreer } = construireScript(
+    CLIENT_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+    { etat: "existant", upn: "salle@essai.fr" },
+  );
+
+  assert.equal(temoinACreer, null);
+  assert.ok(!script.includes("New-Mailbox"), "aucune boîte ne doit être créée");
+  assert.ok(script.includes("salle@essai.fr"), "le témoin doit être nommé");
+});
+
+test("aucun témoin disponible : le script en crée un, sans s'arrêter en cas d'échec", () => {
+  const { script, temoinACreer } = construireScript(
+    CLIENT_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+    { etat: "aucun" },
+  );
+
+  assert.equal(temoinACreer, "safentreprise-controle@essai.fr");
+  assert.ok(script.includes("New-Mailbox -Shared"));
+  // La restriction est déjà posée à ce stade : un échec de création ne doit
+  // pas arrêter le script, sinon le client repart sans rien.
+  assert.ok(script.includes("try {") && script.includes("} catch {"));
+  assert.ok(
+    script.includes("La restriction ci-dessus reste appliquee."),
+    "l'échec doit dire que la restriction, elle, est en place",
+  );
+  assert.ok(
+    script.includes("Get-Mailbox -Identity $AdresseTemoin"),
+    "il doit vérifier avant de créer, pour rester rejouable",
+  );
+});
+
+test("annuaire illisible : on ne crée AUCUNE boîte chez le client", () => {
+  // Créer une boîte dans le locataire d'un client parce qu'on n'a pas su lire
+  // son annuaire serait une modification qu'il n'a pas demandée.
+  const { script, temoinACreer } = construireScript(
+    CLIENT_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+    { etat: "inconnu" },
+  );
+
+  assert.equal(temoinACreer, null);
+  assert.ok(!script.includes("New-Mailbox"));
+});
+
+test("la commande de création est la même dans le script et dans le repli", () => {
+  // Le client qui la relance à la main ne doit pas avoir à la recomposer.
+  const adresse = adresseTemoin("essai.fr");
+  const { script } = construireScript(
+    CLIENT_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+    { etat: "aucun" },
+  );
+
+  assert.equal(adresse, "safentreprise-controle@essai.fr");
+  assert.ok(script.includes(commandeCreationTemoin(adresse)));
+});
+
+test("le témoin n'échappe pas à la règle d'échappement des apostrophes", () => {
+  const commande = commandeCreationTemoin("o'brien@essai.fr");
+  assert.ok(commande.includes("'o''brien@essai.fr'"));
+  assert.ok(!commande.includes("'''"));
 });

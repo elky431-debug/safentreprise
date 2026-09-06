@@ -529,15 +529,31 @@ export type BoiteCandidate = {
   graph_user_id: string;
   upn: string;
   nom: string;
+  /**
+   * Compte désactivé dans l'annuaire : c'est la signature d'une boîte
+   * PARTAGÉE ou d'une boîte de RESSOURCE (salle, équipement). Elles ont une
+   * adresse et reçoivent du courrier ; seule l'ouverture de session est
+   * fermée.
+   */
+  partagee: boolean;
 };
 
 /**
  * Les boîtes que le client peut choisir de faire surveiller.
  *
  * User.Read.All rend les COMPTES, pas les boîtes : rien n'y dit qui possède
- * une boîte aux lettres. On écarte donc ce qu'on peut écarter avec certitude —
- * comptes désactivés, comptes sans adresse — et on laisse le client trancher
- * le reste. Mieux vaut lui montrer une boîte de trop qu'en cacher une.
+ * une boîte aux lettres. On n'écarte donc que ce qui est certain — un compte
+ * sans adresse — et on laisse le client trancher. Mieux vaut lui montrer une
+ * boîte de trop qu'en cacher une.
+ *
+ * ⚠ ON N'ÉCARTE PLUS LES COMPTES DÉSACTIVÉS. C'est la signature des boîtes
+ *   PARTAGÉES et des boîtes de RESSOURCE — et les boîtes partagées sont
+ *   précisément les cibles de la fraude au fournisseur : compta@,
+ *   facturation@, achats@. Les filtrer revenait à cacher au client les boîtes
+ *   qu'il a le plus de raisons de surveiller.
+ *
+ *   Elles font aussi les meilleurs témoins pour vérifier la restriction :
+ *   présentes, adressables, et rarement dans le périmètre surveillé.
  */
 export async function listerBoites(
   tenantId: string,
@@ -555,11 +571,12 @@ export async function listerBoites(
 
     for (const u of page.value ?? []) {
       const adresse = (u.mail ?? u.userPrincipalName ?? "").trim().toLowerCase();
-      if (!u.id || !adresse || u.accountEnabled === false) continue;
+      if (!u.id || !adresse) continue;
       boites.push({
         graph_user_id: u.id,
         upn: adresse,
         nom: (u.displayName ?? "").trim() || adresse,
+        partagee: u.accountEnabled === false,
       });
     }
 

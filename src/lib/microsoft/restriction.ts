@@ -48,7 +48,81 @@ export type ScriptRestriction = {
   nomPerimetre: string;
   adresses: string[];
   ignorees: string[];
+  /** Adresse de la boîte témoin que le script créera, le cas échéant. */
+  temoinACreer: string | null;
 };
+
+/**
+ * Ce qu'on sait du témoin au moment d'écrire le script.
+ *
+ *   existant : une boîte hors périmètre a été trouvée dans l'annuaire. Le
+ *              script n'a rien à créer.
+ *   aucun    : l'annuaire a été lu, et toutes ses boîtes sont surveillées. Le
+ *              script crée une boîte partagée pour servir de témoin.
+ *   inconnu  : l'annuaire n'a PAS pu être lu. On ne crée rien — créer une
+ *              boîte dans le locataire d'un client sur une ignorance serait
+ *              une modification qu'il n'a pas demandée.
+ */
+export type EtatTemoin =
+  | { etat: "existant"; upn: string }
+  | { etat: "aucun" }
+  | { etat: "inconnu" };
+
+/** Ce qu'il faut savoir d'une boîte pour juger si elle ferait un témoin. */
+export type BoiteTemoinPossible = {
+  graph_user_id: string;
+  upn: string;
+  /** Boîte partagée ou de ressource : compte désactivé, adresse bien réelle. */
+  partagee: boolean;
+};
+
+/**
+ * Les boîtes qui peuvent servir de témoin, dans l'ordre où on les essaiera.
+ *
+ * ⚠ L'ORDRE N'EST PAS UN DÉTAIL. Les boîtes partagées et les salles de réunion
+ *   passent en premier : elles existent, elles ont une adresse, elles ne
+ *   coûtent pas de licence, et personne ne s'en sert pour écrire. Une boîte
+ *   nominative ferait un témoin tout aussi valable, mais si le client la met
+ *   un jour sous surveillance, la preuve serait perdue — la boîte partagée
+ *   bouge moins.
+ *
+ *   Le témoin déjà retenu passe avant tout le reste : en changer sans raison
+ *   ferait mentir la preuve enregistrée la fois précédente.
+ */
+export function candidatsTemoin<T extends BoiteTemoinPossible>(
+  toutes: T[],
+  choisies: Set<string>,
+  dejaRetenu: string | null = null,
+): T[] {
+  return toutes
+    .filter((b) => !choisies.has(b.graph_user_id))
+    .sort((a, b) => {
+      if (a.graph_user_id === dejaRetenu) return -1;
+      if (b.graph_user_id === dejaRetenu) return 1;
+      if (a.partagee !== b.partagee) return a.partagee ? -1 : 1;
+      return a.upn.localeCompare(b.upn, "fr");
+    });
+}
+
+/** L'adresse retenue pour une boîte témoin créée par nos soins. */
+export function adresseTemoin(domaine: string): string {
+  return `safentreprise-controle@${domaine.trim().toLowerCase()}`;
+}
+
+/**
+ * La commande de création, en une ligne.
+ *
+ * Elle sert à deux endroits, et doit y être identique : dans le script, et
+ * dans le message que Safentreprise affiche si la création a échoué — pour
+ * que le client puisse la relancer à la main sans la recomposer.
+ */
+export function commandeCreationTemoin(adresse: string): string {
+  return (
+    `New-Mailbox -Shared -Name 'Safentreprise Controle' ` +
+    `-DisplayName 'Safentreprise - boite de controle' ` +
+    `-PrimarySmtpAddress '${doublerApostrophes(adresse)}'`
+  );
+}
 
 /**
  * Le script prêt à coller, pour l'administrateur Exchange du client.
@@ -64,6 +138,8 @@ export function construireScript(
   clientId: string,
   boites: BoiteChoisie[],
   nomSociete: string,
+  temoin: EtatTemoin = { etat: "aucun" },
+  domaine: string | null = null,
 ): ScriptRestriction {
   const retenues = boites.filter((b) => adressePlausible(b.upn));
   const ignorees = boites
@@ -83,6 +159,69 @@ export function construireScript(
     .join(" -or ");
 
   const liste = adresses.map((a) => `#     ${a}`).join("\n");
+
+  // La boîte témoin : une boîte HORS périmètre, que Microsoft doit refuser.
+  // Sans elle, la restriction ne peut pas être démontrée.
+  //
+  // On ne crée que si le locataire n'a rien. Une boîte partagée ou une salle
+  // de réunion existante fait un témoin parfait — et ne coûte rien.
+  //
+  // Le domaine est repris de la première boîte surveillée : c'est
+  // nécessairement un domaine accepté du locataire, puisqu'une boîte y reçoit
+  // déjà du courrier. On ne devine donc rien.
+  const domaineTemoin = (domaine ?? adresses[0]?.split("@")[1] ?? "").trim();
+  const temoinACreer =
+    temoin.etat === "aucun" && domaineTemoin ? adresseTemoin(domaineTemoin) : null;
+
+  const blocTemoin =
+    temoin.etat === "existant"
+      ? `# ------------------------------------------------------------
+# 6. Boîte témoin — rien à faire
+# ------------------------------------------------------------
+# ${temoin.upn} existe déjà et reste hors du périmètre ci-dessus.
+# C'est elle qui servira à prouver que la restriction fonctionne.
+# Le script ne la modifie pas et n'y lit rien.
+`
+      : temoinACreer
+        ? `# ------------------------------------------------------------
+# 6. Boîte témoin — à créer
+# ------------------------------------------------------------
+# Aucune boîte de votre organisation ne reste hors du périmètre : il n'y a
+# donc rien qui permette de VÉRIFIER que la restriction fonctionne.
+#
+# On crée pour cela une boîte partagée, vide, jamais surveillée, qui sert
+# uniquement de témoin. Une boîte partagée sans licence ne peut pas dépasser
+# 50 Go ; celle-ci reste vide.
+#
+# Si cette étape échoue, le script continue : la restriction ci-dessus est
+# déjà appliquée. Safentreprise vous proposera alors une autre voie.
+$AdresseTemoin = '${doublerApostrophes(temoinACreer)}'
+$Temoin = Get-Mailbox -Identity $AdresseTemoin -ErrorAction SilentlyContinue
+
+if (-not $Temoin) {
+    try {
+        ${commandeCreationTemoin(temoinACreer)} -ErrorAction Stop | Out-Null
+        Write-Host "Boite temoin creee : $AdresseTemoin" -ForegroundColor Green
+        Write-Host "Elle peut demander quelques minutes avant d'etre visible." -ForegroundColor Yellow
+    } catch {
+        Write-Host ""
+        Write-Host "La boite temoin n'a PAS pu etre creee :" -ForegroundColor Yellow
+        Write-Host $_.Exception.Message -ForegroundColor Yellow
+        Write-Host "La restriction ci-dessus reste appliquee." -ForegroundColor Yellow
+        Write-Host "Retournez sur Safentreprise : deux autres voies vous seront proposees." -ForegroundColor Cyan
+    }
+} else {
+    Write-Host "Boite temoin deja presente : $AdresseTemoin" -ForegroundColor Green
+}
+`
+        : `# ------------------------------------------------------------
+# 6. Boîte témoin — rien pour l'instant
+# ------------------------------------------------------------
+# L'annuaire de votre organisation n'a pas pu être lu au moment où ce script
+# a été produit : nous ne savons donc pas s'il reste une boîte hors du
+# périmètre. Le script ne crée rien sur cette ignorance.
+# Lancez la vérification depuis Safentreprise : elle vous dira quoi faire.
+`;
 
   const script = `# ============================================================
 # Safentreprise — restreindre l'accès aux seules boîtes choisies
@@ -163,8 +302,9 @@ if (-not (Get-ManagementRoleAssignment -Identity $NomAttribution -ErrorAction Si
         -CustomResourceScope $NomPerimetre
 }
 
+${blocTemoin}
 # ------------------------------------------------------------
-# 6. Contrôle
+# 7. Contrôle
 # ------------------------------------------------------------
 Write-Host ""
 Write-Host "Termine. Perimetre applique :" -ForegroundColor Green
@@ -175,5 +315,5 @@ Write-Host "Retournez sur Safentreprise et lancez la verification." -ForegroundC
 Write-Host "La prise en compte par Exchange peut demander quelques minutes." -ForegroundColor Yellow
 `;
 
-  return { script, nomPerimetre, adresses, ignorees };
+  return { script, nomPerimetre, adresses, ignorees, temoinACreer };
 }
