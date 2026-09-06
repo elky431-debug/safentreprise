@@ -279,3 +279,24 @@ export function IconEye({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Deux feuillets : copier dans le presse-papiers. */
+export function IconCopy({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M15 6.5V5.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h1" />
+    </svg>
+  );
+}
+
+/** Flèche vers le bas : enregistrer un fichier. */
+export function IconDownload({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 3.5v11" />
+      <path d="M8 11l4 4 4-4" />
+      <path d="M4.5 18.5h15" />
+    </svg>
+  );
+}

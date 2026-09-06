@@ -11,6 +11,7 @@ import {
   IconCampaign,
   IconDashboard,
   IconDeliverability,
+  IconEye,
   IconFormation,
   IconLogout,
   IconPuzzle,
@@ -41,6 +42,11 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
       { href: "/dashboard", label: "Tableau de bord", Icon: IconDashboard },
       { href: "/menaces", label: "Menaces", Icon: IconThreat },
     ],
+  },
+  {
+    id: "surveillance",
+    title: "Surveillance",
+    items: [{ href: "/microsoft", label: "Microsoft 365", Icon: IconEye }],
   },
   {
     id: "campagnes",

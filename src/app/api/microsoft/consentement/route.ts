@@ -91,10 +91,18 @@ async function prouverLeConsentement(
    La page de retour
    ========================================================================== */
 
-// TODO — quand l'écran de raccordement existera, remplacer ces pages par une
-// redirection vers /settings/microsoft avec le résultat en paramètre. Pour
-// l'instant la route se suffit à elle-même, ce qui permet d'essayer le
-// parcours de bout en bout sans interface.
+/**
+ * Cette page reste volontairement autonome, en HTML nu.
+ *
+ * ⚠ ELLE EST RENDUE SANS SESSION SAFENTREPRISE. Microsoft renvoie
+ *   l'administrateur ici, et cet administrateur n'est presque jamais la
+ *   personne qui a ouvert le parcours : il n'a pas de compte chez nous.
+ *   Rediriger vers /microsoft l'enverrait sur l'écran de connexion, sans
+ *   comprendre pourquoi. On lui dit donc ce qui s'est passé, et on renvoie le
+ *   dirigeant vers son espace par un lien — pas par une redirection.
+ */
+const RETOUR = "/microsoft";
+
 function page(titre: string, corps: string, statut: number): Response {
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -109,7 +117,7 @@ function page(titre: string, corps: string, statut: number): Response {
 </style></head><body>
 <h1>${titre}</h1>
 ${corps}
-<p><a href="/settings">Retour à Safentreprise</a></p>
+<p><a href="${RETOUR}">Retour à Safentreprise</a></p>
 </body></html>`;
   return new Response(html, {
     status: statut,
@@ -232,6 +240,9 @@ export async function GET(requete: Request) {
       les boîtes à surveiller, puis à restreindre l'accès de Safentreprise à
       ces seules boîtes. Tant que cette restriction n'a pas été constatée,
       <strong>aucun message n'est analysé</strong>.</p>
+     <p>La suite se passe dans l'espace Safentreprise de votre société, page
+      <strong>Microsoft 365</strong>. Si vous n'êtes pas la personne qui a
+      lancé ce raccordement, prévenez-la : c'est là qu'elle reprendra.</p>
      <div class="detail">Locataire : ${tenantId.replace(/[<>&]/g, "")}</div>`,
     200,
   );

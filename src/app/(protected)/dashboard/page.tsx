@@ -6,6 +6,7 @@ import {
   type MenacePourGraphique,
 } from "@/components/dashboard/ActiviteExtension";
 import { NiveauBadge } from "@/components/menaces/MenacesTable";
+import { BandeauRaccordement } from "@/components/microsoft/BandeauRaccordement";
 import {
   IconArrowRight,
   IconCampaign,
@@ -125,6 +126,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="w-full space-y-5">
+      {/* Un raccordement resté à mi-chemin ne doit pas passer inaperçu :
+          le client croirait ses boîtes surveillées sans qu'elles le soient. */}
+      <BandeauRaccordement />
+
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[22px] font-semibold tracking-[-0.03em] text-foreground">
