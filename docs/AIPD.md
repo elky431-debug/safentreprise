@@ -149,9 +149,9 @@ définitivement le courrier d'un client.
 
 ### Jamais demandées à Microsoft
 
-Le service demande exactement sept champs :
+Le service demande exactement huit champs :
 `id, subject, receivedDateTime, isDraft, categories, from, toRecipients, body`
-(`src/lib/microsoft/graph.ts:501`).
+(`src/lib/microsoft/graph.ts:518-519`).
 
 Ne figurent donc pas dans la demande, et ne sont pas « filtrées après coup » :
 
@@ -246,7 +246,7 @@ pour nourrir le test de mise en balance.
 
 **Respecté sur les points vérifiables.**
 
-- Sept champs demandés à Microsoft, pas un de plus (`graph.ts:501`).
+- Huit champs demandés à Microsoft, pas un de plus (`graph.ts:518-519`).
 - Pièces jointes et en-têtes bruts jamais demandés.
 - Seule la boîte de réception est abonnée, jamais les messages envoyés.
 - Le corps n'est copié **que** juste avant une modification, jamais pour
@@ -443,7 +443,7 @@ traitement les recherche.
 | Vérification du `clientState` côté base, jamais côté notification | `20260825:162-199` |
 | Secret partagé exigé sur les trois routes internes | `worker:1027`, `maintenance:808`, `veille:391` |
 | Aucun fichier de secret versionné (`.gitignore` couvre `.env*`) | `.gitignore:33-35` |
-| Sept champs demandés à Microsoft, pièces jointes exclues | `graph.ts:501` |
+| Huit champs demandés à Microsoft, pièces jointes exclues | `graph.ts:518-519` |
 | L'exécution est en Union européenne, et le diagnostic échoue si la région ne l'est plus | `worker/route.ts`, contrôle « région d'exécution » |
 
 ### Ce qui n'existe pas
@@ -727,7 +727,10 @@ Par ordre de priorité. Aucune n'est implémentée à ce jour.
 
 **Juridiquement.**
 
-- Le contrat de sous-traitance (art. 28) n'est pas rédigé.
+- Le contrat de sous-traitance (art. 28) existe à l'état de projet
+  (`docs/DPA-A-VALIDER.md`, v0.1 du 8 septembre 2026), rédigé à partir du code
+  et de la présente AIPD. **Il n'a pas été relu par un juriste**, et sa partie B
+  recense les obligations de l'article 28 qui ne sont pas tenues à ce jour.
 - **Cette AIPD n'a pas été relue par un juriste.** Elle est fondée sur la
   lecture du code, ce qui la rend exacte sur les faits techniques. La
   qualification juridique — base légale, caractère obligatoire de l'AIPD,

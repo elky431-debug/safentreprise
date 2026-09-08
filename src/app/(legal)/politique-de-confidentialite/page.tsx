@@ -368,7 +368,11 @@ export default function PolitiqueConfidentialitePage() {
           <Li>le nom affiché et l’adresse de l’expéditeur ;</Li>
           <Li>les destinataires ;</Li>
           <Li>le corps du message ;</Li>
-          <Li>les catégories déjà posées sur le message.</Li>
+          <Li>les catégories déjà posées sur le message ;</Li>
+          <Li>
+            l’indication qu’il s’agit ou non d’un brouillon — un brouillon
+            n’est pas analysé.
+          </Li>
         </Ul>
 
         <P>

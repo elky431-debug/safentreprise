@@ -2,7 +2,7 @@
 
 **À remettre tel quel au conseil.** Ce document accompagne les conditions
 générales publiées sur `https://safentreprise.com/cgv` (fichier
-`src/app/(legal)/cgv/page.tsx`, version 1.2 du 4 septembre 2026).
+`src/app/(legal)/cgv/page.tsx`, version 1.3 du 8 septembre 2026).
 
 **Priorité de relecture.** Si le temps du conseil est compté, l'ordre est :
 **article 11** (réécrit, non relu, c'est là que le risque se concentre), puis
@@ -123,6 +123,29 @@ sous-traitance au sens de l'article 28 du RGPD ».
   un document contractuel distinct, signé, plutôt qu'un renvoi ?
 
 ---
+
+## 3 bis. Contrat de sous-traitance (article 28) — projet à relire
+
+**Un projet existe désormais : `docs/DPA-A-VALIDER.md` (version 0.1 du
+8 septembre 2026).** Il est rédigé à partir du code et de l'AIPD, et non d'un
+modèle type : les durées, les hébergeurs, les sous-traitants ultérieurs et les
+mesures de sécurité correspondent à l'état réel du produit.
+
+**Il n'a jamais été relu.** Sa partie B rassemble, pour le conseil, les
+obligations de l'article 28 que Safentreprise n'est pas en mesure de tenir
+aujourd'hui, et deux affirmations qui doivent être vérifiées avant toute
+signature :
+
+- **son article 8** affirme que les transferts vers Resend (États-Unis)
+  reposent sur les clauses contractuelles types. **Cela n'a pas été vérifié.**
+  Si rien n'est en place, le contrat contient une affirmation fausse ;
+- **son article 15** renvoie au plafond de responsabilité de l'article 11 des
+  CGV. L'articulation avec l'article 82 du RGPD — responsabilité du
+  sous-traitant envers la personne concernée, à laquelle un plafond
+  contractuel n'est pas opposable — est la **même question** que celle posée
+  au point 2 ci-dessus. Les deux doivent être traitées ensemble.
+
+À relire en même temps que les présentes CGV, dont il constitue l'annexe.
 
 ## 4. Questions qui dépassent les CGV
 
