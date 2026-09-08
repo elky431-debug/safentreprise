@@ -21,6 +21,7 @@ import {
 } from "@/lib/microsoft/graph";
 import { rpcService } from "@/lib/microsoft/consentement";
 import { createClient } from "@/lib/supabase/server";
+import { avecContexteJournal } from "@/lib/microsoft/journal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,7 +119,7 @@ export async function GET(requete: Request) {
    POST — abonner, puis amorcer l'annuaire
    ========================================================================== */
 
-export async function POST(requete: Request) {
+async function postInterne(requete: Request) {
   const t = await locataire(requete);
   if (!t) {
     return Response.json({ erreur: "Locataire inconnu." }, { status: 404 });
@@ -256,5 +257,17 @@ export async function POST(requete: Request) {
             "la surveillance était déjà en place.",
     },
     { status: abonnements.echecs > 0 ? 207 : 200 },
+  );
+}
+
+/**
+ * Tout accès déclenché par cette route est attribué à « raccordement ».
+ * Le contexte suit l'exécution (AsyncLocalStorage) : deux requêtes
+ * simultanées ne peuvent pas se voler leur acteur.
+ */
+export async function POST(requete: Request) {
+  return avecContexteJournal(
+    { acteur: "raccordement", tache: "demarrage-surveillance" },
+    () => postInterne(requete),
   );
 }

@@ -25,6 +25,7 @@ import {
   obtenirServicePrincipal,
 } from "@/lib/microsoft/graph";
 import { adresseAppelante, rpcService } from "@/lib/microsoft/consentement";
+import { avecContexteJournal } from "@/lib/microsoft/journal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -138,7 +139,7 @@ function echec(titre: string, explication: string, detail?: string): Response {
   );
 }
 
-export async function GET(requete: Request) {
+async function getInterne(requete: Request) {
   const parametres = new URL(requete.url).searchParams;
   const etat = premierPresent(parametres, ["state"]);
 
@@ -280,4 +281,16 @@ export async function GET(requete: Request) {
 // mandataires d'entreprise transforment la redirection.
 export async function POST(requete: Request) {
   return GET(requete);
+}
+
+/**
+ * Tout accès déclenché par cette route est attribué à « raccordement ».
+ * Le contexte suit l'exécution (AsyncLocalStorage) : deux requêtes
+ * simultanées ne peuvent pas se voler leur acteur.
+ */
+export async function GET(requete: Request) {
+  return avecContexteJournal(
+    { acteur: "raccordement", tache: "retour-consentement" },
+    () => getInterne(requete),
+  );
 }

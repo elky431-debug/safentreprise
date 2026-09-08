@@ -9,6 +9,7 @@
  */
 import { ErreurGraph, listerBoites } from "@/lib/microsoft/graph";
 import { createClient } from "@/lib/supabase/server";
+import { avecContexteJournal } from "@/lib/microsoft/journal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,7 +71,7 @@ async function listerAvecReprises(tenantId: string) {
   return { ok: false as const, erreur: messageDe(derniere) };
 }
 
-export async function GET(requete: Request) {
+async function getInterne(requete: Request) {
   const tenantUid = new URL(requete.url).searchParams.get("tenant");
   const locataire = await locataireDeLaSession(tenantUid);
   if (!locataire) {
@@ -171,4 +172,16 @@ export async function POST(requete: Request) {
       "analysé tant que la restriction d'accès n'a pas été mise en place et " +
       "vérifiée : GET /api/microsoft/restriction?tenant=" + locataire.id,
   });
+}
+
+/**
+ * Tout accès déclenché par cette route est attribué à « raccordement ».
+ * Le contexte suit l'exécution (AsyncLocalStorage) : deux requêtes
+ * simultanées ne peuvent pas se voler leur acteur.
+ */
+export async function GET(requete: Request) {
+  return avecContexteJournal(
+    { acteur: "raccordement", tache: "liste-boites" },
+    () => getInterne(requete),
+  );
 }

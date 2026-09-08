@@ -37,6 +37,7 @@ import {
   texteVersHtml,
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
+import { avecContexteJournal } from "@/lib/microsoft/journal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -875,7 +876,7 @@ function autorise(request: Request): boolean {
   return fourni === attendu;
 }
 
-export async function POST(request: Request) {
+async function postInterne(request: Request) {
   if (!autorise(request)) return new Response("non autorisé", { status: 401 });
 
   const url = new URL(request.url);
@@ -939,4 +940,16 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   return POST(request);
+}
+
+/**
+ * Tout accès déclenché par cette route est attribué à « maintenance ».
+ * Le contexte suit l'exécution (AsyncLocalStorage) : deux requêtes
+ * simultanées ne peuvent pas se voler leur acteur.
+ */
+export async function POST(request: Request) {
+  return avecContexteJournal(
+    { acteur: "maintenance", tache: "taches-de-nuit" },
+    () => postInterne(request),
+  );
 }

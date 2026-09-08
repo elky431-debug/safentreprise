@@ -11,6 +11,12 @@
  * quand plusieurs messages sont traités dans la même invocation.
  */
 
+import {
+  classerChemin,
+  journaliserAcces,
+  type EntreeJournal,
+} from "./journal";
+
 /**
  * Adresses de Graph et d'Entra ID.
  *
@@ -154,7 +160,36 @@ export async function appelGraph<T>(
     ...(corps !== undefined ? { body: JSON.stringify(corps) } : {}),
   });
 
-  if (reponse.status === 204) return null as T;
+  // ⚠ LA TRACE EST ÉCRITE ICI, ET POUR TOUS LES CHEMINS DE SORTIE. appelGraph
+  //   est le seul point de passage vers Microsoft : un accès qui n'y est pas
+  //   journalisé n'est journalisé nulle part. Un refus et une erreur comptent
+  //   autant qu'un succès — un 403 sur une boîte hors périmètre est
+  //   précisément ce qu'on veut pouvoir montrer.
+  const trace = classerChemin(chemin, methode);
+  const journal = async (
+    resultat: EntreeJournal["resultat"],
+    code: string | null,
+  ) => {
+    await journaliserAcces({
+      ...trace,
+      operation:
+        methode === "GET"
+          ? "lecture"
+          : methode === "DELETE"
+            ? "suppression"
+            : methode === "PATCH" || methode === "PUT"
+              ? "modification"
+              : "ecriture",
+      resultat,
+      tenantId,
+      code,
+    });
+  };
+
+  if (reponse.status === 204) {
+    await journal("ok", "204");
+    return null as T;
+  }
 
   const texte = await reponse.text();
   let donnees: unknown = null;
@@ -172,6 +207,18 @@ export async function appelGraph<T>(
     // du corps brut, et en dernier recours le simple code HTTP.
     const detail =
       erreur?.message ?? (texte.slice(0, 300) || `HTTP ${reponse.status}`);
+
+    // Le message de Graph n'entre PAS dans le journal : il peut contenir une
+    // adresse. Seuls le code Graph et le code HTTP y figurent.
+    await journal(
+      reponse.status === 403 || reponse.status === 401
+        ? "refuse"
+        : reponse.status === 404
+          ? "introuvable"
+          : "erreur",
+      code ?? String(reponse.status),
+    );
+
     throw new ErreurGraph(
       detail,
       reponse.status,
@@ -180,6 +227,7 @@ export async function appelGraph<T>(
     );
   }
 
+  await journal("ok", String(reponse.status));
   return donnees as T;
 }
 

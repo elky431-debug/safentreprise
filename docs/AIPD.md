@@ -5,7 +5,7 @@ raccordées, et annotation de ceux qui présentent les caractéristiques d'une f
 
 | | |
 |---|---|
-| Version | 1.1 |
+| Version | 1.2 |
 | Date | 8 septembre 2026 |
 | Auteur | El Fahim Yacine — Safentreprise |
 | État du code analysé | branche `claude/graph-webhook`, commit `28ab07b` |
@@ -135,6 +135,7 @@ définitivement le courrier d'un client.
 | **Annuaire** | Nom et adresse de **chaque collaborateur** du locataire Microsoft | `annuaire_personnes.nom`, `.email` | Instantané remplacé à chaque rafraîchissement ; **aucune purge par ancienneté** | `20260827:89-98`, remplacement `:172-179` |
 | **Techniques** | Adresses des boîtes surveillées | `boites_surveillees.upn` | Durée du contrat | `20260825:49` |
 | **Techniques** | Identifiants de messages en file | `graph_file_attente.message_id`, `.resource_brut` | 7 j (traitée), 30 j (échec), jamais si en attente | `20260906:246-259` |
+| **Journal** | Traces d'accès : horodatage, rôle technique, société, locataire, identifiant de boîte, opération, résultat. **Aucun nom, aucune adresse, aucun contenu** — la base refuse toute valeur contenant « @ » | `journal_acces` | **12 mois** | `20260915_journal_acces.sql:20-70`, purge `:7` |
 | **Verdict** | Score 0-100, niveau, motifs du signalement | `graph_analyses.score`, `.niveau`, `.raisons` | 12 mois si alerte, 30 jours sinon | `20260906:181-230` |
 | **Trace d'action** | Catégorie posée, date de pose de l'avertissement, état, erreur | `graph_analyses.categorie`, `.banniere_posee_at`, `.action_etat` | idem, **sauf si l'avertissement est encore en place** : conservé sans limite | `20260906:203-210` |
 | **Journal technique** | Corps des réponses HTTP internes, contenant des adresses de boîtes | `net._http_response` | 7 jours | `20260906:277-296` |
@@ -438,6 +439,10 @@ traitement les recherche.
 | Une boîte retirée de la sélection cesse d'être analysée : ses notifications sont refusées à l'entrée | `20260913:enregistrer_notification_graph` |
 | RLS active sur toutes les tables du traitement, cloisonnement par entreprise | `20260825:136-154`, `20260826:85-89`, `20260827:56-110` |
 | `graph_corps_originaux` : **aucune politique de lecture, `REVOKE ALL`** — inaccessible par l'API à quiconque, client compris | `20260902:45-50` |
+| Journal des accès aux données personnelles : lectures de corps, d'annuaire, et tout appel Graph. Sans donnée personnelle — la base refuse toute valeur contenant « @ » | `20260915_journal_acces.sql`, `src/lib/microsoft/journal.ts` |
+| Journal illisible et ineffaçable, `service_role` compris ; ni `UPDATE` nulle part ; purge à 12 mois qui journalise son propre passage | `20260915:8` |
+| Sceau quotidien chaîné : une altération rétroactive du journal rompt la chaîne et se constate | `20260915:5-6` |
+| `graph_corps_originaux` retirée à `service_role` : la fonction journalisée devient le seul chemin de lecture | `20260915:9` |
 | Fonctions du worker en `SECURITY DEFINER`, réservées à `service_role`, retirées à `anon` et `authenticated` | `20260902:195-205`, `20260906:301-310` |
 | `parametres_systeme` et `veille_etat` : RLS active **sans aucune politique** — donc invisibles par l'API | `20260830:38-41`, `20260905:53-56` |
 | Vérification du `clientState` côté base, jamais côté notification | `20260825:162-199` |
@@ -451,9 +456,17 @@ traitement les recherche.
 - **Aucun chiffrement applicatif** du corps des messages. La colonne `contenu`
   est du texte clair. Le chiffrement au repos est celui d'AWS, pas celui de
   Safentreprise : il protège du vol de disque, pas d'un accès à la base.
-- **Aucune journalisation des accès.** Aucune table ne trace qui a lu quoi.
-  Une consultation illégitime par l'éditeur ne laisserait aucune trace, et
-  serait donc indétectable et indémontrable.
+- **La journalisation des accès ne couvre pas l'accès direct à la base.** Le
+  journal existe depuis le 8 septembre 2026 (`20260915_journal_acces.sql`) et
+  trace les lectures qui passent par une fonction ou par Microsoft Graph. Un
+  accès par le rôle propriétaire, depuis l'éditeur SQL, **n'est pas tracé** :
+  PostgreSQL n'a pas de déclencheur sur `SELECT`. C'est une limite du moteur.
+- **Aucune surveillance automatique du journal.** Il permet de démontrer après
+  coup, pas de découvrir : l'anomalie ne remonte pas d'elle-même. Une vue de
+  contrôle est prévue, elle n'existe pas.
+- **Les tables autres que `graph_corps_originaux` restent lisibles
+  directement** par `service_role` — `graph_analyses`, `annuaire_personnes` —
+  donc sans trace.
 - **Aucune limitation de débit** sur les routes internes.
 - **La comparaison des secrets n'est pas à temps constant**
   (`fourni === attendu`). Théorique sur un réseau public, mais réel.
@@ -634,7 +647,7 @@ comportement réel des sauvegardes n'est pas vérifié.
 
 | Risque | Gravité | Vraisemblance | Ce qui pèse le plus |
 |---|---|---|---|
-| Accès illégitime | Importante | Limitée | Secrets ayant circulé et non renouvelés ; aucune journalisation des accès |
+| Accès illégitime | Importante | Limitée | Secrets ayant circulé et non renouvelés ; journal des accès en place mais non surveillé, et aveugle à l'accès direct par le rôle propriétaire |
 | Modification non désirée | Importante | Limitée | Pose automatique, sans validation ni mesure du taux d'erreur réel |
 | Disparition | Limitée | Limitée | Restauration jamais testée ; sauvegardes non vérifiées |
 
@@ -709,7 +722,7 @@ Par ordre de priorité. Aucune n'est implémentée à ce jour.
 
 | Manque | Conséquence |
 |---|---|
-| Aucune journalisation des accès | Un accès illégitime est indétectable et indémontrable |
+| Journal non surveillé, et aveugle à l'accès direct par le rôle propriétaire | Un accès illégitime laisse une trace s'il passe par le code ; il reste à découvrir par une revue manuelle |
 | Corps des messages en clair en base | Un accès à la base donne accès aux messages |
 | Aucune sauvegarde propre, aucune restauration testée | La reprise après incident est une hypothèse, pas un fait |
 | Effacement et rectification manuels | Les droits sont exerçables, mais lentement et sans trace |

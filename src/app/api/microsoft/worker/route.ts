@@ -35,6 +35,7 @@ import {
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
 import { convertirCorps } from "@/lib/detection/html-texte.js";
+import { avecContexteJournal } from "@/lib/microsoft/journal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1057,7 +1058,7 @@ function autorise(request: Request): boolean {
   return fourni === attendu;
 }
 
-export async function POST(request: Request) {
+async function postInterne(request: Request) {
   if (!autorise(request)) {
     return new Response("non autorisé", { status: 401 });
   }
@@ -1089,4 +1090,16 @@ export async function POST(request: Request) {
 /** Même traitement en GET, pour pouvoir déclencher depuis un navigateur. */
 export async function GET(request: Request) {
   return POST(request);
+}
+
+/**
+ * Tout accès déclenché par cette route est attribué à « worker ».
+ * Le contexte suit l'exécution (AsyncLocalStorage) : deux requêtes
+ * simultanées ne peuvent pas se voler leur acteur.
+ */
+export async function POST(request: Request) {
+  return avecContexteJournal(
+    { acteur: "worker", tache: "traitement-file" },
+    () => postInterne(request),
+  );
 }

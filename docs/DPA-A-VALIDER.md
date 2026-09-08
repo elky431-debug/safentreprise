@@ -1,6 +1,6 @@
 # Contrat de sous-traitance (article 28 RGPD) — à faire valider par un juriste
 
-**Version 0.1 — 8 septembre 2026. Projet non relu par un professionnel du
+**Version 0.2 — 8 septembre 2026. Projet non relu par un professionnel du
 droit.** Destiné à être annexé aux conditions générales, après relecture, en
 même temps que `docs/CGV-A-VALIDER.md`.
 
@@ -309,14 +309,34 @@ concernées (article 34).
 ### 11.2 Limite de détection — portée de l'engagement
 
 **L'engagement de l'article 11.1 porte sur les violations dont Safentreprise a
-connaissance. Le Client est informé que la capacité de détection est
-limitée** : aucune journalisation des accès n'existe à ce jour. Un accès
-illégitime aux données par une personne détenant une clé technique valide ne
-laisserait aucune trace, et ne serait donc ni détecté, ni démontrable.
+connaissance.** Le Client est informé de la portée exacte de ce qui permet
+d'en prendre connaissance.
 
-Cette limite est décisive pour l'appréciation du risque par le Client. Elle est
-également mentionnée à l'annexe 3, partie 2, et dans la politique de
-confidentialité. Voir partie B, point 2.
+**Ce qui est tracé.** Un journal des accès aux données personnelles est tenu
+(annexe 3, partie 1). Il enregistre chaque lecture d'un corps de message
+conservé, chaque lecture de l'annuaire, et chaque appel adressé à Microsoft au
+nom du Client — avec l'horodatage, le rôle technique à l'origine de l'accès, le
+locataire, la boîte concernée et le résultat. Il est conservé douze mois, et
+scellé chaque nuit par une empreinte chaînée.
+
+**Ce que cela ne couvre pas, et que le Client doit savoir :**
+
+- **un accès direct à la base de données par le compte propriétaire** — la
+  console d'administration de l'hébergeur — **n'est pas tracé.** PostgreSQL ne
+  permet pas d'observer une lecture de table ; c'est une limite du moteur, non
+  un choix. Ce compte est celui de l'éditeur ;
+- **le scellement rend une altération du journal visible, il ne la rend pas
+  impossible.** Il transforme une suppression discrète en un acte délibéré et
+  étendu, décelable par un contrôle ;
+- **le journal permet de démontrer après coup, pas de découvrir.** Aucune
+  surveillance automatique de son contenu n'est en place à ce jour :
+  l'anomalie ne remonte pas d'elle-même. **Le délai de quarante-huit heures de
+  l'article 11.1 court donc à compter d'une revue manuelle du journal**, et non
+  d'une détection immédiate.
+
+Ces limites sont décisives pour l'appréciation du risque par le Client. Elles
+figurent également à l'annexe 3 et dans l'analyse d'impact. Voir partie B,
+point 2.
 
 ## Article 12 — Assistance en matière d'analyse d'impact
 
@@ -499,6 +519,24 @@ l'autorise, et le droit de lecture est retiré aux rôles applicatifs. Purge
 automatique à trente jours, et effacement immédiat dès qu'une restauration a
 réussi.
 
+**Journal des accès aux données personnelles.** Chaque lecture d'un corps de
+message conservé, chaque lecture de l'annuaire et chaque appel adressé à
+Microsoft sont enregistrés : horodatage, rôle technique à l'origine de
+l'accès, locataire, boîte concernée par son identifiant technique, opération et
+résultat. **Le journal ne contient aucune donnée personnelle** — ni adresse, ni
+nom, ni objet, ni contenu : la base refuse toute valeur comportant une adresse.
+Il est inaccessible au Client comme aux Collaborateurs, et illisible même avec
+la clé technique d'exploitation, qui n'en donne qu'un extrait borné. Il ne peut
+être ni modifié ni effacé hors de la purge à douze mois, laquelle enregistre
+son propre passage. Chaque nuit, la journée écoulée est scellée par une
+empreinte qui inclut celle de la veille : toute altération rétroactive rompt la
+chaîne et se constate.
+
+**Lecture des corps conservés par un seul chemin.** La table qui les contient
+n'est plus lisible directement, pas même avec la clé technique
+d'exploitation. Le seul accès possible passe par une fonction qui le
+journalise.
+
 **Minimisation à la source.** Huit champs demandés à Microsoft ; les pièces
 jointes, les en-têtes bruts et les messages envoyés ne sont pas demandés.
 Seule la longueur du texte analysé est conservée, non le texte.
@@ -540,9 +578,21 @@ détenue par Safentreprise pour faire fonctionner et dépanner le Service.
 L'inaccessibilité mentionnée en partie 1 vaut à l'égard du Client, des
 Collaborateurs et de l'interface — **pas à l'égard de l'exploitant**.
 
-**Aucune journalisation des accès.** Aucune table ne trace qui a lu quoi. Un
-accès illégitime serait indétectable et indémontrable. C'est la limite qui
-borne l'engagement de notification de l'article 11.
+**La journalisation ne couvre pas l'accès direct à la base.** Un accès par le
+compte propriétaire, depuis la console d'administration de l'hébergeur, ne
+laisse aucune trace : PostgreSQL ne permet pas d'observer une lecture de table.
+Ce compte est celui de l'éditeur.
+
+**Le scellement du journal ne le rend pas immuable.** Il rend une altération
+visible, ce qui n'est pas la même chose. Qui peut écrire dans le journal peut
+en réécrire les sceaux — à condition de refaire tous les jours suivants.
+
+**Aucune surveillance automatique du journal.** Il permet de démontrer après
+coup ; il ne découvre rien de lui-même. C'est ce qui borne l'engagement de
+notification de l'article 11.2.
+
+**Les tables autres que les corps de messages restent lisibles directement**
+avec la clé technique d'exploitation — analyses, annuaire — donc sans trace.
 
 **Aucune limitation de débit** sur les routes internes.
 
@@ -582,19 +632,24 @@ développement. **À faire avant la signature du premier client.**
 
 ### 2. Notification de violation (article 28.3.f, renvoyant à l'article 33.2)
 
-**Tenue partiellement.** L'engagement de notifier sous 48 heures est
-réalisable. Mais l'obligation suppose de *pouvoir constater* une violation, et
-**aucune journalisation des accès n'existe**. Un accès illégitime par un
-détenteur de clé valide ne laisserait aucune trace.
+**Tenue, avec une réserve qui n'est plus la même.** Le journal des accès existe
+depuis le 8 septembre 2026 : un accès illégitime par un détenteur de la clé
+technique laisse désormais une trace, y compris sur les corps de messages, dont
+la lecture directe lui a été retirée.
 
-L'article 11.2 le dit explicitement plutôt que de laisser croire à une
-détection qui n'existe pas. **Il faut vérifier que cette rédaction est
-acceptable pour un juriste**, et qu'elle ne s'analyse pas en une limitation de
-responsabilité inopposable.
+**Ce qui reste à faire, et qui n'est pas juridique :**
 
-*Ce qu'il faut faire :* aucune procédure écrite de notification n'existe non
-plus — ni destinataire, ni délai interne, ni modèle. À rédiger. Puis
-journaliser les accès, qui est un développement à part entière.
+- **la surveillance du journal.** Sans elle, l'anomalie ne remonte pas
+  d'elle-même, et le délai de 48 heures court à compter d'une revue manuelle.
+  L'article 11.2 le dit ainsi. Une vue de contrôle est prévue au lot suivant ;
+- **l'accès par le compte propriétaire** reste hors couverture, et le restera :
+  PostgreSQL ne permet pas d'observer une lecture de table ;
+- **aucune procédure écrite de notification** — ni destinataire, ni délai
+  interne, ni modèle. À rédiger.
+
+**Il faut vérifier que la rédaction de l'article 11.2 est acceptable pour un
+juriste**, et qu'elle ne s'analyse pas en une limitation de responsabilité
+inopposable.
 
 ### 3. Assistance aux droits des personnes (article 28.3.e)
 
@@ -634,10 +689,11 @@ de bord Supabase, et inscrire la durée réelle à l'article 13.
 
 ### 6. Sécurité (article 32)
 
-Les quatre mesures que vous avez nommées — chiffrement applicatif,
-journalisation, limitation de débit, rotation des secrets — **ne figurent dans
-aucun engagement** de ce projet. Elles sont au contraire déclarées absentes à
-l'annexe 3, partie 2.
+Sur les quatre mesures nommées à l'origine, **une est désormais en place** — la
+journalisation des accès — et figure à l'annexe 3, partie 1, avec ses limites
+en partie 2. Les trois autres — chiffrement applicatif des corps, limitation de
+débit, rotation des secrets — **ne figurent dans aucun engagement** de ce
+projet, et restent déclarées absentes.
 
 **Un point demande une décision.** L'annexe 3 énonce des limites qu'un client
 attentif lira comme des raisons de ne pas signer. C'est voulu, et c'est ce que

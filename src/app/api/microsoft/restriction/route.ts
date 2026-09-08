@@ -35,6 +35,7 @@ import {
 } from "@/lib/microsoft/restriction";
 import { rpcService } from "@/lib/microsoft/consentement";
 import { createClient } from "@/lib/supabase/server";
+import { avecContexteJournal } from "@/lib/microsoft/journal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,7 +125,7 @@ function domaineDe(choisies: Choisie[]): string | null {
    GET — le script
    ========================================================================== */
 
-export async function GET(requete: Request) {
+async function getInterne(requete: Request) {
   const ctx = await contexte(requete);
   if (!ctx.ok) {
     return Response.json({ erreur: ctx.erreur }, { status: ctx.statut });
@@ -408,7 +409,7 @@ function conclure(
   };
 }
 
-export async function POST(requete: Request) {
+async function postInterne(requete: Request) {
   const ctx = await contexte(requete);
   if (!ctx.ok) {
     return Response.json({ erreur: ctx.erreur }, { status: ctx.statut });
@@ -567,4 +568,28 @@ export async function POST(requete: Request) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * Tout accès déclenché par cette route est attribué à « raccordement ».
+ * Le contexte suit l'exécution (AsyncLocalStorage) : deux requêtes
+ * simultanées ne peuvent pas se voler leur acteur.
+ */
+export async function GET(requete: Request) {
+  return avecContexteJournal(
+    { acteur: "raccordement", tache: "script-restriction" },
+    () => getInterne(requete),
+  );
+}
+
+/**
+ * Tout accès déclenché par cette route est attribué à « raccordement ».
+ * Le contexte suit l'exécution (AsyncLocalStorage) : deux requêtes
+ * simultanées ne peuvent pas se voler leur acteur.
+ */
+export async function POST(requete: Request) {
+  return avecContexteJournal(
+    { acteur: "raccordement", tache: "verification-restriction" },
+    () => postInterne(requete),
+  );
 }
