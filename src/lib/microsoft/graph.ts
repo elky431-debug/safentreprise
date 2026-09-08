@@ -53,6 +53,24 @@ function configuration() {
   return { clientId, clientSecret };
 }
 
+/**
+ * Oublie le jeton d'un locataire, pour en redemander un neuf au prochain appel.
+ *
+ * ⚠ INDISPENSABLE AVANT DE VÉRIFIER UNE AUTORISATION. Microsoft ne révoque pas
+ *   les jetons d'application déjà délivrés : ils restent valables jusqu'à leur
+ *   expiration, environ une heure. Un jeton pris en cache continue donc de
+ *   porter des permissions retirées depuis.
+ *
+ *   Constaté : une permission avait été retirée dans Entra et son consentement
+ *   révoqué, et la vérification lisait toujours la boîte témoin. Elle ne
+ *   mesurait pas l'état des autorisations, elle mesurait celui d'il y a une
+ *   heure — et aurait pu, dans l'autre sens, déclarer une restriction en place
+ *   sur la foi d'un jeton périmé.
+ */
+export function oublierJeton(tenantId: string): void {
+  cache.delete(tenantId);
+}
+
 /** Jeton d'application pour un locataire donné. */
 export async function obtenirJeton(tenantId: string): Promise<string> {
   const enCache = cache.get(tenantId);

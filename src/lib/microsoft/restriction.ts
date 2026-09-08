@@ -192,7 +192,7 @@ export function construireScript(
   const blocTemoin =
     temoin.etat === "existant"
       ? `# ------------------------------------------------------------
-# 8. Boîte témoin — rien à faire
+# 10. Boîte témoin — rien à faire
 # ------------------------------------------------------------
 # ${temoin.upn} existe déjà et reste hors du périmètre ci-dessus.
 # C'est elle qui servira à prouver que la restriction fonctionne.
@@ -200,7 +200,7 @@ export function construireScript(
 `
       : temoinACreer
         ? `# ------------------------------------------------------------
-# 8. Boîte témoin — à créer
+# 10. Boîte témoin — à créer
 # ------------------------------------------------------------
 # Aucune boîte de votre organisation ne reste hors du périmètre : il n'y a
 # donc rien qui permette de VÉRIFIER que la restriction fonctionne.
@@ -231,7 +231,7 @@ if (-not $Temoin) {
 }
 `
         : `# ------------------------------------------------------------
-# 8. Boîte témoin — rien pour l'instant
+# 10. Boîte témoin — rien pour l'instant
 # ------------------------------------------------------------
 # L'annuaire de votre organisation n'a pas pu être lu au moment où ce script
 # a été produit : nous ne savons donc pas s'il reste une boîte hors du
@@ -272,8 +272,14 @@ function Invoke-SafentrepriseRestriction {
 #     Administrateur général NE SUFFIT PAS : Connect-ExchangeOnline répond
 #     « vous n'êtes pas autorisé à accéder à cette ressource ». Après
 #     attribution, comptez jusqu'à une heure de propagation.
+#   • l'appartenance au groupe de rôles « Organization Management ». Le rôle
+#     Administrateur Exchange permet d'administrer les boîtes, PAS d'attribuer
+#     un rôle de gestion à une application. Même délai de propagation.
 #   • le module ExchangeOnlineManagement. Rien d'autre : ce script n'utilise
 #     aucun module Microsoft.Graph, et fonctionne en PowerShell 5.1.
+#
+# Le script vérifie ces trois points lui-même et s'arrête en disant lequel
+# manque. Il n'y a rien à contrôler à la main avant de le lancer.
 #
 # ------------------------------------------------------------
 # 1. Vérifier le module, avant toute chose
@@ -337,7 +343,48 @@ if ($Manquantes.Count -gt 0) {
 Write-Host "Connecte en tant que $Compte" -ForegroundColor Green
 
 # ------------------------------------------------------------
-# 4. Vérifier que le rôle attendu existe sur votre locataire
+# 4. Vérifier la délégation « Organization Management »
+# ------------------------------------------------------------
+# ⚠ LE RÔLE ADMINISTRATEUR EXCHANGE NE SUFFIT PAS. Attribuer un rôle de gestion
+#   à une application demande en plus une délégation non restreinte, que porte
+#   le groupe de rôles « Organization Management ». Sans elle, l'attribution
+#   échoue sur : « Vous ne disposez pas de l'accès permettant de créer, modifier
+#   ou supprimer l'attribution de rôle de gestion. »
+#
+#   On regarde AVANT de modifier quoi que ce soit. Vérifier juste avant
+#   l'attribution laisserait derriere nous une personnalisation activee et un
+#   perimetre inutilise, pour rien.
+$DelegationVerifiee = $true
+$Delegation = $null
+try {
+    $Delegation = Get-ManagementRoleAssignment -RoleAssignee $Compte -ErrorAction Stop |
+        Where-Object {
+            $_.Role -like '*Role Management*' -and
+            $_.RoleAssignmentDelegationType -eq 'DelegatingOrgWide'
+        }
+} catch {
+    # On ne sait pas : on ne bloque pas sur une ignorance. L'attribution dira.
+    $DelegationVerifiee = $false
+    Write-Host "Delegation non verifiable : $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
+if ($DelegationVerifiee -and -not $Delegation) {
+    Write-Host ""
+    Write-Host "ARRET : delegation manquante pour $Compte." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Le role 'Administrateur Exchange' permet d'administrer les boites," -ForegroundColor Yellow
+    Write-Host "pas d'attribuer un role a une application. Il faut en plus que ce" -ForegroundColor Yellow
+    Write-Host "compte appartienne au groupe de roles 'Organization Management'." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Centre d'administration Exchange > Roles > Roles d'administrateur" -ForegroundColor Cyan
+    Write-Host "  > Organization Management > onglet Attribue > ajouter le compte." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Comptez environ une heure de propagation, puis relancez ce script." -ForegroundColor Yellow
+    return
+}
+
+# ------------------------------------------------------------
+# 5. Vérifier que le rôle attendu existe sur votre locataire
 # ------------------------------------------------------------
 $RoleAttendu = 'Application Mail.ReadWrite'
 $Role = Get-ManagementRole | Where-Object { $_.Name -eq $RoleAttendu }
@@ -354,7 +401,34 @@ if (-not $Role) {
 }
 
 # ------------------------------------------------------------
-# 5. Déclarer l'application dans Exchange
+# 6. Ouvrir la personnalisation de l'organisation
+# ------------------------------------------------------------
+# ⚠ OBLIGATOIRE SUR LES LOCATAIRES RÉCENTS. Toute personnalisation RBAC y est
+#   bloquee tant que cette commande n'a pas ete lancee une fois :
+#   « La commande dont vous avez tente l'execution n'est pas autorisee
+#   actuellement pour votre organisation. »
+#
+#   Elle n'a pas d'effet de bord : elle ne fait qu'ouvrir la personnalisation.
+#   Sur un locataire deja personnalise elle rend une erreur, qui n'en est pas
+#   une ici. On ne s'arrete donc JAMAIS dessus.
+try {
+    Enable-OrganizationCustomization -ErrorAction Stop
+    Write-Host "Personnalisation de l'organisation activee." -ForegroundColor Green
+} catch {
+    $Msg = $_.Exception.Message
+    # Le libelle depend de la langue du locataire : on cherche le sens, pas les
+    # accents, d'ou les points a la place des caracteres accentues.
+    if ($Msg -match 'already|d.j.|not required|pas n.cessaire') {
+        Write-Host "Personnalisation deja active." -ForegroundColor Green
+    } else {
+        Write-Host "Enable-OrganizationCustomization a rendu :" -ForegroundColor Yellow
+        Write-Host $Msg -ForegroundColor Yellow
+        Write-Host "On continue : la suite dira si c'etait bloquant." -ForegroundColor Yellow
+    }
+}
+
+# ------------------------------------------------------------
+# 7. Déclarer l'application dans Exchange
 # ------------------------------------------------------------
 # Les deux identifiants viennent de Safentreprise : nous les avons lus dans
 # VOTRE annuaire, avec l'autorisation que vous avez accordee. Aucun module
@@ -380,7 +454,7 @@ if (-not $Sp) {
 }
 
 # ------------------------------------------------------------
-# 6. Créer le périmètre : les boîtes choisies, et elles seules
+# 8. Créer le périmètre : les boîtes choisies, et elles seules
 # ------------------------------------------------------------
 $NomPerimetre = '${doublerApostrophes(nomPerimetre)}'
 $Filtre = "${filtre}"
@@ -393,7 +467,7 @@ if ($Perimetre) {
 }
 
 # ------------------------------------------------------------
-# 7. Attribuer le rôle, limité à ce périmètre
+# 9. Attribuer le rôle, limité à ce périmètre
 # ------------------------------------------------------------
 $NomAttribution = "$NomPerimetre-MailReadWrite"
 if (-not (Get-ManagementRoleAssignment -Identity $NomAttribution -ErrorAction SilentlyContinue)) {
@@ -405,7 +479,7 @@ if (-not (Get-ManagementRoleAssignment -Identity $NomAttribution -ErrorAction Si
 
 ${blocTemoin}
 # ------------------------------------------------------------
-# 9. Contrôle
+# 11. Contrôle
 # ------------------------------------------------------------
 Write-Host ""
 Write-Host "Termine. Perimetre applique :" -ForegroundColor Green

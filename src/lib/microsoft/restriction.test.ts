@@ -451,3 +451,70 @@ test("les arrêts propres s'arrêtent vraiment, même collés dans une console",
   const dernierReturn = script.lastIndexOf("    return");
   assert.ok(dernierReturn > debut, "aucun return ne doit précéder la fonction");
 });
+
+test("la personnalisation de l'organisation est ouverte avant le périmètre", () => {
+  // ⚠ CONSTATÉ SUR UN LOCATAIRE RÉCENT. Toute personnalisation RBAC y est
+  //   bloquée tant que Enable-OrganizationCustomization n'a pas été lancée :
+  //   New-ManagementScope et New-ManagementRoleAssignment échouent sur « la
+  //   commande n'est pas autorisée actuellement pour votre organisation ».
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+  );
+
+  const posOuverture = script.indexOf("Enable-OrganizationCustomization -ErrorAction Stop");
+  const posPerimetre = script.indexOf("New-ManagementScope -Name");
+
+  assert.ok(posOuverture > 0, "la commande doit être appelée");
+  assert.ok(
+    posOuverture < posPerimetre,
+    "elle doit précéder la création du périmètre, sinon elle ne sert à rien",
+  );
+  // Sur un locataire déjà personnalisé elle rend une erreur qui n'en est pas
+  // une : le script ne doit jamais s'arrêter dessus.
+  assert.ok(
+    /Enable-OrganizationCustomization[\s\S]{0,400}?\} catch \{/.test(script),
+    "l'appel doit être encadré",
+  );
+  assert.ok(
+    script.includes("On continue : la suite dira si c'etait bloquant."),
+    "un échec inconnu ne doit pas arrêter le script non plus",
+  );
+});
+
+test("la délégation Organization Management est vérifiée avant toute modification", () => {
+  // Le rôle Administrateur Exchange ne permet pas d'attribuer un rôle de
+  // gestion à une application : il y faut une délégation non restreinte.
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+  );
+
+  assert.ok(script.includes("Get-ManagementRoleAssignment -RoleAssignee $Compte"));
+  assert.ok(script.includes("'DelegatingOrgWide'"), "le type de délégation attendu");
+  assert.ok(script.includes("Organization Management"), "le groupe doit être nommé");
+
+  const posDelegation = script.indexOf("$DelegationVerifiee = $true");
+  for (const modification of [
+    "Enable-OrganizationCustomization -ErrorAction Stop",
+    "New-ManagementScope -Name",
+    "New-ManagementRoleAssignment -Name",
+  ]) {
+    assert.ok(
+      posDelegation < script.indexOf(modification),
+      `le contrôle doit précéder « ${modification} » : échouer après avoir ` +
+        `modifié le locataire y laisserait des objets inutiles`,
+    );
+  }
+
+  // ⚠ On ne bloque que sur une absence CONSTATÉE. Si la lecture elle-même
+  //   échoue, on ne sait pas, et on laisse l'attribution trancher.
+  assert.ok(
+    script.includes("if ($DelegationVerifiee -and -not $Delegation) {"),
+    "une ignorance ne doit pas être traitée comme une absence",
+  );
+});

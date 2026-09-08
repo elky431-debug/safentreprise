@@ -402,7 +402,7 @@ function Prerequis() {
           À vérifier avant de transmettre le script
         </h3>
         <p className="mt-0.5 text-[12.5px] text-muted">
-          Trois points, tous constatés en installation réelle. Les ignorer fait
+          Quatre points, tous constatés en installation réelle. Les ignorer fait
           échouer le script sur des messages difficiles à interpréter.
         </p>
       </div>
@@ -425,7 +425,29 @@ function Prerequis() {
 
         <li className="px-5 py-3.5">
           <p className="text-[13px] font-semibold text-foreground">
-            2. Le module ExchangeOnlineManagement
+            2. L&apos;appartenance au groupe «&nbsp;Organization
+            Management&nbsp;»
+          </p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
+            Le rôle Administrateur Exchange permet d&apos;administrer les
+            boîtes,{" "}
+            <strong className="font-medium text-foreground">
+              pas d&apos;attribuer un rôle à une application
+            </strong>
+            . Sans cette appartenance, le script s&apos;arrête sur «&nbsp;vous
+            ne disposez pas de l&apos;accès permettant de créer, modifier ou
+            supprimer l&apos;attribution de rôle de gestion&nbsp;».
+          </p>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">
+            Centre d&apos;administration Exchange → Rôles → Rôles
+            d&apos;administrateur → Organization Management → onglet Attribué,
+            puis ajouter le compte.
+          </p>
+        </li>
+
+        <li className="px-5 py-3.5">
+          <p className="text-[13px] font-semibold text-foreground">
+            3. Le module ExchangeOnlineManagement
           </p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
             Une seule commande, une seule fois. Le script s&apos;arrête de
@@ -443,16 +465,23 @@ function Prerequis() {
 
         <li className="px-5 py-3.5">
           <p className="text-[13px] font-semibold text-foreground">
-            3. Le délai de propagation
+            4. Le délai de propagation
           </p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
-            Un rôle qui vient d&apos;être attribué peut mettre{" "}
+            Un rôle ou une appartenance qui viennent d&apos;être attribués
+            peuvent mettre{" "}
             <strong className="font-medium text-foreground">
               jusqu&apos;à une heure
             </strong>{" "}
             à être pris en compte par Microsoft. Si la connexion est refusée
             juste après l&apos;attribution, ce n&apos;est pas une erreur de
             configuration : il faut attendre.
+          </p>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">
+            Le même délai s&apos;applique <em>après</em> le script : une
+            autorisation déjà accordée à Safentreprise reste valable environ une
+            heure. Si la vérification lancée dans la foulée annonce un accès non
+            restreint, attendez et relancez-la avant de chercher plus loin.
           </p>
         </li>
       </ol>

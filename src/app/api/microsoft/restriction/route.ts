@@ -342,21 +342,26 @@ function conclure(
       message:
         `L'accès n'est pas restreint : Safentreprise a pu lire un message de ` +
         `${temoin.upn}, qui ne fait pas partie des boîtes surveillées. ` +
-        `La surveillance ne peut pas démarrer tant que c'est le cas. Deux ` +
+        `La surveillance ne peut pas démarrer tant que c'est le cas. Trois ` +
         `causes possibles, à vérifier dans cet ordre.`,
       issues: [
         {
-          titre:
-            "L'autorisation Microsoft à l'échelle du locataire est toujours active",
+          // ⚠ EN PREMIER PARCE QUE C'EST LE CAS LE PLUS FRÉQUENT, et le seul
+          //   qui se règle en ne faisant rien. Constaté à l'essai réel : la
+          //   vérification lancée dans la foulée du script a conclu « accès non
+          //   restreint », puis la même vérification a réussi une heure plus
+          //   tard, sans que rien n'ait été modifié entre-temps.
+          //
+          //   Microsoft ne révoque pas les autorisations déjà délivrées : elles
+          //   valent jusqu'à expiration. Un administrateur qui enchaîne script
+          //   et vérification tombera systématiquement dessus.
+          titre: "L'autorisation précédente n'a pas encore expiré",
           explication:
-            "C'est la cause la plus fréquente, et elle ne se voit pas depuis " +
-            "Exchange. Les autorisations accordées dans Entra ID et celles " +
-            "d'Exchange s'additionnent : tant que Mail.ReadWrite reste " +
-            "accordée à l'ensemble de l'organisation dans Entra, elle " +
-            "autorise la lecture quel que soit le périmètre Exchange. Le " +
-            "contrôle Exchange peut donc dire « hors périmètre » pendant que " +
-            "la lecture réussit. Contactez le support Safentreprise : c'est " +
-            "un réglage de notre application, pas du vôtre.",
+            "Microsoft ne retire pas immédiatement une autorisation déjà " +
+            "accordée : elle reste valable environ une heure, même après la " +
+            "mise en place de la restriction. Si le script vient d'être " +
+            "exécuté, c'est l'explication la plus probable, et il n'y a rien " +
+            "à corriger. Attendez une heure, puis relancez la vérification.",
         },
         {
           titre: "Le script n'a pas été exécuté jusqu'au bout",
@@ -366,6 +371,20 @@ function conclure(
             "contrôle, et True sur une boîte surveillée. Si elle répond " +
             "autrement, le script est à relancer.",
           commande: `Test-ServicePrincipalAuthorization -Identity 'Safentreprise' -Resource '${temoin.upn}'`,
+        },
+        {
+          titre:
+            "Une autorisation à l'échelle du locataire subsiste dans votre annuaire",
+          explication:
+            "Elle ne se voit pas depuis Exchange. Les autorisations accordées " +
+            "dans Entra ID et celles d'Exchange s'additionnent : tant qu'une " +
+            "autorisation de lecture du courrier reste accordée à l'ensemble " +
+            "de l'organisation, elle autorise la lecture quel que soit le " +
+            "périmètre Exchange — le contrôle Exchange peut donc dire « hors " +
+            "périmètre » pendant que la lecture réussit. Ne concerne que les " +
+            "raccordements les plus anciens. Contactez le support " +
+            "Safentreprise : c'est un réglage de notre application, pas du " +
+            "vôtre.",
         },
       ],
       detail:
