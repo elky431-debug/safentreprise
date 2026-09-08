@@ -27,7 +27,7 @@ export default function PolitiqueConfidentialitePage() {
           Politique de confidentialité et de protection des données personnelles
         </h1>
         <p className="mt-3 text-[13.5px] text-faint">
-          Dernière mise à jour : 3 septembre 2026
+          Dernière mise à jour : 8 septembre 2026
         </p>
       </header>
 
@@ -312,13 +312,51 @@ export default function PolitiqueConfidentialitePage() {
 
         <P>
           <Fort>Comment le service est raccordé.</Fort> Un administrateur
-          Microsoft 365 de l’entreprise donne son accord une fois. Safentreprise
-          reçoit alors deux autorisations, et deux seulement : lire et modifier
-          les messages des boîtes surveillées, et lire l’annuaire des
-          collaborateurs. Le service se connecte avec sa propre identité
-          applicative, jamais avec le compte ni le mot de passe d’un
-          collaborateur.
+          Microsoft 365 de l’entreprise donne son accord une fois. Le service se
+          connecte ensuite avec sa propre identité applicative, jamais avec le
+          compte ni le mot de passe d’un collaborateur.
         </P>
+        <P>
+          Cet accord ne donne <Fort>aucun accès au courrier</Fort>. Il n’ouvre
+          qu’une seule autorisation : lire l’annuaire de l’organisation — les
+          noms et les adresses des collaborateurs. Aucun message, dans aucune
+          boîte, n’est accessible à ce stade.
+        </P>
+        <P>
+          L’accès aux messages est ouvert dans un second temps, par
+          l’entreprise elle-même : son administrateur exécute un court script
+          qui accorde à Safentreprise un droit de lecture et de modification du
+          courrier, <Fort>limité aux adresses qu’elle a choisies</Fort>. Ce
+          droit est posé dans son propre environnement Microsoft, et elle peut
+          le retirer sans nous.
+        </P>
+
+        <P>
+          <Fort>Ce que cela change concrètement.</Fort>
+        </P>
+        <Ul>
+          <Li>
+            Entre l’accord de l’administrateur et l’exécution du script,
+            Safentreprise <Fort>ne peut lire aucun message</Fort>. Ce n’est pas
+            une règle que nous nous imposons : c’est Microsoft qui refuse.
+          </Li>
+          <Li>
+            Une boîte qui n’a pas été choisie <Fort>n’est pas lisible</Fort>, et
+            ce refus vient de Microsoft, pas de notre code. Nous le vérifions
+            avant de démarrer la surveillance, en tentant réellement de lire une
+            boîte que l’entreprise n’a pas retenue : tant que Microsoft ne nous
+            la refuse pas, aucun message n’est analysé. La date de ce contrôle
+            et la réponse exacte de Microsoft sont affichées à l’entreprise
+            cliente.
+          </Li>
+          <Li>
+            <Fort>L’autorisation de lire l’annuaire, elle, n’est pas
+            limitable</Fort> — Microsoft ne permet pas de la restreindre à une
+            partie de l’organisation. Elle porte donc sur l’annuaire entier :
+            noms, adresses et domaines de tous les collaborateurs. Elle ne donne
+            accès à aucun message.
+          </Li>
+        </Ul>
 
         <P>
           <Fort>Ce que le service demande à Microsoft, pour chaque message.</Fort>
@@ -407,9 +445,19 @@ export default function PolitiqueConfidentialitePage() {
             plus tard au bout de 30 jours.
           </Li>
           <Li>
-            <Fort>Personne ne peut la lire</Fort> : ni Safentreprise par
-            l’application, ni l’entreprise cliente, ni le collaborateur. Elle
-            n’est accessible qu’au programme qui remet le message en état.
+            <Fort>Aucune interface ne l’affiche</Fort>, et la base la refuse à
+            l’entreprise cliente comme au collaborateur : aucune règle d’accès
+            ne l’autorise, et le droit de lecture leur est retiré. Elle ne sert
+            qu’au programme qui remet le message en état.
+          </Li>
+          <Li>
+            <Fort>Ce que nous ne pouvons pas prétendre.</Fort> Cette copie est
+            enregistrée en clair : elle est chiffrée par l’hébergeur sur le
+            disque, pas par Safentreprise. Les personnes qui exploitent le
+            service disposent de la clé technique qui permet d’y accéder, et
+            aucun journal ne trace ces accès. La protection tient donc à la
+            purge à trente jours et au fait que rien ne l’expose — pas à une
+            impossibilité technique.
           </Li>
           <Li>
             Au-delà d’un mégaoctet, la copie est refusée — et dans ce cas le

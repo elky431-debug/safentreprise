@@ -5,10 +5,10 @@ raccordées, et annotation de ceux qui présentent les caractéristiques d'une f
 
 | | |
 |---|---|
-| Version | 1.0 |
-| Date | 3 septembre 2026 |
+| Version | 1.1 |
+| Date | 8 septembre 2026 |
 | Auteur | El Fahim Yacine — Safentreprise |
-| État du code analysé | branche `claude/graph-webhook`, commit `70964e1` |
+| État du code analysé | branche `claude/graph-webhook`, commit `28ab07b` |
 | Format | Structure du logiciel PIA de la CNIL (contexte / principes / risques / validation) |
 
 ---
@@ -43,7 +43,47 @@ Si le message présente les caractéristiques d'une fraude, le service **modifie
 le message dans la boîte du destinataire** : il insère un avertissement en tête
 et pose une catégorie de couleur.
 
-Le cheminement réel, tel qu'il est codé :
+### Ce que l'application est autorisée à faire
+
+Modèle en place depuis le 8 septembre 2026, vérifié sur un locataire réel.
+Il compte pour l'analyse de risque : il détermine ce qui est techniquement
+atteignable, indépendamment de ce que le code choisit de faire.
+
+| Autorisation | Portée | Ce qu'elle ouvre |
+|---|---|---|
+| `User.Read.All` (application) | **Tout le locataire — non délimitable** | Annuaire : noms, adresses, domaines. Aucun message. |
+| `User.Read` (délégué) | L'utilisateur connecté | Connexion à l'espace client. |
+| Rôle Exchange `Application Mail.ReadWrite` | **Les seules adresses choisies** | Lecture et modification du courrier. |
+
+Le troisième n'est pas accordé au consentement : il est attribué par le client
+lui-même, dans son propre environnement Exchange, au moyen d'un script que
+l'éditeur lui fournit (`src/lib/microsoft/restriction.ts`). Il est délimité par
+un *management scope* filtrant sur les adresses retenues.
+
+Trois conséquences pour l'analyse :
+
+- **entre le consentement administrateur et l'exécution de ce script,
+  l'application n'a aucun accès au courrier.** Ce n'est pas une règle interne,
+  c'est Microsoft qui refuse ;
+- **le refus d'accès à une boîte non choisie est prononcé par Microsoft**, pas
+  par le code de l'éditeur. Il est constaté avant tout démarrage : la
+  vérification tente réellement de lire une boîte hors périmètre et exige un
+  refus explicite (`src/app/api/microsoft/restriction/route.ts`) ;
+- **l'autorisation d'annuaire reste à l'échelle du locataire.** Les
+  autorisations d'annuaire de Microsoft Graph ne sont pas délimitables. La
+  minimisation ne peut donc pas s'appuyer sur elle : elle repose sur le fait
+  que seuls des noms, des adresses et des domaines sont lus, et sur la purge.
+
+**Historique, parce qu'il éclaire le risque.** Jusqu'au 8 septembre 2026,
+l'application demandait `Mail.ReadWrite` en autorisation d'application à
+l'échelle du locataire, et le script Exchange venait « restreindre » ensuite.
+Les deux autorisations s'additionnant — l'union est documentée par Microsoft —
+l'accès au courrier restait en réalité **non restreint** sur toute la durée du
+raccordement. Le défaut a été détecté par la vérification elle-même, qui a
+refusé de démarrer la surveillance, et non par une revue. Aucun client n'était
+en production. Voir `docs/RESTRICTION-UNION-ENTRA.md`.
+
+### Le cheminement réel, tel qu'il est codé
 
 1. Microsoft envoie une notification → `src/app/api/microsoft/webhook/route.ts`
 2. La notification est vérifiée et mise en file → `graph_file_attente`
@@ -268,9 +308,14 @@ politique de confidentialité (point 2.5) et, sur demande, un texte type.
 
 **Ce qui n'existe pas** : aucun mécanisme technique ne vérifie que
 l'information a été donnée avant le raccordement. Un client peut brancher ses
-boîtes sans avoir prévenu personne. La colonne prévue pour tracer le
-consentement administrateur, `microsoft_tenants.consenti_par`
-(`20260825:26`), **n'est écrite par aucun code** — elle est vide.
+boîtes sans avoir prévenu personne.
+
+**Corrigé depuis.** La colonne `microsoft_tenants.consenti_par` (`20260825:26`)
+n'était écrite par aucun code et restait vide. Elle est désormais renseignée à
+partir de la demande enregistrée dans `graph_consentements` — jamais à partir
+du retour de Microsoft, que personne ne contrôle (`20260910_consenti_par.sql`).
+Le nom de la personne qui a autorisé le raccordement et la date sont affichés
+au client sur la page Microsoft 365.
 
 ### Consentement
 
@@ -374,8 +419,12 @@ traitement les recherche.
    une seule fonction : `get_my_company_id()` (`supabase/schema.sql:259`),
    qui résout `auth.uid()` vers une entreprise. 54 politiques en dépendent.
    Une erreur dans cette fonction exposerait chaque client à tous les autres.
-4. **Vol du secret client Azure.** Il donne accès aux boîtes Microsoft
-   elles-mêmes, indépendamment de Safentreprise.
+4. **Vol du secret client Azure.** Sa portée a été réduite le 8 septembre
+   2026 : il n'ouvre plus l'accès au courrier de tous les locataires, mais
+   l'annuaire de chacun d'eux, et le courrier des seules boîtes que chaque
+   client a lui-même mises dans le périmètre de son rôle Exchange. Le
+   dommage reste sérieux — l'annuaire complet de chaque client, et le
+   courrier surveillé — mais il n'est plus illimité.
 5. **Notification forgée.** Écartée : le webhook vérifie le `clientState`
    dans la même requête SQL que la mise en file, et compare avec la valeur en
    base plutôt qu'avec celle annoncée (`20260825:162-199`).
@@ -384,6 +433,9 @@ traitement les recherche.
 
 | Mesure | Où |
 |---|---|
+| Aucune autorisation d'accès au courrier au consentement : elle est accordée par le client, délimitée aux adresses choisies | `restriction.ts`, modèle du 8 septembre 2026 |
+| Le refus d'accès à une boîte hors périmètre est prononcé par Microsoft, et constaté avant tout démarrage | `restriction/route.ts` (sondage d'un message, refus explicite exigé) |
+| Une boîte retirée de la sélection cesse d'être analysée : ses notifications sont refusées à l'entrée | `20260913:enregistrer_notification_graph` |
 | RLS active sur toutes les tables du traitement, cloisonnement par entreprise | `20260825:136-154`, `20260826:85-89`, `20260827:56-110` |
 | `graph_corps_originaux` : **aucune politique de lecture, `REVOKE ALL`** — inaccessible par l'API à quiconque, client compris | `20260902:45-50` |
 | Fonctions du worker en `SECURITY DEFINER`, réservées à `service_role`, retirées à `anon` et `authenticated` | `20260902:195-205`, `20260906:301-310` |

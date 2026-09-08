@@ -29,7 +29,7 @@ export default function CgvPage() {
           Conditions générales de vente et d’utilisation
         </h1>
         <p className="mt-3 text-[13.5px] text-faint">
-          Version 1.2 — en vigueur au 4 septembre 2026
+          Version 1.3 — en vigueur au 8 septembre 2026
         </p>
       </header>
 
@@ -152,10 +152,17 @@ export default function CgvPage() {
         <P>
           <Fort>Raccordement.</Fort> La Surveillance suppose qu’un
           administrateur Microsoft 365 du Client autorise l’application
-          Safentreprise à accéder aux boîtes de son organisation. Cette
-          autorisation est donnée par le Client, sur son propre environnement
-          Microsoft, et peut être retirée par lui à tout moment. Son retrait
-          interrompt la Surveillance.
+          Safentreprise sur son environnement Microsoft. Cette autorisation est
+          donnée par le Client, et peut être retirée par lui à tout moment. Son
+          retrait interrompt la Surveillance.
+        </P>
+        <P>
+          <Fort>Étendue de cette autorisation.</Fort> Elle porte sur la lecture
+          de l’annuaire de l’organisation — noms, adresses et domaines des
+          collaborateurs — et <Fort>ne donne accès à aucun message</Fort>. Le
+          Client est informé que cette autorisation d’annuaire n’est pas
+          limitable à une partie de son organisation : Microsoft ne le permet
+          pas.
         </P>
         <P>
           <Fort>Choix des Boîtes.</Fort> Le Client désigne les Boîtes
@@ -164,13 +171,24 @@ export default function CgvPage() {
           messages envoyés ne sont pas analysés.
         </P>
         <P>
-          <Fort>Restriction préalable.</Fort> Les autorisations délivrées par
-          Microsoft portent, par construction, sur l’ensemble des boîtes du
-          Client. Le Client doit donc restreindre l’accès de l’application aux
-          seules Boîtes raccordées, au moyen du script que le Prestataire lui
-          fournit. <Fort>Tant que cette restriction n’a pas été constatée par
-          le Prestataire, aucun message n’est analysé et la Surveillance ne
-          démarre pas.</Fort>
+          <Fort>Ouverture de l’accès aux messages.</Fort> L’accès au courrier
+          n’est pas délivré par l’autorisation ci-dessus. Il est accordé par le
+          Client lui-même, sur son environnement Exchange, au moyen d’un script
+          que le Prestataire lui fournit : ce script attribue à l’application un
+          droit de lecture et de modification du courrier{" "}
+          <Fort>limité aux seules Boîtes raccordées</Fort>. Le Client peut le
+          retirer sans le concours du Prestataire.
+        </P>
+        <P>
+          <Fort>Conséquence.</Fort> Tant que ce script n’a pas été exécuté,
+          l’application <Fort>ne peut lire aucun message</Fort>, dans aucune
+          boîte. Le refus opposé à une boîte non raccordée émane de Microsoft et
+          non du Prestataire. Ce dernier le constate avant tout démarrage, en
+          tentant effectivement de lire une boîte non raccordée :{" "}
+          <Fort>tant que ce refus n’a pas été obtenu, aucun message n’est
+          analysé et la Surveillance ne démarre pas.</Fort> La date de ce
+          constat et la réponse de Microsoft sont mises à la disposition du
+          Client dans son espace.
         </P>
         <P>
           <Fort>Ce qui est examiné.</Fort> Pour chaque message reçu dans une
@@ -407,13 +425,14 @@ export default function CgvPage() {
           les Boîtes qu’il désigne.
         </P>
         <P>
-          <Fort>De la restriction des accès.</Fort> Le Client fait exécuter, par
-          son administrateur Microsoft, la restriction limitant l’accès de
-          l’application aux seules Boîtes raccordées. Il reconnaît qu’en
-          l’absence de cette restriction, les autorisations délivrées par
-          Microsoft portent sur l’ensemble des boîtes de son organisation, et
-          que la Surveillance ne démarre pas tant que le Prestataire n’a pas
-          constaté cette restriction.
+          <Fort>De l’ouverture des accès.</Fort> Le Client fait exécuter, par
+          son administrateur Microsoft, le script accordant à l’application
+          l’accès aux seules Boîtes raccordées. Il reconnaît qu’en l’absence de
+          cette exécution, l’application n’a accès à aucun message et que la
+          Surveillance ne démarre pas. Il lui appartient de tenir ce périmètre à
+          jour : une Boîte qu’il retire de sa sélection cesse d’être analysée,
+          et une Boîte créée après l’exécution du script n’est pas surveillée
+          tant qu’elle n’y a pas été ajoutée.
         </P>
         <P>
           <Fort>De la vérification des messages signalés.</Fort> Un
