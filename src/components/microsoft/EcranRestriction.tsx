@@ -37,7 +37,7 @@ type Resultat = {
   verifie: boolean;
   cause:
     | "restriction-active"
-    | "script-non-execute"
+    | "acces-non-restreint"
     | "perimetre-trop-restrictif"
     | "aucun-temoin"
     | "indetermine";
@@ -54,9 +54,13 @@ const ISSUES: Record<Resultat["cause"], { titre: string; ton: Ton }> = {
     titre: "Restriction vérifiée — la surveillance peut démarrer",
     ton: "succes",
   },
-  "script-non-execute": {
-    titre: "Le script n'a pas encore été exécuté",
-    ton: "attention",
+  // ⚠ NE DIT PLUS « le script n'a pas été exécuté ». Sur un locataire réel,
+  //   le script AVAIT été exécuté et Exchange confirmait le périmètre : la
+  //   cause était l'autorisation Entra restée à l'échelle du locataire. Un
+  //   titre qui affirme une cause non constatée envoie chercher ailleurs.
+  "acces-non-restreint": {
+    titre: "L'accès n'est pas restreint",
+    ton: "danger",
   },
   "perimetre-trop-restrictif": {
     titre: "Le périmètre ne contient pas les bonnes adresses",
@@ -489,20 +493,6 @@ function ResultatVerification({
         </p>
       )}
 
-      {resultat.cause === "script-non-execute" && (
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>
-            Si votre administrateur vient de l&apos;exécuter, attendez quelques
-            minutes et relancez la vérification.
-          </li>
-          <li>
-            Sinon, retransmettez-lui le script ci-dessus. Il doit aller
-            jusqu&apos;au bout : le script s&apos;arrête de lui-même s&apos;il
-            rencontre un problème, en affichant lequel.
-          </li>
-        </ul>
-      )}
-
       {resultat.cause === "perimetre-trop-restrictif" && (
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>
@@ -517,7 +507,7 @@ function ResultatVerification({
         </ul>
       )}
 
-      {resultat.cause === "aucun-temoin" && resultat.issues && (
+      {resultat.issues && resultat.issues.length > 0 && (
         <ol className="mt-3 space-y-3">
           {resultat.issues.map((issue, index) => (
             <li
@@ -531,7 +521,7 @@ function ResultatVerification({
                 {issue.explication}
               </p>
               {issue.commande && <Commande texte={issue.commande} />}
-              {index === 1 && (
+              {resultat.cause === "aucun-temoin" && index === 1 && (
                 <button
                   type="button"
                   onClick={onModifierSelection}

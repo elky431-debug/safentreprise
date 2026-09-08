@@ -228,7 +228,7 @@ type Resultat = {
   verifie: boolean;
   cause:
     | "restriction-active"
-    | "script-non-execute"
+    | "acces-non-restreint"
     | "perimetre-trop-restrictif"
     | "aucun-temoin"
     | "indetermine";
@@ -322,15 +322,55 @@ function conclure(
   }
 
   if (temoin.sondage.etat === "lisible") {
+    // ⚠ NE PAS ACCUSER LE CLIENT DE NE PAS AVOIR EXÉCUTÉ LE SCRIPT. Ce message
+    //   disait exactement cela, et il s'est trompé sur un locataire réel où le
+    //   script AVAIT été exécuté et où Test-ServicePrincipalAuthorization
+    //   rendait bien InScope False sur le témoin.
+    //
+    //   La cause était ailleurs, et elle est documentée par Microsoft : les
+    //   autorisations d'Exchange RBAC s'AJOUTENT à celles d'Entra ID — c'est
+    //   une union, pas une restriction. Tant que Mail.ReadWrite reste accordée
+    //   à l'échelle du locataire dans Entra, elle autorise la lecture quel que
+    //   soit le périmètre Exchange. Voir docs/RESTRICTION-UNION-ENTRA.md.
+    //
+    //   Un message qui affirme une cause qu'il n'a pas constatée envoie
+    //   chercher au mauvais endroit. On décrit donc ce qu'on a observé, et on
+    //   nomme les deux causes possibles avec le contrôle qui les départage.
     return {
       verifie: false,
-      cause: "script-non-execute",
+      cause: "acces-non-restreint",
       message:
-        `La restriction n'est pas en place : Safentreprise peut encore lire ` +
+        `L'accès n'est pas restreint : Safentreprise a pu lire un message de ` +
         `${temoin.upn}, qui ne fait pas partie des boîtes surveillées. ` +
-        `Le script PowerShell n'a pas été exécuté, ou pas jusqu'au bout. ` +
-        `Faites-le exécuter par votre administrateur Exchange, puis relancez ` +
-        `cette vérification.`,
+        `La surveillance ne peut pas démarrer tant que c'est le cas. Deux ` +
+        `causes possibles, à vérifier dans cet ordre.`,
+      issues: [
+        {
+          titre:
+            "L'autorisation Microsoft à l'échelle du locataire est toujours active",
+          explication:
+            "C'est la cause la plus fréquente, et elle ne se voit pas depuis " +
+            "Exchange. Les autorisations accordées dans Entra ID et celles " +
+            "d'Exchange s'additionnent : tant que Mail.ReadWrite reste " +
+            "accordée à l'ensemble de l'organisation dans Entra, elle " +
+            "autorise la lecture quel que soit le périmètre Exchange. Le " +
+            "contrôle Exchange peut donc dire « hors périmètre » pendant que " +
+            "la lecture réussit. Contactez le support Safentreprise : c'est " +
+            "un réglage de notre application, pas du vôtre.",
+        },
+        {
+          titre: "Le script n'a pas été exécuté jusqu'au bout",
+          explication:
+            "Votre administrateur peut le vérifier avec la commande " +
+            "ci-dessous : elle doit répondre InScope False sur la boîte de " +
+            "contrôle, et True sur une boîte surveillée. Si elle répond " +
+            "autrement, le script est à relancer.",
+          commande: `Test-ServicePrincipalAuthorization -Identity 'Safentreprise' -Resource '${temoin.upn}'`,
+        },
+      ],
+      detail:
+        `Lecture réussie sur ${temoin.upn} — la boîte n'aurait pas dû être ` +
+        `accessible.`,
     };
   }
 

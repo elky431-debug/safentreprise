@@ -594,13 +594,25 @@ export type Sondage =
   | { etat: "indetermine"; message: string };
 
 /**
- * Tente de lire une boîte, sans rien y modifier ni rien en rapporter.
+ * Tente de lire un MESSAGE d'une boîte, sans rien y modifier ni rien en
+ * rapporter — on ne demande que l'identifiant du premier message.
+ *
+ * ⚠ ON LIT UN MESSAGE, PAS UN DOSSIER, ET PAS L'ANNUAIRE. Le sondage doit
+ *   faire exactement ce que le produit prétend ne pas pouvoir faire sur une
+ *   boîte non surveillée : lire du courrier. Une version antérieure lisait
+ *   /mailFolders/inbox — un appel Exchange lui aussi, donc soumis aux mêmes
+ *   autorisations, mais un dossier n'est pas un message, et la preuve doit
+ *   porter sur ce que le client craint réellement.
  *
  * ⚠ LA DISTINCTION QUI FAIT TOUTE LA PREUVE. Un échec ne vaut pas un refus.
  *   Un compte sans boîte aux lettres rend 404 : conclure de ce 404 que la
  *   restriction fonctionne serait une preuve fausse, et le produit
  *   prétendrait un cloisonnement qu'il n'a pas. Seul un refus explicite —
- *   403, ou un code d'accès refusé — prouve quelque chose.
+ *   403, ou ErrorAccessDenied — prouve quelque chose.
+ *
+ * ⚠ UNE BOÎTE VIDE RÉPOND « LISIBLE », et c'est correct : Graph rend 200 avec
+ *   une liste vide. Ce qui compte n'est pas d'avoir trouvé un message, c'est
+ *   que Microsoft nous ait laissés regarder.
  */
 export async function sonderBoite(
   tenantId: string,
@@ -610,7 +622,7 @@ export async function sonderBoite(
     await appelGraph(
       tenantId,
       "GET",
-      `/users/${encodeURIComponent(graphUserId)}/mailFolders/inbox?$select=id`,
+      `/users/${encodeURIComponent(graphUserId)}/messages?$top=1&$select=id`,
     );
     return { etat: "lisible" };
   } catch (erreur) {
