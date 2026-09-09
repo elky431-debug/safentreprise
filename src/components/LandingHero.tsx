@@ -6,12 +6,10 @@ import { HeroCartes } from "@/components/HeroCartes";
 /**
  * Les trois réassurances sous les boutons. Chacune doit être vraie.
  *
- * ⚠ « Aucune extension à installer » CONTREDIT LA SECTION « PROTECTION » DE LA
- *   MÊME PAGE, qui décrit une extension de navigateur et parle d'installation
- *   (`src/components/ProtectionExtension.tsx`). La phrase est juste pour le
- *   raccordement Microsoft 365, qui passe par Graph côté serveur ; elle ne
- *   l'est pas pour la protection décrite plus bas. L'une des deux doit
- *   changer.
+ * ⚠ « Aucune extension à installer » N'EST VRAIE QUE PARCE QUE LA SECTION
+ *   « Protection » DIT LA MÊME CHOSE. Elle a longtemps décrit une extension de
+ *   navigateur et parlé d'installation, en contradiction directe avec cette
+ *   ligne. Toute réécriture de cette section doit repasser ici.
  */
 const REASSURANCES = [
   "Aucune extension à installer",

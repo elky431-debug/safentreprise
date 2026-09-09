@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LandingHero } from "@/components/LandingHero";
 import { Triptyque } from "@/components/Triptyque";
 import { TroisFraudes } from "@/components/TroisFraudes";
-import { ProtectionExtension } from "@/components/ProtectionExtension";
+import { ProtectionContinue } from "@/components/ProtectionContinue";
 import { FraudEmailExample } from "@/components/FraudEmailExample";
 import { Logo } from "@/components/Logo";
 import { LegalLinks } from "@/components/LegalLinks";
@@ -189,8 +189,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Protection active : l'extension de détection */}
-        <ProtectionExtension />
+        {/* Protection active : l'avertissement posé dans le message */}
+        <ProtectionContinue />
 
         {/* Indicateurs */}
         <section className="border-t border-border px-6 py-20 md:py-24 lg:px-8">

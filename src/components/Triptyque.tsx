@@ -3,7 +3,8 @@ import { IconTarget, IconFormation, IconShieldCheck } from "@/components/icons";
 /**
  * Triptyque de positionnement : Safentreprise ne se limite pas au test,
  * il couvre les trois temps de la protection contre la fraude ciblée.
- * Le troisième pilier (l'extension) est mis en avant : c'est le point culminant.
+ * Le troisième pilier (la protection continue) est mis en avant : c'est le point
+ * culminant.
  */
 const PILIERS = [
   {
@@ -26,7 +27,7 @@ const PILIERS = [
     Icone: IconShieldCheck,
     accent: true,
     texte:
-      "L'extension veille en continu dans la boîte mail et prévient avant le virement, même des mois après la formation.",
+      "Safentreprise veille en continu dans la boîte mail et prévient avant le virement, même des mois après la formation.",
   },
 ];
 
