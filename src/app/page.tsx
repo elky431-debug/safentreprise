@@ -99,7 +99,10 @@ export default async function HomePage() {
           <div className="flex items-center gap-3">
             <Link
               href={user ? "/dashboard" : "/login"}
-              className="hidden h-9 items-center text-[13.5px] text-muted transition-colors hover:text-foreground sm:inline-flex"
+              // ⚠ `lg` ET NON `sm` : à 768 px, la navigation complète, ce lien
+              //   et le bouton dépassaient ensemble de la barre et faisaient
+              //   défiler la page horizontalement.
+              className="hidden h-9 items-center text-[13.5px] text-muted transition-colors hover:text-foreground lg:inline-flex"
             >
               Accéder à mon espace
             </Link>
