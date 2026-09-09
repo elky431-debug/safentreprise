@@ -108,7 +108,7 @@ export function ProtectionExtension() {
 function ApercuBanniere() {
   return (
     <figure className="m-0">
-      <div className="overflow-hidden rounded-[12px] border border-border-strong bg-surface shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)]">
+      <div className="overflow-hidden rounded-[12px] border border-border-strong bg-surface shadow-[0_24px_56px_-24px_rgba(16,20,26,0.28)]">
         {/* Barre du client de messagerie */}
         <div className="flex items-center justify-between gap-4 border-b border-border bg-surface-2/70 px-4 py-2.5">
           <span className="eyebrow">Boîte de réception</span>

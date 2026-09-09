@@ -78,6 +78,69 @@
   --radius-xl: 16px;
 }
 
+/* ==========================================================================
+   Thème clair — la vitrine publique
+   ==========================================================================
+
+   ⚠ IL REDÉFINIT LES MÊMES VARIABLES, IL N'EN CRÉE AUCUNE. Posé sur un
+     conteneur, il bascule tout ce qu'il contient sans qu'aucun composant ait
+     à savoir dans quel thème il est rendu. C'est ce qui permet à la landing
+     d'être blanche pendant que l'espace connecté reste noir : les tokens de
+     `:root` ne bougent pas, et le tableau de bord avec eux.
+
+     Toute variable ajoutée à `:root` doit donc l'être ici aussi. Un oubli ne
+     casse rien de visible côté sombre — la valeur sombre est simplement
+     héritée en plein milieu du blanc.
+   ========================================================================== */
+.theme-clair {
+  color-scheme: light;
+
+  /* Fonds — blanc pur, demandé sans gris ni dégradé */
+  --background: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f6f7f8;
+  --surface-3: #eceef0;
+
+  /* Traits */
+  --border: rgba(16, 20, 26, 0.1);
+  --border-strong: rgba(16, 20, 26, 0.18);
+
+  /* Texte — gris très foncé, jamais du noir pur */
+  --foreground: #14171c;
+  --muted: #545a63;
+  /* Plus sombre que le gris sombre correspondant : les étiquettes `.eyebrow`
+     sont en 11 px, #868d97 tombait à 3,1:1 sur blanc. */
+  --faint: #6f7680;
+
+  /* Accent — le même bleu canard. ⚠ `--accent-text` est plus sombre que la
+     version foncée : #5ecad4 sur blanc tombe sous 1,8:1, illisible. */
+  --accent: #0e8593;
+  --accent-hover: #0b6f7b;
+  --accent-text: #0a6f7b;
+  --accent-soft: rgba(14, 133, 147, 0.1);
+  --accent-line: rgba(14, 133, 147, 0.3);
+
+  /* États — mêmes teintes, ramenées à un contraste lisible sur blanc.
+     Le rouge est celui de la bannière du produit. */
+  --danger: #c0392b;
+  --danger-soft: rgba(192, 57, 43, 0.08);
+  --success: #14804a;
+  --success-soft: rgba(20, 128, 74, 0.09);
+  --warning: #9a6700;
+  --warning-soft: rgba(154, 103, 0, 0.1);
+
+  --relief:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(16, 20, 26, 0.06);
+  --relief-haut: 0 12px 32px -16px rgba(16, 20, 26, 0.18);
+}
+
+/* Les fonds décoratifs du thème sombre n'ont plus d'objet : le ciel étoilé
+   devient invisible et le halo salit le blanc. */
+.theme-clair .starfield,
+.theme-clair .top-glow {
+  display: none;
+}
+
 * {
   border-color: var(--border);
 }

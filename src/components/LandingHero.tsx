@@ -6,11 +6,20 @@ type Props = {
   isLoggedIn: boolean;
 };
 
-/** Les trois réassurances sous les boutons. Chacune doit être vraie. */
+/**
+ * Les trois réassurances sous les boutons. Chacune doit être vraie.
+ *
+ * ⚠ « Aucune extension à installer » CONTREDIT LA SECTION « PROTECTION » DE LA
+ *   MÊME PAGE, qui décrit une extension de navigateur et parle d'installation
+ *   (`src/components/ProtectionExtension.tsx`). La phrase est juste pour le
+ *   raccordement Microsoft 365, qui passe par Graph côté serveur ; elle ne
+ *   l'est pas pour la protection décrite plus bas. L'une des deux doit
+ *   changer.
+ */
 const REASSURANCES = [
-  "Sans engagement",
-  "Mise en place accompagnée",
-  "Données en France",
+  "Aucune extension à installer",
+  "Accès limité aux boîtes que vous choisissez",
+  "Données hébergées en France",
 ];
 
 /**
@@ -28,11 +37,6 @@ const REASSURANCES = [
 export function LandingHero({ isLoggedIn }: Props) {
   return (
     <section className="relative isolate overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="starfield" />
-        <div className="top-glow absolute inset-x-0 top-0 h-[520px]" />
-      </div>
-
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 pt-16 pb-20 md:pt-20 md:pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12 lg:pt-24">
         {/* ---------------------------------------------------------------
             Colonne texte
@@ -43,18 +47,26 @@ export function LandingHero({ isLoggedIn }: Props) {
             Protection anti-fraude pour Microsoft 365
           </p>
 
-          <h1 className="rise rise-1 mt-7 text-[clamp(2rem,3.9vw,3.05rem)] font-extrabold leading-[1.08] tracking-[-0.04em] text-foreground">
-            La fraude par email
+          {/* Les coupures sont posées à la main : laissé libre, le titre
+              renvoyait « cliquer. » seul sur une quatrième ligne. Chacune de
+              ces quatre lignes tient à toutes les largeurs, de 360 px à
+              1920 px. */}
+          <h1 className="rise rise-1 mt-7 text-[clamp(1.85rem,3.5vw,2.85rem)] font-extrabold leading-[1.1] tracking-[-0.035em] text-foreground">
+            La fraude par mail
             <br />
-            arrive dans votre boîte.
+            vise vos équipes.
             <br />
-            <span className="text-accent-text">L’alerte arrive avant.</span>
+            <span className="text-accent-text">
+              Elles le sauront
+              <br />
+              avant de cliquer.
+            </span>
           </h1>
 
           <p className="rise rise-2 mt-6 max-w-lg text-[15.5px] leading-relaxed text-muted">
-            Safentreprise analyse les messages qui arrivent dans vos boîtes
-            Microsoft 365 et pose un avertissement sur ceux qui portent les
-            signes d’une tentative de fraude.
+            Safentreprise repère les tentatives de fraude au président, au
+            fournisseur et à la facture dans les messageries Microsoft 365, et
+            prévient vos équipes avant qu’elles n’agissent.
           </p>
 
           <div className="rise rise-3 mt-9 flex flex-wrap items-center gap-3">
@@ -108,13 +120,6 @@ export function LandingHero({ isLoggedIn }: Props) {
 function MiseEnScene() {
   return (
     <div className="rise rise-2 relative mx-auto w-full min-w-0 max-w-[560px] lg:max-w-none">
-      {/* Halo derrière les appareils : il détache la scène du fond noir sans
-          ajouter de couleur au thème. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -inset-8 -z-10 rounded-[40px] bg-[radial-gradient(60%_60%_at_60%_40%,rgba(14,133,147,0.18),transparent_70%)] blur-2xl"
-      />
-
       {/* ⚠ LE RETRAIT MOBILE N'EST PAS DÉCORATIF. Le socle est plus large que
           le capot de 5 % de chaque côté — c'est ce débord qui donne l'assise.
           Sans ce retrait, il sort de la colonne et se fait couper. Élargir le
@@ -154,7 +159,7 @@ function Ordinateur() {
           socle. C'est sur elle que le téléphone s'aligne. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-[6%] -bottom-[5px] -z-10 h-[15px] rounded-[50%] bg-black/75 blur-[10px]"
+        className="pointer-events-none absolute inset-x-[4%] -bottom-[6px] -z-10 h-[18px] rounded-[50%] bg-[#14171c]/25 blur-[12px]"
       />
 
       <Capot />
@@ -166,19 +171,19 @@ function Ordinateur() {
 /** Le capot : châssis autour de la dalle, menton plus épais en bas. */
 function Capot() {
   return (
-    <div className="relative rounded-[9px] border border-white/[0.10] bg-[#16181c] px-[8px] pt-[8px] pb-[14px] shadow-[0_26px_50px_-22px_rgba(0,0,0,0.95)]">
+    <div className="relative rounded-[9px] border border-[#3a3f47] bg-[#16181c] px-[8px] pt-[8px] pb-[14px] shadow-[0_28px_56px_-20px_rgba(16,20,26,0.34),0_6px_14px_-8px_rgba(16,20,26,0.18)]">
       <span
         aria-hidden
         className="absolute left-1/2 top-[3.5px] h-[2.5px] w-[2.5px] -translate-x-1/2 rounded-full bg-white/20"
       />
 
-      <div className="overflow-hidden rounded-[3px] bg-surface">
+      <div className="overflow-hidden rounded-[3px] bg-surface ring-1 ring-inset ring-black/10">
         {/* Chrome de la fenêtre */}
         <div className="flex items-center gap-1.5 border-b border-border bg-surface-2 px-2.5 py-2">
           <span aria-hidden className="flex gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-white/15" />
-            <span className="h-1.5 w-1.5 rounded-full bg-white/15" />
-            <span className="h-1.5 w-1.5 rounded-full bg-white/15" />
+            <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
+            <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
+            <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
           </span>
           <span className="ml-1.5 flex-1 truncate rounded bg-surface-3 px-2 py-0.5 text-[8px] text-faint">
             Boîte de réception — compta@votre-entreprise.fr
@@ -351,7 +356,7 @@ function Telephone() {
           appareils reposent sur la même ligne. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-[8%] -bottom-[4px] -z-10 h-[10px] rounded-[50%] bg-black/75 blur-[7px]"
+        className="pointer-events-none absolute inset-x-[6%] -bottom-[5px] -z-10 h-[12px] rounded-[50%] bg-[#14171c]/28 blur-[8px]"
       />
 
       {/* Les tranches : volume à gauche, veille à droite. */}
@@ -369,7 +374,7 @@ function Telephone() {
       />
 
       {/* Le corps : châssis plein, dalle encastrée. */}
-      <div className="rounded-[14px] border border-white/[0.14] bg-gradient-to-b from-[#2b3038] to-[#14171b] p-[3px] shadow-[0_20px_38px_-16px_rgba(0,0,0,0.95)]">
+      <div className="rounded-[14px] border border-[#3a3f47] bg-gradient-to-b from-[#2b3038] to-[#14171b] p-[3px] shadow-[0_18px_34px_-14px_rgba(16,20,26,0.34),0_4px_10px_-6px_rgba(16,20,26,0.16)]">
         <div className="relative overflow-hidden rounded-[11px] bg-[#f7f7f5]">
           {/* L'îlot du haut */}
           <div className="flex justify-center bg-white/70 pt-[3px]">
