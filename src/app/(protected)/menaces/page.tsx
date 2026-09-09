@@ -4,9 +4,10 @@ import { MenacesStats } from "@/components/menaces/MenacesStats";
 import { MenacesTable } from "@/components/menaces/MenacesTable";
 import { PageHeader, Panel, buttonPrimary } from "@/components/ui";
 import { IconArrowRight } from "@/components/icons";
-import type { Company, MenaceDetectee } from "@/lib/types";
+import { chargerAlertesGraph } from "@/lib/alertes";
+import type { Company } from "@/lib/types";
 
-/** Nombre de menaces chargées (les plus récentes). */
+/** Nombre d'alertes chargées (les plus récentes). */
 const LIMITE = 500;
 
 /** Premier jour du mois courant, en ISO — borne du compteur mensuel. */
@@ -19,7 +20,15 @@ function debutDuMoisIso(): string {
   ).toISOString();
 }
 
-/** Tableau de bord des tentatives détectées par l'extension. */
+/**
+ * Tentatives repérées sur les boîtes Microsoft 365 raccordées.
+ *
+ * ⚠ CETTE PAGE A LONGTEMPS LU `menaces_detectees`, alimentée par l'extension
+ *   Chrome abandonnée. Le pipeline Graph écrivant dans `graph_analyses`, un
+ *   client raccordé voyait un écran vide qui lui conseillait d'installer une
+ *   extension. Les anciennes lignes ne sont plus affichées du tout : elles
+ *   s'éteindront avec leur purge à douze mois.
+ */
 export default async function MenacesPage() {
   const supabase = await createClient();
   const {
@@ -36,40 +45,26 @@ export default async function MenacesPage() {
     return null;
   }
 
-  // La RLS restreint déjà à la société du dirigeant ; le filtre explicite
-  // garde la requête lisible et l'index (company_id, detecte_at) utilisable.
-  const { data: rows } = await supabase
-    .from("menaces_detectees")
-    .select("*")
-    .eq("company_id", company.id)
-    .order("detecte_at", { ascending: false })
-    .limit(LIMITE)
-    .returns<MenaceDetectee[]>();
-
-  const menaces = (rows ?? []).map((m) => ({
-    ...m,
-    // signaux est du JSONB : on garantit un tableau côté client
-    signaux: Array.isArray(m.signaux) ? m.signaux : [],
-  }));
+  const alertes = await chargerAlertesGraph(supabase, company.id, LIMITE);
 
   const debutMois = debutDuMoisIso();
-  const duMois = menaces.filter((m) => m.detecte_at >= debutMois);
+  const duMois = alertes.filter((a) => a.detecte_at >= debutMois);
 
   const compteurs = {
     total: duMois.length,
-    eleve: duMois.filter((m) => m.niveau_risque === "eleve").length,
-    modere: duMois.filter((m) => m.niveau_risque === "modere").length,
-    faible: duMois.filter((m) => m.niveau_risque === "faible").length,
+    eleve: duMois.filter((a) => a.niveau_risque === "eleve").length,
+    modere: duMois.filter((a) => a.niveau_risque === "modere").length,
+    faible: duMois.filter((a) => a.niveau_risque === "faible").length,
   };
 
   return (
     <div className="w-full">
       <PageHeader
         title="Menaces"
-        description="Les tentatives d'usurpation interceptées sur les boîtes mail de vos collaborateurs. Seules les métadonnées sont conservées."
+        description="Les tentatives repérées sur les boîtes que vous avez choisi de faire surveiller. Aucun contenu de message n'est conservé."
       />
 
-      {menaces.length === 0 ? (
+      {alertes.length === 0 ? (
         <EtatVide />
       ) : (
         <>
@@ -81,10 +76,10 @@ export default async function MenacesPage() {
           />
 
           <div className="mt-5">
-            <MenacesTable menaces={menaces} />
+            <MenacesTable alertes={alertes} />
           </div>
 
-          {menaces.length >= LIMITE && (
+          {alertes.length >= LIMITE && (
             <p className="mt-4 text-[12.5px] text-faint">
               Seules les {LIMITE} tentatives les plus récentes sont affichées.
             </p>
@@ -95,7 +90,13 @@ export default async function MenacesPage() {
   );
 }
 
-/** Aucune menace : on renvoie vers l'activation de l'extension. */
+/**
+ * Aucune alerte : on renvoie vers l'état du raccordement.
+ *
+ * ⚠ AUCUNE MENTION D'EXTENSION ICI. Il n'y a rien à installer : la protection
+ *   passe par le raccordement Microsoft 365. L'ancien texte envoyait le client
+ *   chercher un code d'activation pour un produit qui n'existe plus.
+ */
 function EtatVide() {
   return (
     <Panel className="px-6 py-14 text-center">
@@ -103,11 +104,12 @@ function EtatVide() {
         Aucune tentative détectée pour l&apos;instant
       </h2>
       <p className="mx-auto mt-3 max-w-md text-[13.5px] leading-relaxed text-muted">
-        Les alertes apparaîtront ici dès que vos collaborateurs auront activé
-        l&apos;extension Safentreprise Guard avec le code de votre société.
+        La surveillance est en place sur les boîtes que vous avez choisies.
+        Chaque message qui y arrive est analysé, et les tentatives de fraude
+        apparaîtront ici — sans que vos collaborateurs aient rien à installer.
       </p>
-      <Link href="/settings/extension" className={`${buttonPrimary} mt-7`}>
-        Voir le code d&apos;activation
+      <Link href="/microsoft" className={`${buttonPrimary} mt-7`}>
+        Voir les boîtes surveillées
         <IconArrowRight />
       </Link>
     </Panel>

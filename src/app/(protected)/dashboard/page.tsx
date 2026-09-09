@@ -2,9 +2,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { buttonPrimary, buttonSecondary } from "@/components/ui";
 import {
-  ActiviteExtension,
+  ActiviteProtection,
   type MenacePourGraphique,
-} from "@/components/dashboard/ActiviteExtension";
+} from "@/components/dashboard/ActiviteProtection";
 import { NiveauBadge } from "@/components/menaces/MenacesTable";
 import { BandeauRaccordement } from "@/components/microsoft/BandeauRaccordement";
 import {
@@ -23,13 +23,21 @@ import {
 } from "@/lib/risk";
 import { chargerScoreDynamique } from "@/lib/risk-dynamique";
 import { appliquerExtensionAuScore } from "@/lib/risk-extension";
-import type { Campaign, Company, MenaceDetectee } from "@/lib/types";
+import { chargerAlertesGraph } from "@/lib/alertes";
+import type { Campaign, Company } from "@/lib/types";
 import { STATUT_LABELS } from "@/lib/campaigns";
 
 /** Menaces chargées pour alimenter la courbe (les plus récentes). */
 const LIMITE_MENACES = 2000;
 
-/** Tableau de bord — activité de l'extension, score dynamique, campagnes. */
+/**
+ * Tableau de bord — activité de la protection, score dynamique, campagnes.
+ *
+ * ⚠ LES ALERTES VIENNENT DE `graph_analyses`, PAS DE `menaces_detectees`.
+ *   Cet écran a longtemps lu la table de l'extension Chrome abandonnée : un
+ *   client raccordé via Microsoft 365 voyait zéro menace alors que ses boîtes
+ *   étaient bel et bien analysées.
+ */
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -49,7 +57,7 @@ export default async function DashboardPage() {
   const [
     { data: employeeRows },
     { data: campaignRows },
-    { data: menaceRows },
+    menaces,
     { data: activationRows },
     scoreDynamique,
   ] = await Promise.all([
@@ -59,15 +67,8 @@ export default async function DashboardPage() {
       .select("id, nom, statut, created_at, campaign_targets(id, message_final_html)")
       .eq("company_id", company.id)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("menaces_detectees")
-      .select(
-        "id, detecte_at, niveau_risque, score, expediteur_nom, expediteur_email, objet",
-      )
-      .eq("company_id", company.id)
-      .order("detecte_at", { ascending: false })
-      .limit(LIMITE_MENACES),
-    // La RLS restreint déjà à la société ; le filtre garde l'index utilisable.
+    chargerAlertesGraph(supabase, company.id, LIMITE_MENACES),
+    // Lue pour le SCORE seulement, plus pour un compteur : voir plus bas.
     supabase
       .from("activations_extension")
       .select("employe_email")
@@ -78,23 +79,24 @@ export default async function DashboardPage() {
   type CampagneListe = Pick<Campaign, "id" | "nom" | "statut" | "created_at"> & {
     campaign_targets: { id: string; message_final_html: string | null }[] | null;
   };
-  type MenaceListe = Pick<
-    MenaceDetectee,
-    | "id"
-    | "detecte_at"
-    | "niveau_risque"
-    | "score"
-    | "expediteur_nom"
-    | "expediteur_email"
-    | "objet"
-  >;
-
   const campaigns = (campaignRows ?? []) as CampagneListe[];
-  const menaces = (menaceRows ?? []) as MenaceListe[];
   const employes = employeeRows?.length ?? 0;
-  // Le compteur porte sur des PERSONNES, pas sur des lignes : depuis que la
-  // clé d'unicité est le poste, un collaborateur équipé de deux machines
-  // occupe deux lignes et ne doit être compté qu'une fois.
+  // ⚠ LE COMPTEUR DE POSTES ÉQUIPÉS A ÉTÉ RETIRÉ. Il comptait les activations
+  //   de l'extension Chrome, qui n'est plus déployée : il affichait donc zéro
+  //   chez tout client raccordé via Microsoft 365, et laissait croire à une
+  //   protection absente. La table `activations_extension` reste en place,
+  //   simplement plus lue ici.
+  //
+  // ⚠ LE SCORE DE RISQUE, LUI, DÉPEND ENCORE DE CE DÉPLOIEMENT. Voir plus bas
+  //   `appliquerExtensionAuScore` : l'axe technique est allégé à proportion de
+  //   la couverture de l'extension. Pour un client raccordé via Graph, cette
+  //   couverture vaut zéro et l'axe technique n'est jamais réduit — alors même
+  //   que ses boîtes sont surveillées. Le remplacer par la couverture des
+  //   boîtes surveillées est une décision de produit, pas une correction
+  //   d'écran : elle n'est pas prise ici.
+  //   Le calcul reste donc inchangé, y compris pour les sociétés qui ont
+  //   déployé l'extension par le passé : forcer zéro ici dégraderait leur
+  //   score du jour au lendemain, sans que rien n'ait changé chez elles.
   const activations = new Set(
     (activationRows ?? [])
       .map((a) => (a.employe_email as string | null)?.trim().toLowerCase())
@@ -152,10 +154,8 @@ export default async function DashboardPage() {
       </header>
 
       {/* Indicateurs + courbe, pilotés par le sélecteur de période */}
-      <ActiviteExtension
+      <ActiviteProtection
         menaces={menacesGraphique}
-        employes={employes}
-        activations={activations}
         scoreGlobal={scores ? scores.global : null}
         libelleNiveauScore={
           scores ? RISK_LEVEL_LABELS[riskLevel(scores.global)] : ""
@@ -350,7 +350,7 @@ export default async function DashboardPage() {
         </article>
       </section>
 
-      {/* Dernières alertes remontées par l'extension */}
+      {/* Dernières alertes du pipeline Microsoft 365 */}
       <section>
         <article className="rounded-xl border border-border bg-surface">
           <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
@@ -380,8 +380,8 @@ export default async function DashboardPage() {
                 Aucune tentative détectée
               </p>
               <p className="mt-1.5 max-w-sm text-[12.5px] text-muted">
-                Les alertes apparaîtront ici dès que vos collaborateurs auront
-                activé l&apos;extension.
+                Les messages qui arrivent dans les boîtes surveillées sont
+                analysés en continu. Les tentatives de fraude apparaîtront ici.
               </p>
             </div>
           ) : (
@@ -404,8 +404,11 @@ export default async function DashboardPage() {
                     </span>
                   </span>
 
-                  <span className="min-w-[140px] flex-1 truncate text-[12.5px] text-muted">
-                    {menace.objet || "—"}
+                  {/* ⚠ LA BOÎTE CONCERNÉE, PAS L'OBJET DU MESSAGE. Même règle
+                      que sur la page Menaces : le sujet du courrier reçu par un
+                      collaborateur n'apparaît pas dans une liste. */}
+                  <span className="min-w-[140px] flex-1 truncate font-mono text-[12px] text-muted">
+                    {menace.boite || "—"}
                   </span>
 
                   <NiveauBadge

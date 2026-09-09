@@ -93,16 +93,16 @@ export const AUDIT_INITIAL: Prestation[] = [
   },
   { titre: "Import et validation", precision: "de la base collaborateurs" },
   { titre: "Paramétrage", precision: "des scénarios adaptés au secteur" },
-  { titre: "Déploiement", precision: "de l’extension navigateur" },
+  { titre: "Raccordement", precision: "de vos boîtes Microsoft 365" },
   { titre: "Restitution en visioconférence", precision: "1 h, avec le dirigeant" },
 ];
 
 /** Contenu de l'abonnement — identique quelle que soit l'offre. */
 export const ABONNEMENT: Prestation[] = [
   {
-    titre: "Extension navigateur",
+    titre: "Surveillance des boîtes Microsoft 365",
     precision:
-      "détection des tentatives d’usurpation, active en continu",
+      "détection des tentatives d’usurpation, active en continu, sans rien à installer",
   },
   {
     titre: "Campagnes de simulation récurrentes",

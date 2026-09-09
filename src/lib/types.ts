@@ -196,6 +196,43 @@ export type NiveauRisqueMenace = "faible" | "modere" | "eleve";
  * Tentative d'usurpation remontée par l'extension.
  * MÉTADONNÉES UNIQUEMENT : aucun contenu d'email n'est transmis ni stocké.
  */
+/**
+ * Une alerte du pipeline Microsoft 365, telle que les écrans la lisent.
+ *
+ * Elle vient de `graph_analyses` filtrée sur `alerte = true`, jointe à
+ * `boites_surveillees` pour l'adresse de la boîte. Les noms de champs sont
+ * ceux de l'affichage, pas ceux de la base : `detecte_at` est la colonne
+ * `analyse_at`, `niveau_risque` la colonne `niveau`.
+ *
+ * ⚠ `objet` N'EST JAMAIS AFFICHÉ DANS UNE LISTE. Le dirigeant doit voir les
+ *   tentatives qui visent son entreprise, pas le sujet des messages que
+ *   reçoivent ses collaborateurs. Il n'apparaît que dans le détail d'une
+ *   alerte, ouvert délibérément, une alerte à la fois.
+ *
+ * ⚠ LE CORPS DU MESSAGE N'EST PAS DANS CE TYPE, ET NE DOIT JAMAIS Y ENTRER.
+ *   `graph_analyses` n'en contient aucune colonne ; la seule table qui garde
+ *   un corps, `graph_corps_originaux`, n'est lisible par personne.
+ */
+export type AlerteGraph = {
+  id: string;
+  /** `analyse_at` — le moment où la tentative a été repérée. */
+  detecte_at: string;
+  /** `recu_at` — l'arrivée du message, quand Graph l'a fournie. */
+  recu_at: string | null;
+  /** Adresse de la boîte surveillée concernée (`boites_surveillees.upn`). */
+  boite: string | null;
+  expediteur_nom: string | null;
+  expediteur_email: string | null;
+  nom_signe: string | null;
+  objet: string | null;
+  niveau_risque: NiveauRisqueMenace;
+  score: number;
+  /** Phrases explicatives produites par le moteur. */
+  signaux: string[];
+  /** Destinataire relevé dans le message ; peut différer de la boîte. */
+  employe_email: string | null;
+};
+
 export type MenaceDetectee = {
   id: string;
   company_id: string;

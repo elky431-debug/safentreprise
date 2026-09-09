@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Panel, PanelHeader } from "@/components/ui";
 import { IconShieldCheck } from "@/components/icons";
-import type { MenaceDetectee, NiveauRisqueMenace } from "@/lib/types";
+import type { AlerteGraph, NiveauRisqueMenace } from "@/lib/types";
 
 /* --------------------------------------------------------------------------
    Niveaux de risque
@@ -180,11 +180,11 @@ const FILTRES: { cle: Filtre; label: string; actif: string }[] = [
    -------------------------------------------------------------------------- */
 
 type Props = {
-  menaces: MenaceDetectee[];
+  alertes: AlerteGraph[];
 };
 
 /** Tableau filtrable des tentatives détectées, triées par date décroissante. */
-export function MenacesTable({ menaces }: Props) {
+export function MenacesTable({ alertes: menaces }: Props) {
   const [filtre, setFiltre] = useState<Filtre>("tous");
   const [ouverte, setOuverte] = useState<string | null>(null);
 
@@ -268,10 +268,10 @@ export function MenacesTable({ menaces }: Props) {
             <thead>
               <tr className="border-b border-border bg-surface-2/40">
                 <Th className="w-[92px] pl-6">Date</Th>
-                <Th className="w-[240px]">Expéditeur</Th>
-                <Th>Objet</Th>
+                <Th className="w-[210px]">Boîte concernée</Th>
+                <Th className="w-[250px]">Expéditeur</Th>
                 <Th className="w-[120px]">Niveau</Th>
-                <Th className="w-[300px]">Signaux</Th>
+                <Th>Motifs</Th>
                 <th className="w-12 pr-6">
                   <span className="sr-only">Détails</span>
                 </th>
@@ -302,6 +302,28 @@ export function MenacesTable({ menaces }: Props) {
                         </p>
                       </td>
 
+                      {/* Boîte concernée — celle que le client a choisi de
+                          faire surveiller. ⚠ ANCIENNEMENT L'OBJET DU MESSAGE :
+                          il est sorti de la liste, le dirigeant n'a pas à voir
+                          le sujet du courrier de ses collaborateurs. */}
+                      <td className="max-w-[210px] px-3 py-[18px]">
+                        <p
+                          className="truncate font-mono text-[12px] text-foreground"
+                          title={menace.boite ?? undefined}
+                        >
+                          {menace.boite || <span className="text-faint">—</span>}
+                        </p>
+                        {menace.employe_email &&
+                          menace.employe_email !== menace.boite && (
+                            <p
+                              className="mt-1 truncate text-[11.5px] text-faint"
+                              title={menace.employe_email}
+                            >
+                              adressé à {menace.employe_email}
+                            </p>
+                          )}
+                      </td>
+
                       {/* Expéditeur — nom en évidence, adresse en mono, nom signé en appui */}
                       <td className="max-w-[240px] px-3 py-[18px]">
                         {menace.expediteur_nom && (
@@ -314,9 +336,11 @@ export function MenacesTable({ menaces }: Props) {
                         )}
                         <p
                           className="mt-0.5 truncate font-mono text-[11.5px] text-muted"
-                          title={menace.expediteur_email}
+                          title={menace.expediteur_email ?? undefined}
                         >
-                          {menace.expediteur_email}
+                          {menace.expediteur_email || (
+                            <span className="text-faint">adresse absente</span>
+                          )}
                         </p>
                         {menace.nom_signe && (
                           <p className="mt-2 flex items-baseline gap-1.5 truncate">
@@ -326,24 +350,6 @@ export function MenacesTable({ menaces }: Props) {
                             <span className="truncate text-[11.5px] text-muted">
                               {menace.nom_signe}
                             </span>
-                          </p>
-                        )}
-                      </td>
-
-                      {/* Objet — et destinataire en appui */}
-                      <td className="max-w-0 px-3 py-[18px]">
-                        <p
-                          className="truncate text-[13px] text-foreground"
-                          title={menace.objet ?? undefined}
-                        >
-                          {menace.objet || <span className="text-faint">—</span>}
-                        </p>
-                        {menace.employe_email && (
-                          <p
-                            className="mt-1 truncate text-[11.5px] text-faint"
-                            title={menace.employe_email}
-                          >
-                            reçu par {menace.employe_email}
                           </p>
                         )}
                       </td>
@@ -460,8 +466,16 @@ function Chevron({ ouvert }: { ouvert: boolean }) {
   );
 }
 
-/** Détail d'une tentative : phrases complètes des signaux et contexte. */
-function DetailMenace({ menace }: { menace: MenaceDetectee }) {
+/**
+ * Détail d'une tentative : phrases complètes des signaux et contexte.
+ *
+ * ⚠ C'EST LE SEUL ENDROIT OÙ L'OBJET DU MESSAGE APPARAÎT. Il a été retiré de
+ *   la liste : le dirigeant doit voir les tentatives qui visent son entreprise,
+ *   pas le sujet des messages que reçoivent ses collaborateurs. Ici, il faut
+ *   ouvrir une alerte précise pour le lire. Le corps, lui, n'est affiché nulle
+ *   part et n'est pas même chargé.
+ */
+function DetailMenace({ menace }: { menace: AlerteGraph }) {
   return (
     <div className="grid gap-6 rounded-xl border border-border bg-surface px-5 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
       <div>
@@ -491,8 +505,19 @@ function DetailMenace({ menace }: { menace: MenaceDetectee }) {
       </div>
 
       <dl className="space-y-3 lg:border-l lg:border-border lg:pl-6">
-        <LigneDetail label="Détectée le" valeur={formaterDateComplete(menace.detecte_at)} />
-        <LigneDetail label="Collaborateur" valeur={menace.employe_email} mono />
+        <LigneDetail label="Objet du message" valeur={menace.objet} />
+        <LigneDetail
+          label="Détectée le"
+          valeur={formaterDateComplete(menace.detecte_at)}
+        />
+        {menace.recu_at && (
+          <LigneDetail
+            label="Message reçu le"
+            valeur={formaterDateComplete(menace.recu_at)}
+          />
+        )}
+        <LigneDetail label="Boîte surveillée" valeur={menace.boite} mono />
+        <LigneDetail label="Destinataire" valeur={menace.employe_email} mono />
         <LigneDetail label="Nom signé" valeur={menace.nom_signe} />
         <LigneDetail label="Score" valeur={`${menace.score} / 100`} />
       </dl>

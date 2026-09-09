@@ -6,7 +6,6 @@ import { CourbeMenaces, type PointJour } from "@/components/dashboard/CourbeMena
 import { useCompteurAnime } from "@/lib/use-compteur-anime";
 import {
   IconAlertTriangle,
-  IconShieldCheck,
   IconTarget,
   IconThreat,
 } from "@/components/icons";
@@ -207,23 +206,18 @@ function GrandChiffre({
 type Props = {
   menaces: MenacePourGraphique[];
   /** Effectif total de la société */
-  employes: number;
-  /** Collaborateurs distincts ayant activé l'extension */
-  activations: number;
-  /** Score global, extension comprise ; null si aucun questionnaire */
+  /** Score global ; null si aucun questionnaire */
   scoreGlobal: number | null;
   libelleNiveauScore: string;
 };
 
 /**
- * Bloc « activité de l'extension » : sélecteur de période, quatre
+ * Bloc « activité de la protection » : sélecteur de période, trois
  * indicateurs et courbe des alertes. La période ne pilote que les données
  * issues des menaces — le score de risque, lui, n'est pas daté.
  */
-export function ActiviteExtension({
+export function ActiviteProtection({
   menaces,
-  employes,
-  activations,
   scoreGlobal,
   libelleNiveauScore,
 }: Props) {
@@ -254,8 +248,6 @@ export function ActiviteExtension({
     [surPeriode],
   );
 
-  const couverture = employes > 0 ? Math.min(1, activations / employes) : 0;
-  const couverturePct = Math.round(couverture * 100);
   const titrePeriode =
     PERIODES.find((p) => p.cle === periode)?.titre ?? "Période";
 
@@ -264,7 +256,7 @@ export function ActiviteExtension({
       {/* Sélecteur de période — contrôle segmenté, comme la page Menaces */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-faint">
-          Activité de l&apos;extension
+          Activité de la protection
         </p>
         <div
           role="group"
@@ -293,7 +285,7 @@ export function ActiviteExtension({
       </div>
 
       {/* Les quatre indicateurs */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {/* a — volume d'alertes sur la période */}
         <Carte
           index={0}
@@ -341,40 +333,11 @@ export function ActiviteExtension({
           )}
         </Carte>
 
-        {/* c — couverture du parc */}
-        <Carte
-          index={2}
-          label="Employés protégés"
-          tonIcone={
-            couverturePct > 0
-              ? "border-success/25 bg-success-soft text-success"
-              : "border-border bg-surface-2 text-faint"
-          }
-          icone={<IconShieldCheck className="h-[15px] w-[15px]" />}
-        >
-          <p className="tabular mt-3 flex items-baseline gap-1 text-[34px] font-semibold leading-none tracking-[-0.045em] text-foreground">
-            <CompteurSimple valeur={activations} />
-            <span className="text-[18px] font-medium text-faint">
-              / {employes}
-            </span>
-          </p>
-          <div className="mt-4 flex items-center gap-2.5">
-            <div className="h-[2px] flex-1 overflow-hidden rounded-full bg-white/[0.055]">
-              <div
-                className={`menace-jauge h-full rounded-full bg-success ${
-                  couverturePct === 0 ? "opacity-0" : "opacity-90"
-                }`}
-                style={{ width: `${couverturePct}%` }}
-              />
-            </div>
-            <span className="tabular shrink-0 text-[10.5px] leading-none text-faint">
-              {couverturePct}%
-            </span>
-          </div>
-          <p className="mt-2.5 text-[12px] leading-tight text-faint">
-            de couverture
-          </p>
-        </Carte>
+        {/* ⚠ UNE CARTE A ÉTÉ RETIRÉE ICI : « Employés protégés », qui comptait
+            les postes ayant activé l'extension Chrome. Elle affichait zéro chez
+            tout client raccordé via Microsoft 365 et laissait croire à une
+            protection absente. La grille passe donc de quatre à trois
+            colonnes. */}
 
         {/* d — répartition par niveau sur la période */}
         <Carte
@@ -437,11 +400,6 @@ export function ActiviteExtension({
 /* -------------------------------------------------------------------------- */
 
 /** Chiffre animé sans mise en forme propre, pour composer une ligne. */
-function CompteurSimple({ valeur }: { valeur: number }) {
-  const affichee = useCompteurAnime(valeur);
-  return <>{affichee}</>;
-}
-
 function LigneNiveau({
   label,
   valeur,
