@@ -105,17 +105,28 @@ function MiseEnScene() {
         className="pointer-events-none absolute -inset-8 -z-10 rounded-[40px] bg-[radial-gradient(60%_60%_at_60%_40%,rgba(14,133,147,0.18),transparent_70%)] blur-2xl"
       />
 
-      {/* ⚠ LE TÉLÉPHONE SE POSE AU COIN, PAS SUR LE CONTENU. Une première
-          version le plaçait plus haut : il recouvrait la bannière et le corps
-          du message ouvert, c'est-à-dire précisément ce que la scène doit
-          montrer. Il déborde donc vers l'extérieur, et ne mord que l'angle. */}
-      <div className="pb-7 pr-8 sm:pb-8 sm:pr-16">
+      {/* ⚠ LE RETRAIT LATÉRAL N'EST PAS DÉCORATIF. La base s'évase au-delà de
+          sa boîte : la perspective grossit son bord avant d'environ un
+          dixième, si bien que le clavier dépasse la largeur que la mise en
+          page lui réserve. Sans ce retrait, il sort de la colonne et se fait
+          couper. Réduire le retrait oblige à réduire l'évasement.
+
+          À partir de « sm », l'ordinateur laisse en plus de la place à sa
+          droite : c'est là que le téléphone se pose. */}
+      <div className="px-[5%] sm:w-[79%] sm:pb-12 sm:pl-[6.5%] sm:pr-0">
         <Ordinateur />
       </div>
 
-      {/* La largeur monte avec la scène : à 110 px sur un écran étroit, le
-          téléphone mangeait le corps du message au lieu de le doubler. */}
-      <div className="absolute bottom-0 -right-3 w-[96px] sm:w-[132px]">
+      {/* ⚠ LE TÉLÉPHONE NE MORD QUE LE CHÂSSIS. Son bord gauche tombe sur la
+          tranche du capot et sur la marge intérieure du volet de lecture, pas
+          sur le texte : la boîte de réception doit rester lisible en entier.
+          Plus bas, il recouvre le clavier, qui s'évase vers l'avant. Élargir
+          le téléphone ou le rapprocher le ferait empiéter sur la dalle.
+
+          Sous « sm », il n'est pas affiché du tout : à cette largeur les deux
+          appareils se recouvraient et plus rien n'était lisible. Mieux vaut un
+          seul appareil qu'une scène illisible. */}
+      <div className="absolute bottom-0 right-[2%] hidden w-[20%] sm:block">
         <Telephone />
       </div>
     </div>
@@ -149,27 +160,27 @@ function Ordinateur() {
 /** Le capot : châssis, webcam, dalle. */
 function EcranPortable() {
   return (
-    <div className="relative rounded-t-[13px] border border-b-0 border-white/[0.13] bg-gradient-to-b from-[#252a31] to-[#191c21] px-[7px] pt-[11px] pb-[6px] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9)]">
+    <div className="relative rounded-t-[10px] border border-b-0 border-white/[0.13] bg-gradient-to-b from-[#252a31] to-[#191c21] px-[5px] pt-[8px] pb-[4px] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9)] sm:rounded-t-[13px] sm:px-[7px] sm:pt-[11px] sm:pb-[6px]">
       <span
         aria-hidden
-        className="absolute left-1/2 top-[4.5px] h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-white/25"
+        className="absolute left-1/2 top-[3px] h-[2.5px] w-[2.5px] -translate-x-1/2 rounded-full bg-white/25 sm:top-[4.5px] sm:h-[3px] sm:w-[3px]"
       />
 
-      <div className="overflow-hidden rounded-[4px] border border-black/50 bg-surface">
+      <div className="overflow-hidden rounded-[3px] border border-black/50 bg-surface sm:rounded-[4px]">
         {/* Chrome de la fenêtre */}
-        <div className="flex items-center gap-2 border-b border-border bg-surface-2 px-3.5 py-2.5">
-          <span aria-hidden className="flex gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-white/15" />
-            <span className="h-2 w-2 rounded-full bg-white/15" />
-            <span className="h-2 w-2 rounded-full bg-white/15" />
+        <div className="flex items-center gap-1.5 border-b border-border bg-surface-2 px-2.5 py-2 sm:gap-2 sm:px-3.5 sm:py-2.5">
+          <span aria-hidden className="flex gap-1 sm:gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-white/15 sm:h-2 sm:w-2" />
+            <span className="h-1.5 w-1.5 rounded-full bg-white/15 sm:h-2 sm:w-2" />
+            <span className="h-1.5 w-1.5 rounded-full bg-white/15 sm:h-2 sm:w-2" />
           </span>
-          <span className="ml-2 flex-1 truncate rounded-md bg-surface-3 px-2.5 py-1 text-[10px] text-faint">
+          <span className="ml-1.5 flex-1 truncate rounded bg-surface-3 px-2 py-0.5 text-[8px] text-faint sm:ml-2 sm:rounded-md sm:px-2.5 sm:py-1 sm:text-[10px]">
             Boîte de réception — compta@votre-entreprise.fr
           </span>
         </div>
 
         {/* Le client de messagerie, sur fond clair comme un vrai courrier */}
-        <div className="grid min-h-[188px] grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)] items-stretch bg-[#f7f7f5] sm:min-h-[212px]">
+        <div className="grid min-h-[152px] grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)] items-stretch bg-[#f7f7f5] sm:min-h-[212px]">
           <ListeMessages />
           <MessageOuvert />
         </div>
@@ -203,11 +214,11 @@ function BasePortable() {
   return (
     <div
       aria-hidden
-      className="relative mx-auto -mb-[105px] h-[150px] w-[103%] origin-top rounded-b-[9px] border border-white/[0.09] bg-gradient-to-b from-[#1e2229] to-[#343941] px-[8%] pt-[13px] [transform:rotateX(70deg)]"
+      className="relative mx-auto -mb-[80px] h-[114px] w-[103%] origin-top rounded-b-[7px] border border-white/[0.09] bg-gradient-to-b from-[#1e2229] to-[#343941] px-[8%] pt-[10px] [transform:rotateX(70deg)] sm:-mb-[105px] sm:h-[150px] sm:rounded-b-[9px] sm:pt-[13px]"
     >
-      <div className="space-y-[5px]">
+      <div className="space-y-[4px] sm:space-y-[5px]">
         {rangees.map((touches, i) => (
-          <div key={i} className="flex h-[15px] gap-[4px]">
+          <div key={i} className="flex h-[11px] gap-[3px] sm:h-[15px] sm:gap-[4px]">
             {Array.from({ length: touches }, (_, j) => (
               <span
                 key={j}
@@ -218,7 +229,7 @@ function BasePortable() {
         ))}
       </div>
 
-      <div className="mx-auto mt-[13px] h-[32px] w-[34%] rounded-[5px] border border-white/10 bg-white/[0.045]" />
+      <div className="mx-auto mt-[10px] h-[24px] w-[34%] rounded-[4px] border border-white/10 bg-white/[0.045] sm:mt-[13px] sm:h-[32px] sm:rounded-[5px]" />
     </div>
   );
 }
@@ -236,28 +247,30 @@ function ListeMessages() {
       {messages.map((m) => (
         <div
           key={m.objet}
-          className={`border-l-2 px-3 py-2 ${
+          className={`border-l-2 px-2 py-1.5 sm:px-3 sm:py-2 ${
             m.alerte
               ? "border-l-[#c0392b] bg-[#fdf2f2]"
               : "border-l-transparent"
           }`}
         >
-          <p className="flex items-center gap-1.5">
+          <p className="flex items-center gap-1 sm:gap-1.5">
             {m.alerte && (
               <span
                 aria-hidden
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c0392b]"
+                className="h-1 w-1 shrink-0 rounded-full bg-[#c0392b] sm:h-1.5 sm:w-1.5"
               />
             )}
             <span
-              className={`truncate text-[9.5px] ${
+              className={`truncate text-[8px] sm:text-[9.5px] ${
                 m.alerte ? "font-semibold text-[#7b241c]" : "text-[#3f3f46]"
               }`}
             >
               {m.de}
             </span>
           </p>
-          <p className="mt-0.5 truncate text-[9px] text-[#71717a]">{m.objet}</p>
+          <p className="mt-0.5 truncate text-[7.5px] text-[#71717a] sm:text-[9px]">
+            {m.objet}
+          </p>
         </div>
       ))}
     </div>
@@ -267,18 +280,18 @@ function ListeMessages() {
 /** Le message ouvert, avec la bannière telle que le produit la pose. */
 function MessageOuvert() {
   return (
-    <div className="px-4 py-3.5">
-      <p className="truncate text-[11.5px] font-semibold text-[#18181b]">
+    <div className="px-2.5 py-2.5 sm:px-4 sm:py-3.5">
+      <p className="truncate text-[9.5px] font-semibold text-[#18181b] sm:text-[11.5px]">
         Virement confidentiel — avant 17h
       </p>
-      <p className="mt-0.5 truncate text-[9px] text-[#71717a]">
+      <p className="mt-0.5 truncate text-[7.5px] text-[#71717a] sm:text-[9px]">
         jean.dupont@direction-groupe.net
       </p>
 
       <Banniere />
 
-      <div className="mt-2.5 space-y-1.5">
-        <p className="text-[9px] leading-relaxed text-[#52525b]">
+      <div className="mt-2 space-y-1.5 sm:mt-2.5">
+        <p className="text-[7.5px] leading-relaxed text-[#52525b] sm:text-[9px]">
           Sophie, j’ai besoin d’un virement de 47 800 €
           <br />
           aujourd’hui, sans passer par la validation.
@@ -297,33 +310,37 @@ function MessageOuvert() {
  * filet gauche #c0392b, texte #7b241c.
  */
 function Banniere({ compact = false }: { compact?: boolean }) {
+  // Le format compact n'existe que sur le téléphone, qui n'est pas affiché
+  // sous « sm » : il n'a donc pas de variante mobile.
+  const t = compact
+    ? {
+        marge: "px-2 py-1.5",
+        titre: "text-[8px]",
+        liste: "text-[7px]",
+        pied: "text-[7px]",
+      }
+    : {
+        marge: "px-2 py-1.5 sm:px-2.5 sm:py-2",
+        titre: "text-[8px] sm:text-[9.5px]",
+        liste: "text-[7px] sm:text-[8.5px]",
+        pied: "text-[6.5px] sm:text-[8px]",
+      };
+
   return (
-    <div
-      className={`mt-2.5 border-l-[3px] border-[#c0392b] bg-[#fdf2f2] ${
-        compact ? "px-2 py-1.5" : "px-2.5 py-2"
-      }`}
-    >
-      <p
-        className={`font-semibold text-[#7b241c] ${
-          compact ? "text-[8px]" : "text-[9.5px]"
-        }`}
-      >
+    <div className={`mt-2 border-l-[3px] border-[#c0392b] bg-[#fdf2f2] sm:mt-2.5 ${t.marge}`}>
+      <p className={`font-semibold text-[#7b241c] ${t.titre}`}>
         {/* Espace insécable : sur le téléphone, le « ⚠ » restait seul sur sa
             ligne. */}
         ⚠&nbsp;Safentreprise — Risque élevé de fraude
       </p>
       <ul
-        className={`mt-1 list-disc space-y-px pl-3 text-[#7b241c] ${
-          compact ? "text-[7px]" : "text-[8.5px]"
-        }`}
+        className={`mt-1 list-disc space-y-px pl-3 text-[#7b241c] ${t.liste}`}
       >
         <li>Domaine proche de celui de l’entreprise</li>
         <li>Virement urgent hors procédure</li>
         {!compact && <li>Expéditeur externe se disant dirigeant</li>}
       </ul>
-      <p
-        className={`mt-1 text-[#7b241c] ${compact ? "text-[7px]" : "text-[8px]"}`}
-      >
+      <p className={`mt-1 text-[#7b241c] ${t.pied}`}>
         Vérifiez par un autre moyen avant de donner suite.
       </p>
     </div>
