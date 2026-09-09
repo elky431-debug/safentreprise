@@ -37,12 +37,12 @@ const REASSURANCES = [
  */
 export function LandingHero({ isLoggedIn }: Props) {
   return (
-    <section className="relative isolate overflow-hidden">
-      <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 pt-16 pb-20 md:pt-20 md:pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12 lg:pt-24">
+    <section className="relative isolate overflow-hidden lg:flex lg:min-h-[calc(100svh-3.5rem)] lg:items-center">
+      <div className="mx-auto grid w-full max-w-[1400px] items-center gap-14 px-6 pt-16 pb-20 md:pt-20 md:pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16 lg:px-8 lg:py-16">
         {/* ---------------------------------------------------------------
             Colonne texte
             --------------------------------------------------------------- */}
-        <div className="min-w-0 max-w-xl">
+        <div className="min-w-0 max-w-2xl">
           <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-[12.5px] text-muted backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-accent-text" />
             Protection anti-fraude pour Microsoft 365
@@ -52,7 +52,7 @@ export function LandingHero({ isLoggedIn }: Props) {
               renvoyait « cliquer. » seul sur une quatrième ligne. Chacune de
               ces quatre lignes tient à toutes les largeurs, de 360 px à
               1920 px. */}
-          <h1 className="rise rise-1 mt-7 text-[clamp(1.85rem,3.5vw,2.85rem)] font-extrabold leading-[1.1] tracking-[-0.035em] text-foreground">
+          <h1 className="rise rise-1 mt-7 text-[clamp(1.95rem,4.4vw,4rem)] font-extrabold leading-[1.05] tracking-[-0.04em] text-foreground">
             La fraude par mail
             <br />
             vise vos équipes.
@@ -64,7 +64,7 @@ export function LandingHero({ isLoggedIn }: Props) {
             </span>
           </h1>
 
-          <p className="rise rise-2 mt-6 max-w-lg text-[15.5px] leading-relaxed text-muted">
+          <p className="rise rise-2 mt-6 max-w-xl text-[16.5px] leading-relaxed text-muted">
             Safentreprise repère les tentatives de fraude au président, au
             fournisseur et à la facture dans les messageries Microsoft 365, et
             prévient vos équipes avant qu’elles n’agissent.
@@ -99,6 +99,12 @@ export function LandingHero({ isLoggedIn }: Props) {
         {/* ---------------------------------------------------------------
             Mise en scène produit
 
+            ⚠ SA LARGEUR EST PLAFONNÉE PAR LE FICHIER, PAS PAR LE GOÛT.
+              L'image fait 1119 px de large : au-delà d'environ 600 px
+              d'affichage, un écran à deux pixels par point en réclame plus
+              qu'elle n'en a et elle flotte. L'agrandir demande de refaire
+              l'image, pas de lever le plafond.
+
             ⚠ SUR PETIT ÉCRAN, LE CONTENU DE L'ÉCRAN N'EST PLUS LISIBLE. La
               maquette CSS qu'elle remplace se remettait à l'échelle ; une
               image, non : à 342 px de large, le texte du message tombe sous
@@ -112,7 +118,7 @@ export function LandingHero({ isLoggedIn }: Props) {
           height={682}
           sizes="(min-width: 1024px) 46vw, (min-width: 640px) 90vw, 100vw"
           priority
-          className="rise rise-2 h-auto w-full min-w-0"
+          className="rise rise-2 mx-auto h-auto w-full min-w-0 max-w-[620px] lg:mx-0 lg:ml-auto"
         />
       </div>
     </section>

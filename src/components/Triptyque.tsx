@@ -33,7 +33,7 @@ const PILIERS = [
 export function Triptyque() {
   return (
     <section className="border-t border-border px-6 py-20 md:py-24 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-[1400px]">
         <p className="text-center">
           <span className="eyebrow">La méthode Safentreprise</span>
         </p>

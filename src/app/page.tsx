@@ -53,7 +53,7 @@ export default async function HomePage() {
     <div className="theme-clair flex min-h-screen flex-col bg-background">
       {/* Navigation */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-6 lg:px-8">
+        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-4 px-6 lg:px-8">
           <div className="flex items-center gap-8">
             <Link href="/" aria-label="Safentreprise — accueil">
               <Logo />
@@ -120,7 +120,7 @@ export default async function HomePage() {
           id="methode"
           className="border-t border-border px-6 py-20 md:py-24 lg:px-8"
         >
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[1400px]">
             <p className="text-center">
               <span className="eyebrow">Premier temps · la simulation</span>
             </p>
@@ -149,7 +149,7 @@ export default async function HomePage() {
           id="scenarios"
           className="border-t border-border px-6 py-20 md:py-24 lg:px-8"
         >
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[1400px]">
             <h2 className="mx-auto max-w-lg text-center text-[clamp(1.6rem,3vw,2.35rem)] font-extrabold leading-tight text-foreground">
               Les deux fraudes qui coûtent le plus
             </h2>
@@ -181,7 +181,7 @@ export default async function HomePage() {
 
         {/* Indicateurs */}
         <section className="border-t border-border px-6 py-20 md:py-24 lg:px-8">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[1400px]">
             <h2 className="mx-auto max-w-lg text-center text-[clamp(1.6rem,3vw,2.35rem)] font-extrabold leading-tight text-foreground">
               Ce que vous mesurez
             </h2>
@@ -229,7 +229,7 @@ export default async function HomePage() {
       </main>
 
       <footer className="border-t border-border px-6 py-8 lg:px-8">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4">
           <Logo />
           <LegalLinks />
         </div>

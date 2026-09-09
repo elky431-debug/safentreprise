@@ -51,7 +51,7 @@ export function ProtectionExtension() {
         <div className="top-glow absolute inset-x-0 top-0 h-[420px]" />
       </div>
 
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-[1400px]">
         <div className="grid gap-14 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-16">
           {/* Colonne texte */}
           <div>
