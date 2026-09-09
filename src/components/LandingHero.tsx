@@ -43,9 +43,9 @@ export function LandingHero({ isLoggedIn }: Props) {
           </p>
 
           <h1 className="rise rise-1 mt-7 text-[clamp(2rem,3.9vw,3.05rem)] font-extrabold leading-[1.08] tracking-[-0.04em] text-foreground">
-            Un faux virement
+            La fraude par email
             <br />
-            se joue en dix minutes.
+            arrive dans votre boîte.
             <br />
             <span className="text-accent-text">L’alerte arrive avant.</span>
           </h1>
@@ -53,7 +53,7 @@ export function LandingHero({ isLoggedIn }: Props) {
           <p className="rise rise-2 mt-6 max-w-lg text-[15.5px] leading-relaxed text-muted">
             Safentreprise analyse les messages qui arrivent dans vos boîtes
             Microsoft 365 et pose un avertissement sur ceux qui portent les
-            signes d’une fraude au président ou au fournisseur.
+            signes d’une tentative de fraude.
           </p>
 
           <div className="rise rise-3 mt-9 flex flex-wrap items-center gap-3">
@@ -109,11 +109,13 @@ function MiseEnScene() {
           version le plaçait plus haut : il recouvrait la bannière et le corps
           du message ouvert, c'est-à-dire précisément ce que la scène doit
           montrer. Il déborde donc vers l'extérieur, et ne mord que l'angle. */}
-      <div className="pb-12 pr-10 sm:pb-14 sm:pr-20">
+      <div className="pb-7 pr-8 sm:pb-8 sm:pr-16">
         <Ordinateur />
       </div>
 
-      <div className="absolute bottom-0 -right-1 w-[118px] sm:w-[142px]">
+      {/* La largeur monte avec la scène : à 110 px sur un écran étroit, le
+          téléphone mangeait le corps du message au lieu de le doubler. */}
+      <div className="absolute bottom-0 -right-3 w-[96px] sm:w-[132px]">
         <Telephone />
       </div>
     </div>
@@ -126,8 +128,34 @@ function MiseEnScene() {
 
 function Ordinateur() {
   return (
-    <div className="relative">
-      <div className="overflow-hidden rounded-[14px] border border-border-strong bg-surface shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9)]">
+    <div className="relative [perspective:1500px]">
+      {/* Le trois-quarts de l'objet entier : écran, charnière et base tournent
+          ensemble, sinon la base se décollerait de l'écran. */}
+      <div className="[transform:rotateY(-7deg)_rotateX(2deg)] [transform-style:preserve-3d]">
+        <EcranPortable />
+        <Charniere />
+        <BasePortable />
+      </div>
+
+      {/* L'ombre au sol : elle assied l'objet, elle ne le dessine pas. */}
+      <div
+        aria-hidden
+        className="mx-auto mt-2 h-3 w-[72%] rounded-[50%] bg-black/70 blur-[10px]"
+      />
+    </div>
+  );
+}
+
+/** Le capot : châssis, webcam, dalle. */
+function EcranPortable() {
+  return (
+    <div className="relative rounded-t-[13px] border border-b-0 border-white/[0.13] bg-gradient-to-b from-[#252a31] to-[#191c21] px-[7px] pt-[11px] pb-[6px] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9)]">
+      <span
+        aria-hidden
+        className="absolute left-1/2 top-[4.5px] h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-white/25"
+      />
+
+      <div className="overflow-hidden rounded-[4px] border border-black/50 bg-surface">
         {/* Chrome de la fenêtre */}
         <div className="flex items-center gap-2 border-b border-border bg-surface-2 px-3.5 py-2.5">
           <span aria-hidden className="flex gap-1.5">
@@ -146,10 +174,51 @@ function Ordinateur() {
           <MessageOuvert />
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Pied d'écran, discret : un socle plutôt qu'un ordinateur entier */}
-      <div aria-hidden className="mx-auto mt-1 h-1.5 w-24 rounded-b-[4px] bg-white/10" />
-      <div aria-hidden className="mx-auto h-1 w-40 rounded-full bg-black/60 blur-[2px]" />
+/** La charnière : le trait qui rattache le capot à la base. */
+function Charniere() {
+  return (
+    <div
+      aria-hidden
+      className="mx-auto h-[5px] w-[96%] rounded-b-[3px] border-x border-b border-white/10 bg-gradient-to-b from-[#2c3138] to-[#0f1216]"
+    />
+  );
+}
+
+/**
+ * La base, clavier compris.
+ *
+ * ⚠ LA HAUTEUR RÉSERVÉE N'EST PAS LA HAUTEUR VUE. Le plan est basculé de 70°,
+ *   ce qui l'écrase à environ un tiers à l'écran, mais la mise en page continue
+ *   de réserver sa hauteur pleine : la marge négative rend l'espace que le
+ *   basculement libère. Toucher à l'angle ou à la hauteur oblige à reprendre la
+ *   marge, sinon un vide s'ouvre sous l'ordinateur.
+ */
+function BasePortable() {
+  const rangees = [13, 13, 12, 11, 8];
+
+  return (
+    <div
+      aria-hidden
+      className="relative mx-auto -mb-[105px] h-[150px] w-[103%] origin-top rounded-b-[9px] border border-white/[0.09] bg-gradient-to-b from-[#1e2229] to-[#343941] px-[8%] pt-[13px] [transform:rotateX(70deg)]"
+    >
+      <div className="space-y-[5px]">
+        {rangees.map((touches, i) => (
+          <div key={i} className="flex h-[15px] gap-[4px]">
+            {Array.from({ length: touches }, (_, j) => (
+              <span
+                key={j}
+                className="flex-1 rounded-[2px] bg-black/45 shadow-[0_1px_0_rgba(255,255,255,0.07)]"
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div className="mx-auto mt-[13px] h-[32px] w-[34%] rounded-[5px] border border-white/10 bg-white/[0.045]" />
     </div>
   );
 }
@@ -239,7 +308,9 @@ function Banniere({ compact = false }: { compact?: boolean }) {
           compact ? "text-[8px]" : "text-[9.5px]"
         }`}
       >
-        ⚠ Safentreprise — Risque élevé de fraude
+        {/* Espace insécable : sur le téléphone, le « ⚠ » restait seul sur sa
+            ligne. */}
+        ⚠&nbsp;Safentreprise — Risque élevé de fraude
       </p>
       <ul
         className={`mt-1 list-disc space-y-px pl-3 text-[#7b241c] ${
@@ -265,30 +336,59 @@ function Banniere({ compact = false }: { compact?: boolean }) {
 
 function Telephone() {
   return (
-    <div className="rounded-[20px] border border-border-strong bg-surface-2 p-1.5 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.95)]">
-      <div className="relative overflow-hidden rounded-[15px] bg-[#f7f7f5]">
-        {/* Encoche */}
-        <div className="flex justify-center bg-white/70 pt-1.5">
-          <span aria-hidden className="h-1 w-8 rounded-full bg-black/20" />
-        </div>
+    <div className="relative">
+      {/* Les tranches : boutons de volume à gauche, veille à droite. */}
+      <span
+        aria-hidden
+        className="absolute -left-[2px] top-[19%] h-[7%] w-[2.5px] rounded-l-[2px] bg-[#3a4048]"
+      />
+      <span
+        aria-hidden
+        className="absolute -left-[2px] top-[29%] h-[7%] w-[2.5px] rounded-l-[2px] bg-[#3a4048]"
+      />
+      <span
+        aria-hidden
+        className="absolute -right-[2px] top-[24%] h-[9%] w-[2.5px] rounded-r-[2px] bg-[#3a4048]"
+      />
 
-        <div className="px-2 pb-3 pt-2">
-          <p className="truncate text-[8px] font-semibold text-[#18181b]">
-            Virement confidentiel
-          </p>
-          <p className="truncate text-[6.5px] text-[#71717a]">
-            jean.dupont@direction-groupe.net
-          </p>
+      {/* Le corps : châssis plein, dalle encastrée. */}
+      <div className="rounded-[22px] border border-white/[0.14] bg-gradient-to-b from-[#2a2f36] to-[#15181d] p-[5px] shadow-[0_30px_60px_-18px_rgba(0,0,0,0.95)]">
+        <div className="relative overflow-hidden rounded-[17px] bg-[#f7f7f5]">
+          {/* Encoche */}
+          <div className="flex justify-center bg-white/70 pt-1.5">
+            <span aria-hidden className="h-1 w-8 rounded-full bg-black/20" />
+          </div>
 
-          <Banniere compact />
+          <div className="px-2 pb-3 pt-2">
+            <p className="truncate text-[8px] font-semibold text-[#18181b]">
+              Virement confidentiel
+            </p>
+            <p className="truncate text-[6.5px] text-[#71717a]">
+              jean.dupont@direction-groupe.net
+            </p>
 
-          <div className="mt-2 space-y-1">
-            <span aria-hidden className="block h-1 rounded bg-black/[0.07]" />
-            <span aria-hidden className="block h-1 w-5/6 rounded bg-black/[0.07]" />
-            <span aria-hidden className="block h-1 w-3/4 rounded bg-black/[0.07]" />
+            <Banniere compact />
+
+            <div className="mt-2 space-y-1">
+              <span aria-hidden className="block h-1 rounded bg-black/[0.07]" />
+              <span
+                aria-hidden
+                className="block h-1 w-5/6 rounded bg-black/[0.07]"
+              />
+              <span
+                aria-hidden
+                className="block h-1 w-3/4 rounded bg-black/[0.07]"
+              />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* L'ombre qui pose le téléphone sur la base de l'ordinateur. */}
+      <div
+        aria-hidden
+        className="mx-auto mt-1.5 h-2 w-[68%] rounded-[50%] bg-black/70 blur-[7px]"
+      />
     </div>
   );
 }
