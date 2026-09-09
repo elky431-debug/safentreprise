@@ -14,7 +14,6 @@ import {
   IconEye,
   IconFormation,
   IconLogout,
-  IconPuzzle,
   IconSettings,
   IconThreat,
   IconUsers,
@@ -72,7 +71,6 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
     id: "compte",
     title: "Compte",
     items: [
-      { href: "/settings/extension", label: "Extension", Icon: IconPuzzle },
       { href: "/settings/company", label: "Paramètres", Icon: IconSettings },
       { href: "/settings/billing", label: "Facturation", Icon: IconBilling },
     ],

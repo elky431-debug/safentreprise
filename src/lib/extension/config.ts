@@ -1,6 +1,11 @@
 /**
  * Points d'entrée de l'API destinés à l'extension Safentreprise Guard.
- * Affichés dans /settings/extension et repris dans sa configuration.
+ *
+ * ⚠ L'ÉCRAN QUI LES AFFICHAIT N'EXISTE PLUS. /settings/extension a été
+ *   supprimé : le produit ne propose plus d'installer d'extension. Les deux
+ *   routes restent en service — une extension déjà installée chez un client
+ *   continue de remonter ses alertes — mais plus rien dans l'interface n'y
+ *   renvoie, et `urlProduction` n'a plus d'appelant.
  */
 
 /** Domaine de production. En local, l'extension vise http://localhost:3000. */
