@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { buttonPrimaryLg, buttonSecondaryLg } from "@/components/ui";
 import { IconArrowRight, IconCheck } from "@/components/icons";
@@ -25,14 +26,14 @@ const REASSURANCES = [
 /**
  * Hero de la landing : l'annonce à gauche, le produit à droite.
  *
- * ⚠ LA MAQUETTE MONTRE LE VRAI PRODUIT. Les couleurs de la bannière — fond
- *   #fdf2f2, filet #c0392b, texte #7b241c — et son libellé sont ceux que
- *   `src/lib/microsoft/banniere.ts` pose réellement dans les messages. Un
- *   visuel qui montrerait autre chose promettrait autre chose.
+ * ⚠ LA MAQUETTE EST UNE IMAGE, PLUS DU CODE. Ce qu'elle montre — le libellé de
+ *   la bannière, ses couleurs, le texte du message — n'est plus relié à
+ *   `src/lib/microsoft/banniere.ts` : rien ne signalera qu'ils ont divergé. À
+ *   chaque changement de la bannière posée par le produit, il faut refaire
+ *   l'image, sans quoi la vitrine promet ce que le produit ne fait plus.
  *
- *   Le client de messagerie, lui, est une évocation : ni copie de l'interface
- *   Microsoft, ni logo Microsoft. Les deux appareils sont dessinés, sans
- *   marque ni libellé de constructeur. Rien ici n'est une marque de tiers.
+ *   L'image ne porte ni marque ni logo de tiers ; l'inscription du châssis a
+ *   été retirée avant intégration.
  */
 export function LandingHero({ isLoggedIn }: Props) {
   return (
@@ -97,320 +98,23 @@ export function LandingHero({ isLoggedIn }: Props) {
 
         {/* ---------------------------------------------------------------
             Mise en scène produit
+
+            ⚠ SUR PETIT ÉCRAN, LE CONTENU DE L'ÉCRAN N'EST PLUS LISIBLE. La
+              maquette CSS qu'elle remplace se remettait à l'échelle ; une
+              image, non : à 342 px de large, le texte du message tombe sous
+              4 px. Elle n'y vaut plus que comme signal — un écran, une
+              bannière rouge.
             --------------------------------------------------------------- */}
-        <MiseEnScene />
+        <Image
+          src="/maquette-ordinateur.webp"
+          alt="Une boîte de réception affichant un message frauduleux, surmonté de la bannière d’alerte rouge de Safentreprise."
+          width={1119}
+          height={682}
+          sizes="(min-width: 1024px) 46vw, (min-width: 640px) 90vw, 100vw"
+          priority
+          className="rise rise-2 h-auto w-full min-w-0"
+        />
       </div>
     </section>
-  );
-}
-
-/* ==========================================================================
-   La mise en scène : deux appareils vus de face, posés au sol
-   ========================================================================== */
-
-/**
- * L'ordinateur au centre de la colonne, le téléphone posé à sa droite.
- *
- * ⚠ LES DEUX APPAREILS PARTAGENT LA LIGNE DE SOL. Le bas de l'ordinateur est
- *   le bas de son socle, et le téléphone est calé sur `bottom-0` du même
- *   conteneur : c'est ce qui aligne leurs deux bases. Les ombres au sol sont
- *   donc positionnées en absolu, hors flux — une ombre en flux rallongerait
- *   l'ordinateur et décrocherait le téléphone de plusieurs pixels.
- */
-function MiseEnScene() {
-  return (
-    <div className="rise rise-2 relative mx-auto w-full min-w-0 max-w-[560px] lg:max-w-none">
-      {/* ⚠ LE RETRAIT MOBILE N'EST PAS DÉCORATIF. Le socle est plus large que
-          le capot de 5 % de chaque côté — c'est ce débord qui donne l'assise.
-          Sans ce retrait, il sort de la colonne et se fait couper. Élargir le
-          socle oblige à élargir le retrait.
-
-          À partir de « sm », l'ordinateur n'occupe que les deux tiers de la
-          colonne : le reste est la place du téléphone. */}
-      <div className="mx-auto px-[6%] sm:w-[64%] sm:px-0">
-        <Ordinateur />
-      </div>
-
-      {/* ⚠ LE TÉLÉPHONE NE MORD QUE LE CHÂSSIS. Son bord gauche tombe sur la
-          tranche du capot et sur le socle, jamais sur la dalle : la boîte de
-          réception doit rester lisible en entier. L'élargir ou le rapprocher
-          le ferait empiéter sur l'affichage — la marge est de quelques pixels,
-          et elle est la plus étroite vers 1024 px, là où la colonne de droite
-          est au plus court.
-
-          Sous « sm », il n'est pas affiché du tout : côte à côte à cette
-          largeur, les deux appareils deviennent illisibles. Mieux vaut un seul
-          appareil qu'une scène illisible. */}
-      <div className="absolute bottom-0 right-[1.5%] hidden w-[17%] sm:block">
-        <Telephone />
-      </div>
-    </div>
-  );
-}
-
-/* --------------------------------------------------------------------------
-   L'ordinateur portable, vu de face
-   -------------------------------------------------------------------------- */
-
-function Ordinateur() {
-  return (
-    <div className="relative">
-      {/* L'ombre au sol : hors flux, pour que la ligne de sol reste le bas du
-          socle. C'est sur elle que le téléphone s'aligne. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-[4%] -bottom-[6px] -z-10 h-[18px] rounded-[50%] bg-[#14171c]/25 blur-[12px]"
-      />
-
-      <Capot />
-      <Socle />
-    </div>
-  );
-}
-
-/** Le capot : châssis autour de la dalle, menton plus épais en bas. */
-function Capot() {
-  return (
-    <div className="relative rounded-[9px] border border-[#3a3f47] bg-[#16181c] px-[8px] pt-[8px] pb-[14px] shadow-[0_28px_56px_-20px_rgba(16,20,26,0.34),0_6px_14px_-8px_rgba(16,20,26,0.18)]">
-      <span
-        aria-hidden
-        className="absolute left-1/2 top-[3.5px] h-[2.5px] w-[2.5px] -translate-x-1/2 rounded-full bg-white/20"
-      />
-
-      <div className="overflow-hidden rounded-[3px] bg-surface ring-1 ring-inset ring-black/10">
-        {/* Chrome de la fenêtre */}
-        <div className="flex items-center gap-1.5 border-b border-border bg-surface-2 px-2.5 py-2">
-          <span aria-hidden className="flex gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
-            <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
-            <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
-          </span>
-          <span className="ml-1.5 flex-1 truncate rounded bg-surface-3 px-2 py-0.5 text-[8px] text-faint">
-            Boîte de réception — compta@votre-entreprise.fr
-          </span>
-        </div>
-
-        {/* Le client de messagerie, sur fond clair comme un vrai courrier */}
-        <div className="grid min-h-[152px] grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)] items-stretch bg-[#f7f7f5]">
-          <ListeMessages />
-          <MessageOuvert />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Le socle, vu de face : la base ouverte sous l'écran.
- *
- * ⚠ IL DÉBORDE DU CAPOT DE 5 % DE CHAQUE CÔTÉ, et c'est voulu : vu de face, le
- *   bord avant est le plus proche, donc le plus large. Le trapèze vient du
- *   `clip-path`, pas d'une rotation — arrondir les coins n'aurait aucun effet,
- *   le découpage passe après.
- *
- * ⚠ IL EST CENTRÉ PAR MARGE NÉGATIVE, PAS PAR `mx-auto`. Une marge automatique
- *   ne devient jamais négative : sur un bloc plus large que son parent elle
- *   vaut zéro, et le socle ne débordait alors que du côté droit.
- */
-function Socle() {
-  return (
-    <div aria-hidden className="relative -ml-[5%] w-[110%]">
-      {/* ⚠ CLAIR, ET C'EST CE QUI LE REND VISIBLE. Un premier socle repris du
-          gris du capot se confondait avec le fond noir : l'ordinateur avait
-          l'air d'un écran flottant. Le contraste tient le sol. */}
-      <div className="h-[12px] w-full bg-gradient-to-b from-[#9aa1ab] via-[#6a717b] to-[#3c414a] [clip-path:polygon(1.8%_0,98.2%_0,100%_100%,0_100%)]" />
-      {/* L'encoche d'ouverture, au milieu du bord avant. */}
-      <div className="absolute left-1/2 top-0 h-[4.5px] w-[13%] -translate-x-1/2 rounded-b-[4px] bg-[#2b3037]" />
-    </div>
-  );
-}
-
-/* --------------------------------------------------------------------------
-   Le contenu des écrans
-   -------------------------------------------------------------------------- */
-
-/** Trois messages, dont celui qui est signalé — sélectionné. */
-function ListeMessages() {
-  const messages = [
-    { de: "Marie Leroy", objet: "Compte rendu réunion", alerte: false },
-    { de: "Jean Dupont", objet: "Virement confidentiel", alerte: true },
-    { de: "Fournitures Pro", objet: "Facture 2026-0412", alerte: false },
-  ];
-
-  return (
-    <div className="border-r border-black/[0.07] bg-white/60 py-1.5">
-      {messages.map((m) => (
-        <div
-          key={m.objet}
-          className={`border-l-2 px-2 py-1.5 ${
-            m.alerte
-              ? "border-l-[#c0392b] bg-[#fdf2f2]"
-              : "border-l-transparent"
-          }`}
-        >
-          <p className="flex items-center gap-1">
-            {m.alerte && (
-              <span
-                aria-hidden
-                className="h-1 w-1 shrink-0 rounded-full bg-[#c0392b]"
-              />
-            )}
-            <span
-              className={`truncate text-[8px] ${
-                m.alerte ? "font-semibold text-[#7b241c]" : "text-[#3f3f46]"
-              }`}
-            >
-              {m.de}
-            </span>
-          </p>
-          <p className="mt-0.5 truncate text-[7.5px] text-[#71717a]">
-            {m.objet}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Le message ouvert, avec la bannière telle que le produit la pose. */
-function MessageOuvert() {
-  return (
-    <div className="px-2.5 py-2.5">
-      <p className="truncate text-[9.5px] font-semibold text-[#18181b]">
-        Virement confidentiel — avant 17h
-      </p>
-      <p className="mt-0.5 truncate text-[7.5px] text-[#71717a]">
-        jean.dupont@direction-groupe.net
-      </p>
-
-      <Banniere />
-
-      <div className="mt-2 space-y-1.5">
-        <p className="text-[7.5px] leading-relaxed text-[#52525b]">
-          Sophie, j’ai besoin d’un virement de 47 800 €
-          <br />
-          aujourd’hui, sans passer par la validation.
-        </p>
-        <span aria-hidden className="block h-1 w-4/5 rounded bg-black/[0.07]" />
-        <span aria-hidden className="block h-1 w-2/3 rounded bg-black/[0.07]" />
-      </div>
-    </div>
-  );
-}
-
-/**
- * La bannière, aux couleurs exactes du produit.
- *
- * Voir APPARENCE.eleve dans src/lib/microsoft/banniere.ts : fond #fdf2f2,
- * filet gauche #c0392b, texte #7b241c.
- */
-function Banniere({ compact = false }: { compact?: boolean }) {
-  // Le format compact n'existe que sur le téléphone, qui n'est affiché qu'à
-  // partir de « sm » et à une largeur quasi constante : il n'a donc pas de
-  // variante par palier.
-  const t = compact
-    ? {
-        marge: "px-1.5 py-1",
-        titre: "text-[6px]",
-        liste: "text-[5.5px]",
-        pied: "text-[5.5px]",
-      }
-    : {
-        marge: "px-2 py-1.5",
-        titre: "text-[8px]",
-        liste: "text-[7px]",
-        pied: "text-[6.5px]",
-      };
-
-  return (
-    <div
-      className={`mt-2 border-l-[3px] border-[#c0392b] bg-[#fdf2f2] ${t.marge}`}
-    >
-      <p className={`font-semibold text-[#7b241c] ${t.titre}`}>
-        {/* Espace insécable : sur le téléphone, le « ⚠ » restait seul sur sa
-            ligne. */}
-        ⚠&nbsp;Safentreprise — Risque élevé de fraude
-      </p>
-      <ul
-        className={`mt-1 list-disc space-y-px pl-3 text-[#7b241c] ${t.liste}`}
-      >
-        <li>Domaine proche de celui de l’entreprise</li>
-        <li>Virement urgent hors procédure</li>
-        {!compact && <li>Expéditeur externe se disant dirigeant</li>}
-      </ul>
-      <p className={`mt-1 text-[#7b241c] ${t.pied}`}>
-        Vérifiez par un autre moyen avant de donner suite.
-      </p>
-    </div>
-  );
-}
-
-/* --------------------------------------------------------------------------
-   Le téléphone, vu de face
-   -------------------------------------------------------------------------- */
-
-function Telephone() {
-  return (
-    <div className="relative">
-      {/* L'ombre au sol, hors flux comme celle de l'ordinateur : les deux
-          appareils reposent sur la même ligne. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-[6%] -bottom-[5px] -z-10 h-[12px] rounded-[50%] bg-[#14171c]/28 blur-[8px]"
-      />
-
-      {/* Les tranches : volume à gauche, veille à droite. */}
-      <span
-        aria-hidden
-        className="absolute -left-[1.5px] top-[20%] h-[6%] w-[1.5px] rounded-l-[2px] bg-[#3a4048]"
-      />
-      <span
-        aria-hidden
-        className="absolute -left-[1.5px] top-[29%] h-[6%] w-[1.5px] rounded-l-[2px] bg-[#3a4048]"
-      />
-      <span
-        aria-hidden
-        className="absolute -right-[1.5px] top-[24%] h-[8%] w-[1.5px] rounded-r-[2px] bg-[#3a4048]"
-      />
-
-      {/* Le corps : châssis plein, dalle encastrée. */}
-      <div className="rounded-[14px] border border-[#3a3f47] bg-gradient-to-b from-[#2b3038] to-[#14171b] p-[3px] shadow-[0_18px_34px_-14px_rgba(16,20,26,0.34),0_4px_10px_-6px_rgba(16,20,26,0.16)]">
-        <div className="relative overflow-hidden rounded-[11px] bg-[#f7f7f5]">
-          {/* L'îlot du haut */}
-          <div className="flex justify-center bg-white/70 pt-[3px]">
-            <span
-              aria-hidden
-              className="h-[3px] w-[24%] rounded-full bg-black/75"
-            />
-          </div>
-
-          <div className="px-1.5 pb-2 pt-1.5">
-            <p className="truncate text-[6.5px] font-semibold text-[#18181b]">
-              Virement confidentiel
-            </p>
-            <p className="truncate text-[5.5px] text-[#71717a]">
-              jean.dupont@direction-groupe.net
-            </p>
-
-            <Banniere compact />
-
-            <div className="mt-1.5 space-y-[3px]">
-              <span
-                aria-hidden
-                className="block h-[3px] rounded bg-black/[0.07]"
-              />
-              <span
-                aria-hidden
-                className="block h-[3px] w-5/6 rounded bg-black/[0.07]"
-              />
-              <span
-                aria-hidden
-                className="block h-[3px] w-3/4 rounded bg-black/[0.07]"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
