@@ -12,14 +12,14 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 const buttonBase =
   "inline-flex items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium transition-[background-color,border-color,color,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-55";
 
-export const buttonPrimary = `${buttonBase} h-10 bg-accent px-4 text-white hover:bg-accent-hover`;
+export const buttonPrimary = `${buttonBase} h-10 bg-accent px-4 text-accent-contraste hover:bg-accent-hover`;
 
 export const buttonSecondary = `${buttonBase} h-10 border border-border-strong bg-transparent px-4 text-foreground hover:bg-surface-2`;
 
 export const buttonGhost = `${buttonBase} h-10 px-3 text-muted hover:bg-surface-2 hover:text-foreground`;
 
 /** Variante haute, réservée aux appels à l'action de la landing. */
-export const buttonPrimaryLg = `${buttonBase} h-11 bg-accent px-5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-accent-hover`;
+export const buttonPrimaryLg = `${buttonBase} h-11 bg-accent px-5 text-sm text-accent-contraste hover:bg-accent-hover`;
 
 export const buttonSecondaryLg = `${buttonBase} h-11 border border-border-strong px-5 text-sm text-foreground hover:bg-surface-2`;
 

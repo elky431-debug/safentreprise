@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LandingHero } from "@/components/LandingHero";
 import { Triptyque } from "@/components/Triptyque";
+import { TroisFraudes } from "@/components/TroisFraudes";
 import { ProtectionExtension } from "@/components/ProtectionExtension";
 import { FraudEmailExample } from "@/components/FraudEmailExample";
 import { Logo } from "@/components/Logo";
@@ -79,6 +80,12 @@ export default async function HomePage() {
                 Protection
               </a>
               <Link
+                href="/comparatif"
+                className="text-[13.5px] text-muted transition-colors hover:text-foreground"
+              >
+                Comparatif
+              </Link>
+              <Link
                 href="/tarifs"
                 className="text-[13.5px] text-muted transition-colors hover:text-foreground"
               >
@@ -87,30 +94,33 @@ export default async function HomePage() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {user ? (
-              <Link href="/dashboard" className={buttonPrimary}>
-                Tableau de bord
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="hidden h-9 items-center px-3 text-[13.5px] text-muted transition-colors hover:text-foreground sm:inline-flex"
-                >
-                  Connexion
-                </Link>
-                <Link href="/demo" className={buttonPrimary}>
-                  Demander une démo
-                </Link>
-              </>
-            )}
+          {/* « Accéder à mon espace » a quitté le hero : il ne vit plus qu'ici,
+              en lien discret à gauche de l'action principale. */}
+          <div className="flex items-center gap-3">
+            <Link
+              href={user ? "/dashboard" : "/login"}
+              className="hidden h-9 items-center text-[13.5px] text-muted transition-colors hover:text-foreground sm:inline-flex"
+            >
+              Accéder à mon espace
+            </Link>
+            <Link
+              href={user ? "/dashboard" : "/demo"}
+              className={buttonPrimary}
+            >
+              {user ? "Tableau de bord" : "Demander une démo"}
+            </Link>
           </div>
         </div>
       </header>
 
       <main className="flex-1">
-        <LandingHero isLoggedIn={Boolean(user)} />
+        <LandingHero />
+
+        {/* ⚠ L'ALTERNANCE EST PORTÉE PAR LES SECTIONS, DANS CET ORDRE. Blanc,
+            marine, blanc, marine, jusqu'en bas. Insérer ou retirer une section
+            sans reprendre `sur-marine` sur ses voisines casse le rythme et
+            colle deux bandes marine l'une contre l'autre. */}
+        <TroisFraudes />
 
         {/* Positionnement : tester → former → protéger */}
         <Triptyque />
@@ -118,7 +128,7 @@ export default async function HomePage() {
         {/* Méthode */}
         <section
           id="methode"
-          className="border-t border-border px-6 py-20 md:py-24 lg:px-8"
+          className="sur-marine px-6 py-20 md:py-24 lg:px-8"
         >
           <div className="mx-auto max-w-[1400px]">
             <p className="text-center">
@@ -200,7 +210,7 @@ export default async function HomePage() {
         </section>
 
         {/* Appel à l'action */}
-        <section className="border-t border-border px-6 py-24 md:py-28 lg:px-8">
+        <section className="sur-marine px-6 py-24 md:py-28 lg:px-8">
           <div className="mx-auto max-w-xl text-center">
             <h2 className="text-[clamp(1.7rem,3.2vw,2.5rem)] font-extrabold leading-tight text-foreground">
               Testez, formez, protégez vos équipes

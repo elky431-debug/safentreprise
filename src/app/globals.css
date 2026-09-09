@@ -24,6 +24,7 @@
 
   /* Accent — bleu canard (actions) */
   --accent: #0e8593;
+  --accent-contraste: #ffffff;
   --accent-hover: #0c717d;
   --accent-text: #5ecad4;
   --accent-soft: rgba(14, 133, 147, 0.16);
@@ -55,6 +56,7 @@
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-accent: var(--accent);
+  --color-accent-contraste: var(--accent-contraste);
   --color-accent-hover: var(--accent-hover);
   --color-accent-text: var(--accent-text);
   --color-accent-soft: var(--accent-soft);
@@ -92,6 +94,23 @@
      casse rien de visible côté sombre — la valeur sombre est simplement
      héritée en plein milieu du blanc.
    ========================================================================== */
+/* ⚠ LA POLICE FAIT PARTIE DU THÈME, ET ELLE S'ARRÊTE AVEC LUI. La vitrine
+     est en grotesque neutre ; l'espace connecté reste sur Jakarta, hors de ce
+     conteneur. */
+.theme-clair,
+.sur-marine {
+  font-family: var(--font-inter), system-ui, "Segoe UI", Arial, sans-serif;
+}
+
+/* Titres de la vitrine : un serif de labeur, pas un serif d'affiche. */
+.theme-clair h1,
+.theme-clair h2,
+.sur-marine h1,
+.sur-marine h2 {
+  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.015em;
+}
+
 .theme-clair {
   color-scheme: light;
 
@@ -106,19 +125,24 @@
   --border-strong: rgba(16, 20, 26, 0.18);
 
   /* Texte — gris très foncé, jamais du noir pur */
-  --foreground: #14171c;
-  --muted: #545a63;
+  --foreground: #101828;
+  --muted: #4a5567;
   /* Plus sombre que le gris sombre correspondant : les étiquettes `.eyebrow`
      sont en 11 px, #868d97 tombait à 3,1:1 sur blanc. */
-  --faint: #6f7680;
+  --faint: #6b7686;
 
-  /* Accent — le même bleu canard. ⚠ `--accent-text` est plus sombre que la
-     version foncée : #5ecad4 sur blanc tombe sous 1,8:1, illisible. */
-  --accent: #0e8593;
-  --accent-hover: #0b6f7b;
-  --accent-text: #0a6f7b;
-  --accent-soft: rgba(14, 133, 147, 0.1);
-  --accent-line: rgba(14, 133, 147, 0.3);
+  /* Accent — bleu marine, couleur de marque.
+
+     ⚠ IL RESTE LISIBLE À CÔTÉ DU TEXTE COURANT, DE JUSTESSE. Le texte est
+       presque noir et l'accent est un bleu sombre : un marine plus profond
+       (#0F2444, celui des bandes) ne se distinguerait plus du texte dans un
+       titre. C'est pourquoi l'accent est plus bleu que les bandes. */
+  --accent: #17356b;
+  --accent-hover: #0f2450;
+  --accent-contraste: #ffffff;
+  --accent-text: #17356b;
+  --accent-soft: rgba(23, 53, 107, 0.07);
+  --accent-line: rgba(23, 53, 107, 0.3);
 
   /* États — mêmes teintes, ramenées à un contraste lisible sur blanc.
      Le rouge est celui de la bannière du produit. */
@@ -134,10 +158,65 @@
   --relief-haut: 0 12px 32px -16px rgba(16, 20, 26, 0.18);
 }
 
+/* ⚠ LE CORPS DE PAGE RESTE SOMBRE SOUS LA VITRINE. `body` porte le fond de
+     `:root`, en dehors du conteneur clair : il n'apparaît qu'au rebond de
+     défilement, mais il y apparaît en noir sous une page blanche. On le
+     remet au blanc dès qu'une page claire est présente. */
+body:has(.theme-clair) {
+  background: #ffffff;
+}
+
 /* Les fonds décoratifs du thème sombre n'ont plus d'objet : le ciel étoilé
    devient invisible et le halo salit le blanc. */
 .theme-clair .starfield,
 .theme-clair .top-glow {
+  display: none;
+}
+
+/* ==========================================================================
+   Bandes marine — le rythme de la vitrine
+   ==========================================================================
+
+   ⚠ MÊME MÉCANIQUE QUE `.theme-clair` : ce bloc ne fait que redéfinir les
+     mêmes variables. Une section marine s'obtient en posant la classe, sans
+     qu'aucun composant à l'intérieur ait à savoir sur quel fond il tombe.
+
+     Un encart qui doit rester clair sur une bande marine — l'aperçu de
+     messagerie, par exemple — se remet en clair en reposant `theme-clair`
+     dessus. C'est voulu : une simulation de boîte mail est claire, quel que
+     soit le fond de la section qui la porte.
+   ========================================================================== */
+.sur-marine {
+  color-scheme: dark;
+
+  --background: #0f2444;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.09);
+  --surface-3: rgba(255, 255, 255, 0.13);
+
+  --border: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.26);
+
+  --foreground: #ffffff;
+  --muted: rgba(226, 234, 246, 0.78);
+  --faint: rgba(226, 234, 246, 0.58);
+
+  /* Sur marine, l'action est blanche et son texte redevient marine. */
+  --accent: #ffffff;
+  --accent-hover: rgba(255, 255, 255, 0.88);
+  --accent-contraste: #0f2444;
+  --accent-text: #a9c6ef;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+  --accent-line: rgba(255, 255, 255, 0.32);
+
+  --danger: #ff9d96;
+  --danger-soft: rgba(255, 157, 150, 0.12);
+
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.sur-marine .top-glow {
   display: none;
 }
 

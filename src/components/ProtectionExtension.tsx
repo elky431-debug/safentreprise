@@ -44,7 +44,7 @@ export function ProtectionExtension() {
   return (
     <section
       id="protection"
-      className="relative isolate overflow-hidden border-t border-border px-6 py-20 md:py-24 lg:px-8"
+      className="sur-marine relative isolate overflow-hidden px-6 py-20 md:py-24 lg:px-8"
     >
       {/* Halo discret : cette section est le point culminant du récit */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -107,7 +107,10 @@ export function ProtectionExtension() {
  */
 function ApercuBanniere() {
   return (
-    <figure className="m-0">
+    // ⚠ `theme-clair` REMET L'ENCART EN CLAIR SUR LA BANDE MARINE. Sans lui,
+    //   la simulation de boîte mail hérite du marine et le rouge de la
+    //   bannière — la seule chose que cet aperçu doit montrer — se dilue.
+    <figure className="theme-clair m-0 rounded-[12px]">
       <div className="overflow-hidden rounded-[12px] border border-border-strong bg-surface shadow-[0_24px_56px_-24px_rgba(16,20,26,0.28)]">
         {/* Barre du client de messagerie */}
         <div className="flex items-center justify-between gap-4 border-b border-border bg-surface-2/70 px-4 py-2.5">

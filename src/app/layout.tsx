@@ -1,14 +1,30 @@
 import type { Metadata } from "next";
 import {
   Instrument_Serif,
+  Inter,
   JetBrains_Mono,
   Plus_Jakarta_Sans,
   Sacramento,
+  Source_Serif_4,
 } from "next/font/google";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Vitrine publique : une grotesque neutre pour le texte, un serif discret
+// pour les titres. L'espace connecté garde Jakarta.
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
   subsets: ["latin"],
   display: "swap",
 });
@@ -63,7 +79,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${jakarta.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
+      className={`${jakarta.variable} ${inter.variable} ${sourceSerif.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         {children}
