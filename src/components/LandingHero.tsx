@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { buttonPrimaryLg } from "@/components/ui";
 import { IconArrowRight, IconCheck } from "@/components/icons";
-import { HeroCartes } from "@/components/HeroCartes";
 
 /**
  * Les trois réassurances sous les boutons. Chacune doit être vraie.
@@ -26,14 +25,8 @@ const REASSURANCES = [
  */
 export function LandingHero() {
   return (
-    // ⚠ `overflow-hidden` FAIT PARTIE DU DISPOSITIF. Les cartes des marges
-    //   débordent volontairement de l'écran : sans lui, elles allongeraient la
-    //   page vers la droite et feraient apparaître une barre de défilement
-    //   horizontale.
-    <section className="relative overflow-hidden px-6 pt-16 pb-14 text-center md:pt-24 md:pb-20 lg:px-8">
-      <HeroCartes />
-
-      <div className="relative mx-auto max-w-[900px]">
+    <section className="px-6 pt-16 pb-14 text-center md:pt-24 md:pb-20 lg:px-8">
+      <div className="mx-auto max-w-[900px]">
         <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-accent-text" />
           Protection anti-fraude pour Microsoft 365
