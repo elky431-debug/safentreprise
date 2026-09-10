@@ -32,17 +32,21 @@ export function LandingHero() {
           Protection anti-fraude pour Microsoft 365
         </p>
 
-        {/* ⚠ TROIS LIGNES, ET C'EST JUSTE. Les deux premières sont coupées à
-            la main ; la troisième fait 34 caractères, soit environ 800 px à la
-            taille maximale, dans un conteneur de 900. Grossir le titre ou
-            resserrer le conteneur la fait passer à quatre lignes. */}
+        {/* ⚠ LA COUPE EST AVANT « se joue », ET C'EST MESURÉ. Les deux autres
+            découpages possibles déséquilibrent : couper avant « dans sa boîte
+            mail » donne 35 caractères contre 20. Ici, 28 contre 27 — les deux
+            lignes font la même longueur à l'œil.
+
+            ⚠ SUR MOBILE, CHAQUE LIGNE SE REPLIE EN DEUX. C'est inévitable à
+            30 px dans 342 px utiles. L'espace insécable entre « boîte » et
+            « mail. » n'est donc pas cosmétique : sans lui, `text-balance` ne
+            suffit pas et le repli laisse « mail. » seule sur une quatrième
+            ligne, sous une ligne trois fois plus longue. */}
         <h1 className="rise rise-1 mt-7 text-[clamp(1.9rem,4vw,3.35rem)] font-semibold leading-[1.12] tracking-[-0.02em] text-balance text-foreground">
-          La fraude par mail
-          <br />
-          vise vos équipes.
+          La sécurité d’une entreprise
           <br />
           <span className="text-accent-text">
-            Elles le sauront avant de cliquer.
+            se joue dans sa boîte&nbsp;mail.
           </span>
         </h1>
 
