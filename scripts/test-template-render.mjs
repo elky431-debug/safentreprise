@@ -57,7 +57,7 @@ if (!connectionString) {
 
 const vars = {
   logoUrl: null,
-  entreprise: "Jobump",
+  entreprise: "Entreprise Démo",
   nomDirigeant: "Alex Martin",
   nomFournisseur: "Dupont Logistique",
   prenomEmploye: "Camille",

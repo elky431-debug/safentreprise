@@ -91,6 +91,26 @@ const CAS = [
         "compte indiqué en pièce jointe.\n\nClaire Nguyen",
     },
   },
+  {
+    // ⚠ NON-RÉGRESSION — LE MOTIF EN DOUBLE.
+    //   Les deux cas ci-dessus ne l'exposaient PAS : « claire.nguyen@ » et
+    //   « claire.nguyen.pro@ » contiennent une forme du nom, donc le détecteur
+    //   d'identité se tait et seul celui d'annuaire parle. Il faut une adresse
+    //   SANS le nom pour que les deux se déclenchent — c'est ce que voyait le
+    //   client : deux fois « Nom ↔ adresse » sur chaque ligne, et 30 points
+    //   comptés en trop pour un seul et même constat.
+    titre: "Nom de l'annuaire, adresse sans le nom → un seul motif d'identité",
+    attendu: "élevé",
+    raisonsAbsentes: ["incoherence_nom_adresse"],
+    data: {
+      nomAffiche: "Service Comptabilité",
+      email: "compta-2024@gmail.com",
+      objet: "Règlement urgent",
+      corps:
+        "Bonjour,\n\nMerci de procéder au règlement sur nos nouvelles " +
+        "coordonnées bancaires.\n\nClaire Nguyen",
+    },
+  },
 
   // ——————————————————————— Aucune alerte attendue ———————————————————————
   {
@@ -185,11 +205,20 @@ for (const cas of CAS) {
   const contexte = "contexte" in cas ? cas.contexte : CONTEXTE;
   const r = SG.analyserEmail(cas.data, contexte);
   const obtenu = r.alerte ? r.niveau : null;
-  const ok = obtenu === cas.attendu;
+
+  // Certains cas ne portent pas sur le niveau mais sur la COMPOSITION du
+  // verdict : une raison qui ne doit plus y figurer parce qu'une autre, mieux
+  // renseignée, la remplace. Le niveau seul ne verrait pas ce doublon.
+  const interdites = (cas.raisonsAbsentes || []).filter((raison) =>
+    r.raisons.includes(raison)
+  );
+
+  const ok = obtenu === cas.attendu && interdites.length === 0;
   if (!ok) echecs += 1;
   lignes.push({
     ok,
     titre: cas.titre,
+    interdites,
     attendu: libelle(cas.attendu),
     obtenu: libelle(obtenu),
     score: `${r.score}/100`,
@@ -218,7 +247,12 @@ for (const l of lignes) {
     tronquer(l.obtenu, L.niveau) + " " +
     tronquer(l.score, L.score)
   );
-  if (!l.ok) console.log(`     raisons : ${l.raisons}\n     motif   : ${l.motif}`);
+  if (!l.ok) {
+    console.log(`     raisons : ${l.raisons}\n     motif   : ${l.motif}`);
+    if (l.interdites.length > 0) {
+      console.log(`     ⚠ raison(s) qui auraient dû être remplacées : ${l.interdites.join(", ")}`);
+    }
+  }
 }
 console.log(sep);
 

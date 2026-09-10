@@ -66,8 +66,8 @@ export function NiveauBadge({
    -------------------------------------------------------------------------- */
 
 /**
- * L'extension remonte des phrases explicatives entières. Affichées telles
- * quelles, elles écrasaient le tableau sur plusieurs lignes. On les réduit
+ * Le moteur de détection produit des phrases explicatives entières. Affichées
+ * telles quelles, elles écrasaient le tableau sur plusieurs lignes. On les réduit
  * ici à une étiquette de quelques mots ; la phrase complète reste lisible
  * dans le détail dépliable de la ligne.
  */
@@ -84,6 +84,12 @@ const TONS_SIGNAL: Record<TonSignal, string> = {
 };
 
 const RESUMES_SIGNAUX: { motif: RegExp; label: string; ton: TonSignal }[] = [
+  // ⚠ L'ANNUAIRE AVANT LA RÈGLE GÉNÉRALE. Les deux phrases commencent par
+  //   « se présente au nom » : sans cette entrée placée d'abord, l'usurpation
+  //   d'annuaire s'afficherait sous le libellé plus faible « Nom ↔ adresse ».
+  //   Le moteur ne produit plus les deux à la fois (voir `remplace` dans
+  //   detection-rules.js), mais l'ordre reste ce qui rend chaque motif juste.
+  { motif: /figure à l'annuaire/i, label: "Identité de l'annuaire", ton: "identite" },
   { motif: /aucune forme de ce nom|se présente au nom/i, label: "Nom ↔ adresse", ton: "identite" },
   { motif: /ne correspond pas au nom affich/i, label: "Adresse ↔ nom affiché", ton: "identite" },
   { motif: /sign(é|e) «/i, label: "Signature usurpée", ton: "identite" },
@@ -211,7 +217,7 @@ export function MenacesTable({ alertes: menaces }: Props) {
     <Panel className="overflow-hidden">
       <PanelHeader
         title="Tentatives détectées"
-        description="Remontées par l'extension installée sur les postes de vos collaborateurs."
+        description="Repérées à l'analyse des boîtes Microsoft 365 surveillées. Rien n'est installé sur les postes."
         action={
           /* Segmented control : un rail creux, un seul segment en relief */
           <div

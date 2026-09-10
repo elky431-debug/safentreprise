@@ -133,7 +133,7 @@ attendu: aucune
   "amplificateurs": [],
   "decision": "IGNORÉ — adresse cohérente avec le nom",
   "demandesSensibles": [
-    "regler la facture"
+    "régler la facture"
   ],
   "formesTestees": [
     "fahim",
@@ -249,7 +249,7 @@ attendu: aucune
   "amplificateurs": [],
   "decision": "IGNORÉ — aucun nom de personne détecté",
   "demandesSensibles": [
-    "regler la facture"
+    "régler la facture"
   ],
   "formesTestees": [],
   "incoherence": false,
@@ -462,7 +462,7 @@ attendu: modéré
     "virement",
     "iban",
     "nouvel iban",
-    "reglement"
+    "règlement"
   ],
   "formesTestees": [
     "fahim",
@@ -500,7 +500,7 @@ attendu: modéré
   "seuil": 30,
   "signaux": [
     "Le message se présente au nom de « Yacine El Fahim » (signature), mais l'adresse d'envoi « dg-compta@partenaire-groupe.net » ne contient aucune forme de ce nom.",
-    "Demande d'action sensible détectée : virement, iban, nouvel iban, reglement."
+    "Demande d'action sensible détectée : virement, iban, nouvel iban, règlement."
   ],
   "sourceNom": "signature"
 }
@@ -514,8 +514,8 @@ attendu: élevé
   "amplificateurs": [
     "urgente",
     "confidentielle",
-    "n en parlez a personne",
-    "je suis en deplacement"
+    "n'en parlez à personne",
+    "je suis en déplacement"
   ],
   "decision": "ALERTE élevé — incoherence_nom_adresse + domaine_grand_public + demande_sensible + urgence_ou_secret",
   "demandesSensibles": [
@@ -563,7 +563,7 @@ attendu: élevé
     "Le message se présente au nom de « Yacine El Fahim » (signature), mais l'adresse d'envoi « yacine.direction.groupe@gmail.com » ne contient aucune forme de ce nom.",
     "L'expéditeur utilise une messagerie grand public (gmail.com) tout en se présentant au nom d'une personne.",
     "Demande d'action sensible détectée : virement, rib, nouveau rib.",
-    "Pression à l'urgence, au secret ou à l'indisponibilité : urgente, confidentielle, n en parlez a personne, je suis en deplacement."
+    "Pression à l'urgence, au secret ou à l'indisponibilité : urgente, confidentielle, n'en parlez à personne, je suis en déplacement."
   ],
   "sourceNom": "signature"
 }
@@ -576,13 +576,13 @@ attendu: élevé
   "alerte": true,
   "amplificateurs": [
     "avant ce soir",
-    "discretion"
+    "discrétion"
   ],
   "decision": "ALERTE élevé — incoherence_nom_adresse + domaine_grand_public + demande_sensible + urgence_ou_secret",
   "demandesSensibles": [
-    "coordonnees bancaires",
-    "nouvelles coordonnees",
-    "transferer le solde",
+    "coordonnées bancaires",
+    "nouvelles coordonnées",
+    "transférer le solde",
     "solde du compte"
   ],
   "formesTestees": [
@@ -622,8 +622,8 @@ attendu: élevé
   "signaux": [
     "Le message se présente au nom de « Marc Lefevre » (signature), mais l'adresse d'envoi « compta.groupe2024@outlook.com » ne contient aucune forme de ce nom.",
     "L'expéditeur utilise une messagerie grand public (outlook.com) tout en se présentant au nom d'une personne.",
-    "Demande d'action sensible détectée : coordonnees bancaires, nouvelles coordonnees, transferer le solde, solde du compte.",
-    "Pression à l'urgence, au secret ou à l'indisponibilité : avant ce soir, discretion."
+    "Demande d'action sensible détectée : coordonnées bancaires, nouvelles coordonnées, transférer le solde, solde du compte.",
+    "Pression à l'urgence, au secret ou à l'indisponibilité : avant ce soir, discrétion."
   ],
   "sourceNom": "signature"
 }

@@ -329,9 +329,100 @@
     ).test(texteNormalise);
   }
 
-  /** Mots-clés d'une liste effectivement présents dans le texte. */
-  function motsClesPresents(texteNormalise, liste) {
-    return liste.filter((mot) => contientMotCle(texteNormalise, mot));
+  /**
+   * Lettres de base et leurs formes accentuées.
+   *
+   * ⚠ SERT UNIQUEMENT À L'AFFICHAGE, JAMAIS À LA DÉTECTION. La détection
+   *   continue de travailler sur le texte normalisé : c'est ce qui lui permet
+   *   de reconnaître « règlement » comme « reglement ». Cette table fait le
+   *   chemin inverse, pour retrouver dans le message le mot que la
+   *   normalisation avait dépouillé.
+   */
+  const VARIANTES_LETTRE = {
+    a: "aàáâãäå",
+    c: "cç",
+    e: "eéèêë",
+    i: "iìíîï",
+    n: "nñ",
+    o: "oòóôõö",
+    u: "uùúûü",
+    y: "yýÿ",
+  };
+
+  /**
+   * Motif accentué correspondant à un mot-clé normalisé.
+   *
+   * ⚠ UN ESPACE DU MOT-CLÉ NE VAUT PAS UN ESPACE DU MESSAGE. `normaliser`
+   *   remplace toute ponctuation par une espace : « bons d'achat » y devient
+   *   « bons d achat », et « aujourd'hui même » devient « aujourd hui meme ».
+   *   Un espace du mot-clé doit donc accepter n'importe quel séparateur —
+   *   apostrophe, tiret, retour à la ligne.
+   *
+   * ⚠ SAUF « . » ET « @ », que `normaliser` CONSERVE. Les exclure du
+   *   séparateur garde cette recherche calée sur ce qu'a réellement vu
+   *   `contientMotCle` : « nouveau. Compte » ne contient pas « nouveau
+   *   compte », ni pour la détection ni ici.
+   */
+  function motifAccentue(motNormalise) {
+    let motif = "";
+    for (const caractere of motNormalise) {
+      if (caractere === " ") {
+        motif += "[^\\p{L}\\p{N}.@]+";
+      } else if (VARIANTES_LETTRE[caractere]) {
+        motif += `[${VARIANTES_LETTRE[caractere]}]`;
+      } else {
+        motif += echapperRegex(caractere);
+      }
+    }
+    return motif;
+  }
+
+  /**
+   * Le terme tel qu'il est ÉCRIT DANS LE MESSAGE, accents compris.
+   *
+   * Le moteur repère les mots-clés sur le texte normalisé, donc désaccentué.
+   * Afficher ce texte-là revenait à montrer au client « nouvelles coordonnees »
+   * et « reglement » alors que son message disait « nouvelles coordonnées » et
+   * « règlement » — la citation ne correspondait plus au message cité.
+   *
+   * ⚠ ON MINUSCULE LE RÉSULTAT. Les termes sont cités au fil d'une phrase
+   *   (« Demande d'action sensible détectée : … ») ; un objet en capitales
+   *   y injecterait « VIREMENT ». Les accents, eux, sont conservés : c'est
+   *   tout l'objet de cette fonction.
+   *
+   * ⚠ REPLI SUR LE MOT-CLÉ. Si le terme reste introuvable dans l'original, on
+   *   réaffiche l'entrée du dictionnaire — l'ancien comportement. Mieux vaut
+   *   un mot sans accent qu'un motif vide.
+   */
+  function termeDOrigine(texteOriginal, motCle) {
+    const mot = normaliser(motCle);
+    const original = String(texteOriginal || "");
+    if (!mot || !original) return motCle;
+
+    try {
+      const trouve = original.match(
+        new RegExp(
+          `(^|[^\\p{L}\\p{N}])(${motifAccentue(mot)})([^\\p{L}\\p{N}]|$)`,
+          "iu"
+        )
+      );
+      if (!trouve) return motCle;
+      return trouve[2].toLocaleLowerCase("fr").replace(/\s+/g, " ");
+    } catch {
+      return motCle;
+    }
+  }
+
+  /**
+   * Mots-clés d'une liste effectivement présents dans le texte.
+   *
+   * La PRÉSENCE se décide sur le texte normalisé ; la FORME RENDUE vient du
+   * message d'origine. Sans `texteOriginal`, on rend l'entrée du dictionnaire.
+   */
+  function motsClesPresents(texteNormalise, liste, texteOriginal) {
+    return liste
+      .filter((mot) => contientMotCle(texteNormalise, mot))
+      .map((mot) => termeDOrigine(texteOriginal, mot));
   }
 
   // ---------------------------------------------------------------------------
@@ -1052,10 +1143,21 @@
     const corps = (emailData && emailData.corps) || "";
 
     const { local, domaine, email } = parserEmail(adresse);
-    const texteAnalyse = normaliser(`${objet}\n${corps}`);
+    const texteOrigine = `${objet}\n${corps}`;
+    const texteAnalyse = normaliser(texteOrigine);
 
-    const demandesSensibles = motsClesPresents(texteAnalyse, DEMANDES_SENSIBLES);
-    const amplificateurs = motsClesPresents(texteAnalyse, AMPLIFICATEURS);
+    // Le texte d'origine n'entre pas dans la décision : il ne sert qu'à citer
+    // les termes avec leurs accents (voir `termeDOrigine`).
+    const demandesSensibles = motsClesPresents(
+      texteAnalyse,
+      DEMANDES_SENSIBLES,
+      texteOrigine
+    );
+    const amplificateurs = motsClesPresents(
+      texteAnalyse,
+      AMPLIFICATEURS,
+      texteOrigine
+    );
     const domaineConfiance = estDomaineDeConfiance(domaine);
     const domaineGrandPublic = estDomaineGrandPublic(domaine);
 
@@ -1373,7 +1475,8 @@
     if (comptes.length > 0) {
       const changements = motsClesPresents(
         prep.texteAnalyse,
-        CHANGEMENT_COORDONNEES
+        CHANGEMENT_COORDONNEES,
+        prep.texteBrut
       );
 
       if (changements.length === 0) {
@@ -1438,7 +1541,8 @@
 
       const explicites = motsClesPresents(
         prep.texteAnalyse,
-        CHANGEMENT_BANCAIRE_EXPLICITE
+        CHANGEMENT_BANCAIRE_EXPLICITE,
+        prep.texteBrut
       );
 
       if (explicites.length === 0) {
@@ -1592,6 +1696,19 @@
         // Les additionner ferait passer à « élevé » un message sans la moindre
         // demande sensible — un salarié qui écrit depuis son adresse perso.
         remplace.push("domaine_grand_public");
+
+        // ⚠ L'USURPATION D'ANNUAIRE EST LA VERSION FORTE DE L'INCOHÉRENCE
+        //   NOM ↔ ADRESSE, PAS UN FAIT DE PLUS. Le détecteur d'identité dit
+        //   « l'adresse ne contient aucune forme du nom » (+30) ; celui-ci dit
+        //   « ce nom est celui d'un salarié et l'adresse est extérieure »
+        //   (+55). C'est le même constat, vérifié une fois de plus.
+        //
+        //   Les garder tous les deux avait deux effets, tous deux faux : le
+        //   score comptait 85 là où le fait ne vaut que 55, et l'interface
+        //   affichait deux fois le motif « Nom ↔ adresse » sur chaque ligne,
+        //   parce que les deux phrases commencent par « se présente au nom ».
+        remplace.push("incoherence_nom_adresse");
+
         liste.push({
           // 55 = « modéré » seul, et pas davantage : le fait est vérifiable
           // mais son interprétation ne l'est pas. Les homonymes existent — le
