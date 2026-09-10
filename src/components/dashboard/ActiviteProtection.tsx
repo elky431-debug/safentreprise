@@ -303,7 +303,7 @@ export function ActiviteProtection({
           </p>
         </Carte>
 
-        {/* b — score de risque global, extension comprise */}
+        {/* b — score de risque global, surveillance des boîtes comprise */}
         <Carte
           index={1}
           label="Score de risque"

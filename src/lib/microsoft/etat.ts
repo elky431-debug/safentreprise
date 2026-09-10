@@ -60,6 +60,31 @@ export type Raccordement = {
 };
 
 /**
+ * Une boîte est-elle RÉELLEMENT surveillée ?
+ *
+ * Les trois conditions ne disent pas la même chose, et il faut les trois :
+ *   `choisie` — le client la veut ;
+ *   `actif`   — la vérification de restriction l'a autorisée ;
+ *   `abonnee` — Microsoft nous envoie effectivement ses messages.
+ *
+ * ⚠ `actif` N'EST PAS REDONDANT AVEC `abonnee`. Un abonnement Graph survit
+ *   quelques jours à la mise hors service d'une boîte, et TOUTES les fonctions
+ *   d'ingestion exigent `b.actif` (20260826, 20260829, 20260903, 20260904…).
+ *   Une boîte abonnée mais inactive reçoit donc des notifications qui sont
+ *   refusées à l'entrée : rien n'est analysé, elle ne compte pas.
+ *
+ * ⚠ UNE SEULE DÉFINITION POUR TOUT LE PRODUIT. Le compteur de /microsoft et la
+ *   couverture qui allège l'axe technique du score doivent donner le même
+ *   nombre ; deux prédicats séparés finiraient par diverger, et le client
+ *   verrait « 3 boîtes surveillées » d'un côté et 2 de l'autre.
+ */
+export function estSurveillee(
+  b: Pick<BoiteEtat, "choisie" | "actif" | "abonnee">,
+): boolean {
+  return b.choisie && b.actif && b.abonnee;
+}
+
+/**
  * L'étape courante, déduite de ce qui existe réellement.
  *
  * ⚠ CHAQUE CONDITION PORTE UNE PROMESSE. Une boîte cochée n'est pas surveillée,
@@ -125,7 +150,7 @@ export function resumeRaccordement(r: Raccordement): string {
     case "activation":
       return "La restriction est vérifiée. Il reste à démarrer la surveillance — aucun message n'est analysé pour l'instant.";
     case "actif": {
-      const n = r.boites.filter((b) => b.choisie && b.abonnee).length;
+      const n = r.boites.filter(estSurveillee).length;
       return n === 1 ? "1 boîte surveillée." : `${n} boîtes surveillées.`;
     }
   }

@@ -22,7 +22,9 @@ import {
   riskLevel,
 } from "@/lib/risk";
 import { chargerScoreDynamique } from "@/lib/risk-dynamique";
-import { appliquerExtensionAuScore } from "@/lib/risk-extension";
+import { appliquerSurveillanceAuScore } from "@/lib/risk-surveillance";
+import { estSurveillee } from "@/lib/microsoft/etat";
+import { lireRaccordement } from "@/lib/microsoft/parcours";
 import { chargerAlertesGraph } from "@/lib/alertes";
 import type { Campaign, Company } from "@/lib/types";
 import { STATUT_LABELS } from "@/lib/campaigns";
@@ -58,7 +60,7 @@ export default async function DashboardPage() {
     { data: employeeRows },
     { data: campaignRows },
     menaces,
-    { data: activationRows },
+    raccordement,
     scoreDynamique,
   ] = await Promise.all([
     supabase.from("employees").select("id").eq("company_id", company.id),
@@ -68,11 +70,9 @@ export default async function DashboardPage() {
       .eq("company_id", company.id)
       .order("created_at", { ascending: false }),
     chargerAlertesGraph(supabase, company.id, LIMITE_MENACES),
-    // Lue pour le SCORE seulement, plus pour un compteur : voir plus bas.
-    supabase
-      .from("activations_extension")
-      .select("employe_email")
-      .eq("company_id", company.id),
+    // Alimente la couverture qui allège l'axe technique du score. L'appel est
+    // mémoïsé : `BandeauRaccordement` lit le même état sans seconde requête.
+    lireRaccordement(),
     chargerScoreDynamique(supabase, company.id),
   ]);
 
@@ -81,27 +81,18 @@ export default async function DashboardPage() {
   };
   const campaigns = (campaignRows ?? []) as CampagneListe[];
   const employes = employeeRows?.length ?? 0;
-  // ⚠ LE COMPTEUR DE POSTES ÉQUIPÉS A ÉTÉ RETIRÉ. Il comptait les activations
-  //   de l'extension Chrome, qui n'est plus déployée : il affichait donc zéro
-  //   chez tout client raccordé via Microsoft 365, et laissait croire à une
-  //   protection absente. La table `activations_extension` reste en place,
-  //   simplement plus lue ici.
+  // ⚠ LA COUVERTURE VIENT DES BOÎTES SURVEILLÉES, PLUS DE L'EXTENSION. L'axe
+  //   technique était allégé à proportion des postes ayant activé l'extension
+  //   Chrome, abandonnée : la couverture valait zéro chez tout client raccordé
+  //   via Microsoft 365, dont les boîtes sont pourtant analysées à chaque
+  //   message. La protection réelle ne comptait pour rien dans le calcul.
   //
-  // ⚠ LE SCORE DE RISQUE, LUI, DÉPEND ENCORE DE CE DÉPLOIEMENT. Voir plus bas
-  //   `appliquerExtensionAuScore` : l'axe technique est allégé à proportion de
-  //   la couverture de l'extension. Pour un client raccordé via Graph, cette
-  //   couverture vaut zéro et l'axe technique n'est jamais réduit — alors même
-  //   que ses boîtes sont surveillées. Le remplacer par la couverture des
-  //   boîtes surveillées est une décision de produit, pas une correction
-  //   d'écran : elle n'est pas prise ici.
-  //   Le calcul reste donc inchangé, y compris pour les sociétés qui ont
-  //   déployé l'extension par le passé : forcer zéro ici dégraderait leur
-  //   score du jour au lendemain, sans que rien n'ait changé chez elles.
-  const activations = new Set(
-    (activationRows ?? [])
-      .map((a) => (a.employe_email as string | null)?.trim().toLowerCase())
-      .filter((e): e is string => Boolean(e)),
-  ).size;
+  // ⚠ `estSurveillee` PLUTÔT QUE `choisie`. Une boîte cochée dont la
+  //   surveillance n'a jamais démarré n'analyse rien ; l'inclure allégerait le
+  //   score d'un client non protégé. Voir la définition dans
+  //   `@/lib/microsoft/etat` — c'est la même qui produit « n boîtes
+  //   surveillées » sur /microsoft, pour que les deux écrans concordent.
+  const boitesSurveillees = raccordement.boites.filter(estSurveillee).length;
 
   // Le graphique n'a besoin que de la date et du niveau : on n'envoie pas le
   // reste au client.
@@ -111,20 +102,16 @@ export default async function DashboardPage() {
     niveau_risque: m.niveau_risque,
   }));
 
-  // Score : l'axe technique est allégé à proportion du déploiement.
+  // Score : l'axe technique est allégé à proportion des boîtes surveillées.
   const scores = scoreDynamique.aQuestionnaire
-    ? appliquerExtensionAuScore({
+    ? appliquerSurveillanceAuScore({
         procedures: scoreDynamique.procedures,
         humain: scoreDynamique.humain,
         techniqueBase: scoreDynamique.technique,
-        activations,
+        boitesSurveillees,
         employes,
       })
     : null;
-
-  const couverturePct = Math.round(
-    (employes > 0 ? Math.min(1, activations / employes) : 0) * 100,
-  );
 
   return (
     <div className="w-full space-y-5">
@@ -212,7 +199,7 @@ export default async function DashboardPage() {
                           ? "Moyenne des collaborateurs (campagnes + inactivité)"
                           : categorie === "technique" &&
                               scores.reductionTechnique > 0
-                            ? `Renforcé par l'extension (${couverturePct} % de couverture)`
+                            ? `Renforcé par la surveillance (${boitesSurveillees} ${boitesSurveillees === 1 ? "boîte surveillée" : "boîtes surveillées"} sur ${employes} ${employes === 1 ? "collaborateur" : "collaborateurs"})`
                             : RISK_CATEGORY_HINTS[categorie]}
                       </span>
                     </span>
@@ -243,12 +230,12 @@ export default async function DashboardPage() {
             <div className="border-t border-border px-5 py-3.5">
               <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-muted">
                 <IconShieldCheck className="h-3.5 w-3.5 text-success" />
-                Sans l&apos;extension, le score global serait de{" "}
+                Sans la surveillance de vos boîtes, le score global serait de{" "}
                 <span className="tabular font-medium text-foreground">
-                  {scores.globalSansExtension}&nbsp;%
+                  {scores.globalSansSurveillance}&nbsp;%
                 </span>
                 <span className="tabular font-medium text-success">
-                  (−{scores.globalSansExtension - scores.global} pts)
+                  (−{scores.globalSansSurveillance - scores.global} pts)
                 </span>
               </p>
             </div>

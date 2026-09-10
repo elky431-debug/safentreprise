@@ -15,6 +15,7 @@
  * Tout ce qui est lu ici passe par la session du client : la RLS fait le
  * cloisonnement, et une société ne peut pas voir le raccordement d'une autre.
  */
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { deduireEtape, type BoiteEtat, type Raccordement } from "./etat";
 
@@ -46,7 +47,15 @@ type LigneTenant = {
   derniere_erreur: string | null;
 };
 
-export async function lireRaccordement(): Promise<Raccordement> {
+/**
+ * ⚠ MÉMOÏSÉ SUR LA DURÉE D'UNE REQUÊTE. Le tableau de bord l'appelle deux fois :
+ *   une fois pour `BandeauRaccordement`, une fois pour la couverture qui allège
+ *   l'axe technique du score. `cache()` de React ne garde rien entre deux
+ *   requêtes HTTP — chaque affichage de page relit donc la base, ce qui est
+ *   indispensable ici : le client revient sur cette page après que son
+ *   administrateur a agi ailleurs.
+ */
+export const lireRaccordement = cache(async function lireRaccordement(): Promise<Raccordement> {
   const supabase = await createClient();
 
   // Une société n'a qu'un locataire aujourd'hui ; on prend le plus récent pour
@@ -113,4 +122,4 @@ export async function lireRaccordement(): Promise<Raccordement> {
     derniere_erreur: tenant.derniere_erreur,
     boites,
   };
-}
+});
