@@ -8,9 +8,11 @@ import Image from "next/image";
  *   reconnaît la scène qui s'est jouée chez lui. Chaque bloc décrit donc ce
  *   qui arrive, pas ce que Safentreprise fait.
  *
- * ⚠ CES TROIS FRAUDES RECOUPENT LA SECTION « Les deux fraudes qui coûtent le
- *   plus » plus bas dans la page. Les deux disent la même chose du président
- *   et du fournisseur. L'une des deux devrait disparaître.
+ * ⚠ CE BLOC DIT LES FRAUDES EN GÉNÉRAL ; LES ONGLETS PAR SECTEUR, PLUS BAS,
+ *   LES DISENT MÉTIER PAR MÉTIER. Le doublon d'autrefois — « Les deux fraudes
+ *   qui coûtent le plus » — a disparu avec eux. Garder les deux n'a de sens
+ *   que tant que celui-ci reste général : y ajouter un secteur le ferait
+ *   redire ce que les onglets disent mieux.
  */
 const FRAUDES = [
   {

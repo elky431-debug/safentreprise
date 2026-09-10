@@ -7,6 +7,7 @@ import { Triptyque } from "@/components/Triptyque";
 import { TroisFraudes } from "@/components/TroisFraudes";
 import { ProtectionContinue } from "@/components/ProtectionContinue";
 import { FraudEmailExample } from "@/components/FraudEmailExample";
+import { SecteursOnglets } from "@/components/SecteursOnglets";
 import { Logo } from "@/components/Logo";
 import { LegalLinks } from "@/components/LegalLinks";
 import { buttonPrimary, buttonPrimaryLg } from "@/components/ui";
@@ -18,16 +19,6 @@ const STEPS = [
   { n: "03", title: "Formez ceux qui ont cliqué" },
 ];
 
-const SCENARIOS = [
-  {
-    title: "Arnaque au président",
-    text: "Un virement urgent et confidentiel, demandé au nom de la direction.",
-  },
-  {
-    title: "Faux fournisseur",
-    text: "Un changement de coordonnées bancaires sur un compte connu.",
-  },
-];
 
 const METRICS = [
   "Taux de clic",
@@ -51,8 +42,10 @@ export default async function HomePage() {
   }
 
   return (
-    // `theme-clair` bascule toute la vitrine en blanc. Il n'est posé que sur
-    // cette page : l'espace connecté garde le thème sombre.
+    // `theme-clair` est resté sur la vitrine par cohérence de lecture, mais
+    // il ne bascule plus rien : depuis l'alignement sur la charte, `:root`
+    // porte déjà le blanc. Il ne sert plus qu'aux îlots clairs des bandes
+    // marine, et à distinguer la police de la vitrine de celle de l'app.
     <div className="theme-clair flex min-h-screen flex-col bg-background">
       {/* Navigation */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
@@ -166,35 +159,17 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Scénarios */}
-        <section
-          id="scenarios"
-          className="border-t border-border px-6 py-20 md:py-24 lg:px-8"
-        >
-          <div className="mx-auto max-w-[1400px]">
-            <h2 className="mx-auto max-w-lg text-center text-[clamp(1.6rem,3vw,2.35rem)] font-extrabold leading-tight text-foreground">
-              Les deux fraudes qui coûtent le plus
-            </h2>
+        {/* Scénarios par secteur. La section porte encore l'ancre #scenarios :
+            elle est visée par la navigation et par des liens déjà diffusés. */}
+        <SecteursOnglets />
 
-            <div className="mt-14 grid gap-6 md:grid-cols-2">
-              {SCENARIOS.map((scenario) => (
-                <article
-                  key={scenario.title}
-                  className="rounded-[10px] border border-border bg-surface px-6 py-7"
-                >
-                  <h3 className="text-[16.5px] font-bold text-foreground">
-                    {scenario.title}
-                  </h3>
-                  <p className="mt-2.5 text-[13.5px] leading-relaxed text-muted">
-                    {scenario.text}
-                  </p>
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-6">
-              <FraudEmailExample />
-            </div>
+        {/* ⚠ CONSERVÉ SOUS LES ONGLETS, ET C'EST UNE DÉCISION À CONFIRMER.
+            L'aperçu de message frauduleux vivait dans la section remplacée. Le
+            supprimer au passage aurait retiré un contenu qui n'était pas visé
+            par la refonte ; il reste donc, en dessous. */}
+        <section className="border-t border-border px-6 py-16 md:py-20 lg:px-8">
+          <div className="mx-auto max-w-[1180px]">
+            <FraudEmailExample />
           </div>
         </section>
 

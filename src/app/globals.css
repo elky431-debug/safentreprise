@@ -152,6 +152,16 @@
   font-family: var(--font-inter), system-ui, "Segoe UI", Arial, sans-serif;
 }
 
+/* ⚠ POUR UN TITRE SERIF QUI N'EST NI h1 NI h2. La règle ci-dessous ne vise
+     que ces deux niveaux ; un h3 qui doit être en serif — le titre de scénario
+     des onglets par secteur, par exemple — passe par cette classe plutôt que
+     d'élargir le sélecteur, ce qui mettrait en serif tous les h3 de la
+     vitrine, y compris les cartes denses. */
+.serif-vitrine {
+  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.015em;
+}
+
 /* Titres de la vitrine : un serif de labeur, pas un serif d'affiche. */
 .theme-clair h1,
 .theme-clair h2,
