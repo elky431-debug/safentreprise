@@ -116,7 +116,7 @@ function Carte({ label, valeur, detail, icone, ton, part, index }: CarteProps) {
 
       {/* Jauge filiforme : 2 px, extrémités arrondies, part du total à droite */}
       <div className="relative mt-4 flex items-center gap-2.5">
-        <div className="h-[2px] flex-1 overflow-hidden rounded-full bg-white/[0.055]">
+        <div className="h-[2px] flex-1 overflow-hidden rounded-full bg-surface-3">
           <div
             className={`menace-jauge h-full rounded-full ${styles.jauge} ${
               vide ? "opacity-0" : "opacity-90"
@@ -127,7 +127,7 @@ function Carte({ label, valeur, detail, icone, ton, part, index }: CarteProps) {
         {part !== undefined && (
           <span
             className={`tabular shrink-0 text-[10.5px] leading-none ${
-              vide ? "text-faint/50" : "text-faint"
+              vide ? "text-faint" : "text-faint"
             }`}
           >
             {Math.round(part * 100)}%

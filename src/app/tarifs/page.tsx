@@ -44,11 +44,8 @@ export default function TarifsPage() {
         </div>
       </header>
 
+      {/* Le halo turquoise du thème sombre a disparu avec lui. */}
       <main className="relative isolate flex-1 overflow-hidden">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-          <div className="top-glow absolute inset-x-0 top-0 h-[420px]" />
-        </div>
-
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-20 lg:px-8">
           {/* En-tête */}
           <div className="max-w-2xl">

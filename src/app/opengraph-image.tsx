@@ -26,8 +26,8 @@ export default async function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "center",
           padding: "0 96px",
-          background: "#080808",
-          color: "#f5f5f4",
+          background: "#ffffff",
+          color: "#101828",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -49,7 +49,7 @@ export default async function OpengraphImage() {
           style={{
             marginTop: 22,
             fontSize: 30,
-            color: "#a1a1a1",
+            color: "#4a5567",
             maxWidth: 820,
             lineHeight: 1.4,
           }}
@@ -62,7 +62,7 @@ export default async function OpengraphImage() {
           style={{
             marginTop: 56,
             fontSize: 26,
-            color: "#5ecad4",
+            color: "#17356b",
             letterSpacing: "0.02em",
           }}
         >

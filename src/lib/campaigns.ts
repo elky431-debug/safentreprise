@@ -37,8 +37,8 @@ export const STATUT_LABELS: Record<StatutCampagne, string> = {
   envoyee: "Envoyée",
 };
 
-/** Couleur de charte par défaut (bleu canard Safentreprise). */
-export const COULEUR_MARQUE_DEFAUT = "#0e8593";
+/** Couleur de charte par défaut : le marine de la charte Safentreprise. */
+export const COULEUR_MARQUE_DEFAUT = "#17356b";
 
 /** Signature HTML de départ proposée à l'étape Marque. */
 export function signatureParDefaut(nomDirigeant: string, entreprise: string): string {

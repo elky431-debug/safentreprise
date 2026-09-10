@@ -2,47 +2,107 @@
 
 /* ==========================================================================
    Safentreprise — design tokens
-   Palette neutre froide, un seul bleu d'accent réservé aux actions.
+   ==========================================================================
+
+   ⚠ UNE SEULE CHARTE POUR TOUT LE PRODUIT. La vitrine et l'espace connecté
+     partagent désormais la même palette : blanc dominant, marine de marque,
+     texte presque noir. L'ancien thème sombre de l'application a disparu.
+
+   ⚠ LES TEINTES SE RÈGLENT ICI, DANS LE BLOC `--clair-*`, ET NULLE PART
+     AILLEURS. Ce bloc est la source ; tout le reste y fait référence, y
+     compris `.theme-clair`. Changer `--clair-accent` repeint les boutons, les
+     liens, les jauges et les graphiques de toutes les pages d'un coup.
+
+   ⚠ POURQUOI DEUX ÉTAGES PLUTÔT QU'UN. On pourrait poser les valeurs
+     directement sur `--background` et compagnie. Mais `.theme-clair` doit
+     pouvoir REVENIR au clair à l'intérieur d'une bande `.sur-marine` — c'est
+     ce que fait l'aperçu de messagerie de la vitrine. Il lui faut donc des
+     valeurs à réappliquer, et sans cet étage il faudrait les recopier.
    ========================================================================== */
 :root {
-  color-scheme: dark;
+  /* ---- La charte, source unique ---- */
 
-  /* Fonds — noir profond façon atelier */
-  --background: #080808;
-  --surface: #111111;
-  --surface-2: #161616;
-  --surface-3: #1c1c1c;
+  /* Fonds — blanc dominant, sans dégradé */
+  --clair-background: #ffffff;
+  --clair-surface: #ffffff;
+  --clair-surface-2: #f6f7f8;
+  --clair-surface-3: #eceef0;
 
-  /* Traits */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
+  /* Traits — gris clair, assez fins pour ne pas quadriller l'écran */
+  --clair-border: rgba(16, 20, 26, 0.1);
+  --clair-border-strong: rgba(16, 20, 26, 0.18);
 
-  /* Texte */
-  --foreground: #f5f5f4;
-  --muted: #a1a1a1;
-  --faint: #6b6b6b;
+  /* Texte — gris très foncé, jamais du noir pur */
+  --clair-foreground: #101828;
+  --clair-muted: #4a5567;
+  /* ⚠ PLUS SOMBRE QU'IL N'Y PARAÎT NÉCESSAIRE. Ce ton sert aux étiquettes de
+     11 px ; à #868d97 elles tombaient à 3,1:1 sur blanc, sous le seuil AA. */
+  --clair-faint: #6b7686;
 
-  /* Accent — bleu canard (actions) */
-  --accent: #0e8593;
-  --accent-contraste: #ffffff;
-  --accent-hover: #0c717d;
-  --accent-text: #5ecad4;
-  --accent-soft: rgba(14, 133, 147, 0.16);
-  --accent-line: rgba(94, 202, 212, 0.35);
+  /* Marque — bleu marine.
 
-  /* États */
-  --danger: #f0616d;
-  --danger-soft: rgba(240, 97, 109, 0.1);
-  --success: #3ec98a;
-  --success-soft: rgba(62, 201, 138, 0.1);
-  --warning: #e8b44a;
-  --warning-soft: rgba(232, 180, 74, 0.12);
+     ⚠ IL RESTE DISTINCT DU TEXTE, DE JUSTESSE. Le texte est presque noir ;
+       un marine plus profond (#0f2444, celui des bandes de la vitrine) ne se
+       distinguerait plus de lui dans un titre. D'où un marine plus bleu. */
+  --clair-accent: #17356b;
+  --clair-accent-hover: #0f2450;
+  --clair-accent-contraste: #ffffff;
+  --clair-accent-text: #17356b;
+  --clair-accent-soft: rgba(23, 53, 107, 0.07);
+  --clair-accent-line: rgba(23, 53, 107, 0.3);
 
-  /* Relief : liseré haut clair + ombre courte, appliqués aux cartes */
-  --relief:
-    inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 1px 2px rgba(0, 0, 0, 0.5);
-  --relief-haut:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 28px -12px rgba(0, 0, 0, 0.8);
+  /* États — le rouge est celui de la bannière d'alerte du produit.
+     ⚠ RÉSERVÉS AUX ALERTES ET AUX NIVEAUX DE RISQUE. Ce ne sont pas des
+       couleurs décoratives : élevé en rouge, modéré en ambre, faible en gris. */
+  --clair-danger: #c0392b;
+  --clair-danger-soft: rgba(192, 57, 43, 0.08);
+  --clair-success: #14804a;
+  --clair-success-soft: rgba(20, 128, 74, 0.09);
+  --clair-warning: #8f5f00;
+  --clair-warning-soft: rgba(143, 95, 0, 0.1);
+
+  /* Relief — une ombre que l'on devine, pas que l'on voit. */
+  --clair-relief: 0 1px 2px rgba(16, 20, 26, 0.06);
+  --clair-relief-haut: 0 12px 32px -16px rgba(16, 20, 26, 0.18);
+
+  /* ⚠ LE MARINE DES BANDES N'EST PAS L'ACCENT. Celui-ci sert de FOND — bandes
+     de la vitrine, voile de la photo, bande de motifs — et doit donc être plus
+     profond que `--clair-accent`, qui sert d'ENCRE sur blanc. Deux rôles, deux
+     valeurs ; les confondre rend soit les bandes délavées, soit les titres
+     illisibles. */
+  --marine: #0f2444;
+
+  /* ---- Application par défaut ---- */
+  color-scheme: light;
+
+  --background: var(--clair-background);
+  --surface: var(--clair-surface);
+  --surface-2: var(--clair-surface-2);
+  --surface-3: var(--clair-surface-3);
+
+  --border: var(--clair-border);
+  --border-strong: var(--clair-border-strong);
+
+  --foreground: var(--clair-foreground);
+  --muted: var(--clair-muted);
+  --faint: var(--clair-faint);
+
+  --accent: var(--clair-accent);
+  --accent-contraste: var(--clair-accent-contraste);
+  --accent-hover: var(--clair-accent-hover);
+  --accent-text: var(--clair-accent-text);
+  --accent-soft: var(--clair-accent-soft);
+  --accent-line: var(--clair-accent-line);
+
+  --danger: var(--clair-danger);
+  --danger-soft: var(--clair-danger-soft);
+  --success: var(--clair-success);
+  --success-soft: var(--clair-success-soft);
+  --warning: var(--clair-warning);
+  --warning-soft: var(--clair-warning-soft);
+
+  --relief: var(--clair-relief);
+  --relief-haut: var(--clair-relief-haut);
 }
 
 @theme inline {
@@ -81,22 +141,12 @@
 }
 
 /* ==========================================================================
-   Thème clair — la vitrine publique
-   ==========================================================================
-
-   ⚠ IL REDÉFINIT LES MÊMES VARIABLES, IL N'EN CRÉE AUCUNE. Posé sur un
-     conteneur, il bascule tout ce qu'il contient sans qu'aucun composant ait
-     à savoir dans quel thème il est rendu. C'est ce qui permet à la landing
-     d'être blanche pendant que l'espace connecté reste noir : les tokens de
-     `:root` ne bougent pas, et le tableau de bord avec eux.
-
-     Toute variable ajoutée à `:root` doit donc l'être ici aussi. Un oubli ne
-     casse rien de visible côté sombre — la valeur sombre est simplement
-     héritée en plein milieu du blanc.
+   Vitrine publique — police et îlots clairs
    ========================================================================== */
-/* ⚠ LA POLICE FAIT PARTIE DU THÈME, ET ELLE S'ARRÊTE AVEC LUI. La vitrine
-     est en grotesque neutre ; l'espace connecté reste sur Jakarta, hors de ce
-     conteneur. */
+/* ⚠ LA POLICE DISTINGUE ENCORE LES DEUX ESPACES, LA COULEUR NON. Depuis que
+     l'application est claire, `.theme-clair` ne change plus la palette d'une
+     page ; il ne reste que la typographie — Inter sur la vitrine, Jakarta dans
+     l'espace connecté. */
 .theme-clair,
 .sur-marine {
   font-family: var(--font-inter), system-ui, "Segoe UI", Arial, sans-serif;
@@ -111,66 +161,49 @@
   letter-spacing: -0.015em;
 }
 
+/* ⚠ IL NE SERT PLUS QU'À REVENIR AU CLAIR DANS UNE BANDE MARINE. Depuis que
+     `:root` porte la charte claire, poser cette classe sur une page ne change
+     rien — elle reste sur la vitrine par cohérence de lecture. Son seul rôle
+     actif est l'îlot clair au milieu d'un `.sur-marine` : l'aperçu de
+     messagerie et le comparateur avant/après s'en servent.
+
+   ⚠ IL RÉAPPLIQUE, IL NE REDÉFINIT PAS. Chaque valeur pointe sur le bloc
+     `--clair-*` de `:root`. Une teinte ajustée là-haut se propage ici sans
+     rien à recopier. */
 .theme-clair {
   color-scheme: light;
 
-  /* Fonds — blanc pur, demandé sans gris ni dégradé */
-  --background: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #f6f7f8;
-  --surface-3: #eceef0;
+  --background: var(--clair-background);
+  --surface: var(--clair-surface);
+  --surface-2: var(--clair-surface-2);
+  --surface-3: var(--clair-surface-3);
 
-  /* Traits */
-  --border: rgba(16, 20, 26, 0.1);
-  --border-strong: rgba(16, 20, 26, 0.18);
+  --border: var(--clair-border);
+  --border-strong: var(--clair-border-strong);
 
-  /* Texte — gris très foncé, jamais du noir pur */
-  --foreground: #101828;
-  --muted: #4a5567;
-  /* Plus sombre que le gris sombre correspondant : les étiquettes `.eyebrow`
-     sont en 11 px, #868d97 tombait à 3,1:1 sur blanc. */
-  --faint: #6b7686;
+  --foreground: var(--clair-foreground);
+  --muted: var(--clair-muted);
+  --faint: var(--clair-faint);
 
-  /* Accent — bleu marine, couleur de marque.
+  --accent: var(--clair-accent);
+  --accent-hover: var(--clair-accent-hover);
+  --accent-contraste: var(--clair-accent-contraste);
+  --accent-text: var(--clair-accent-text);
+  --accent-soft: var(--clair-accent-soft);
+  --accent-line: var(--clair-accent-line);
 
-     ⚠ IL RESTE LISIBLE À CÔTÉ DU TEXTE COURANT, DE JUSTESSE. Le texte est
-       presque noir et l'accent est un bleu sombre : un marine plus profond
-       (#0F2444, celui des bandes) ne se distinguerait plus du texte dans un
-       titre. C'est pourquoi l'accent est plus bleu que les bandes. */
-  --accent: #17356b;
-  --accent-hover: #0f2450;
-  --accent-contraste: #ffffff;
-  --accent-text: #17356b;
-  --accent-soft: rgba(23, 53, 107, 0.07);
-  --accent-line: rgba(23, 53, 107, 0.3);
+  --danger: var(--clair-danger);
+  --danger-soft: var(--clair-danger-soft);
+  --success: var(--clair-success);
+  --success-soft: var(--clair-success-soft);
+  --warning: var(--clair-warning);
+  --warning-soft: var(--clair-warning-soft);
 
-  /* États — mêmes teintes, ramenées à un contraste lisible sur blanc.
-     Le rouge est celui de la bannière du produit. */
-  --danger: #c0392b;
-  --danger-soft: rgba(192, 57, 43, 0.08);
-  --success: #14804a;
-  --success-soft: rgba(20, 128, 74, 0.09);
-  --warning: #9a6700;
-  --warning-soft: rgba(154, 103, 0, 0.1);
+  --relief: var(--clair-relief);
+  --relief-haut: var(--clair-relief-haut);
 
-  --relief:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(16, 20, 26, 0.06);
-  --relief-haut: 0 12px 32px -16px rgba(16, 20, 26, 0.18);
-}
-
-/* ⚠ LE CORPS DE PAGE RESTE SOMBRE SOUS LA VITRINE. `body` porte le fond de
-     `:root`, en dehors du conteneur clair : il n'apparaît qu'au rebond de
-     défilement, mais il y apparaît en noir sous une page blanche. On le
-     remet au blanc dès qu'une page claire est présente. */
-body:has(.theme-clair) {
-  background: #ffffff;
-}
-
-/* Les fonds décoratifs du thème sombre n'ont plus d'objet : le ciel étoilé
-   devient invisible et le halo salit le blanc. */
-.theme-clair .starfield,
-.theme-clair .top-glow {
-  display: none;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 /* ==========================================================================
@@ -183,13 +216,12 @@ body:has(.theme-clair) {
 
      Un encart qui doit rester clair sur une bande marine — l'aperçu de
      messagerie, par exemple — se remet en clair en reposant `theme-clair`
-     dessus. C'est voulu : une simulation de boîte mail est claire, quel que
-     soit le fond de la section qui la porte.
+     dessus.
    ========================================================================== */
 .sur-marine {
   color-scheme: dark;
 
-  --background: #0f2444;
+  --background: var(--marine);
   --surface: rgba(255, 255, 255, 0.06);
   --surface-2: rgba(255, 255, 255, 0.09);
   --surface-3: rgba(255, 255, 255, 0.13);
@@ -204,7 +236,7 @@ body:has(.theme-clair) {
   /* Sur marine, l'action est blanche et son texte redevient marine. */
   --accent: #ffffff;
   --accent-hover: rgba(255, 255, 255, 0.88);
-  --accent-contraste: #0f2444;
+  --accent-contraste: var(--marine);
   --accent-text: #a9c6ef;
   --accent-soft: rgba(255, 255, 255, 0.1);
   --accent-line: rgba(255, 255, 255, 0.32);
@@ -216,10 +248,11 @@ body:has(.theme-clair) {
   color: var(--foreground);
 }
 
-.sur-marine .top-glow {
-  display: none;
-}
-
+/* ⚠ RÈGLE SANS COUCHE, ET ELLE BAT TOUTES LES UTILITAIRES. `border-color` posé
+     sur `*` n'est dans aucun `@layer` : il l'emporte sur n'importe quelle
+     utilitaire Tailwind de couleur de bordure, quelle que soit la spécificité.
+     Une bordure de couleur particulière doit donc passer par un style en ligne
+     ou par une règle CSS de classe. */
 * {
   border-color: var(--border);
 }
@@ -231,6 +264,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ⚠ LE SERIF S'ARRÊTE AUX TITRES DE PAGE. C'est la seule serif de l'espace
+     connecté : titres de panneaux, en-têtes de tableaux et corps restent en
+     Jakarta. L'étendre aux h2/h3 rendrait les écrans denses — menaces,
+     collaborateurs — nettement moins lisibles à petite taille. */
+.titre-page {
+  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.015em;
+}
+
 /* Titres serifs — greetings et titres de widgets */
 .font-display {
   font-family: var(--font-instrument), Georgia, "Times New Roman", serif;
@@ -239,7 +281,7 @@ body {
   text-wrap: balance;
 }
 
-/* Canevas de l'espace connecté — noir uni, sans grille */
+/* Canevas de l'espace connecté — aplat blanc, sans grille */
 .app-canvas {
   position: relative;
   isolation: isolate;
@@ -295,107 +337,6 @@ h3 {
   color: var(--faint);
 }
 
-/* Cursive, réservée à une seule ligne de titre */
-.font-script {
-  font-family: var(--font-sacramento), cursive;
-  letter-spacing: 0;
-  font-weight: 400;
-}
-
-/* --------------------------------------------------------------------------
-   Ciel étoilé — deux couches de tuiles de tailles premières
-   pour éviter un motif visiblement répété
-   -------------------------------------------------------------------------- */
-.starfield {
-  position: absolute;
-  inset: 0;
-  mask-image: linear-gradient(to bottom, black 72%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 72%, transparent 100%);
-}
-
-.starfield::before,
-.starfield::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-repeat: repeat;
-}
-
-/* Couche lointaine : petites étoiles nombreuses */
-.starfield::before {
-  background-image:
-    radial-gradient(1px 1px at 14px 27px, rgba(255, 255, 255, 0.75), transparent),
-    radial-gradient(1px 1px at 88px 61px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 141px 19px, rgba(255, 255, 255, 0.65), transparent),
-    radial-gradient(1px 1px at 196px 88px, rgba(255, 255, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 41px 104px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 118px 134px, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1px 1px at 231px 47px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1px 1px at 172px 163px, rgba(255, 255, 255, 0.52), transparent),
-    radial-gradient(1px 1px at 62px 182px, rgba(255, 255, 255, 0.62), transparent),
-    radial-gradient(1px 1px at 249px 121px, rgba(255, 255, 255, 0.44), transparent),
-    radial-gradient(1px 1px at 9px 148px, rgba(255, 255, 255, 0.55), transparent),
-    radial-gradient(1px 1px at 208px 196px, rgba(255, 255, 255, 0.48), transparent),
-    radial-gradient(1px 1px at 133px 217px, rgba(255, 255, 255, 0.68), transparent),
-    radial-gradient(1px 1px at 34px 236px, rgba(255, 255, 255, 0.42), transparent),
-    radial-gradient(1px 1px at 262px 228px, rgba(255, 255, 255, 0.58), transparent),
-    radial-gradient(1px 1px at 96px 258px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 181px 271px, rgba(255, 255, 255, 0.64), transparent),
-    radial-gradient(1px 1px at 24px 289px, rgba(255, 255, 255, 0.46), transparent);
-  background-size: 283px 307px;
-  animation: twinkle 6s ease-in-out infinite;
-}
-
-/* Couche proche : étoiles plus grosses, plus lumineuses */
-.starfield::after {
-  background-image:
-    radial-gradient(1.8px 1.8px at 47px 58px, rgba(255, 255, 255, 0.95), transparent),
-    radial-gradient(1.6px 1.6px at 163px 112px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(1.8px 1.8px at 271px 44px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1.5px 1.5px at 92px 189px, rgba(255, 255, 255, 0.72), transparent),
-    radial-gradient(1.8px 1.8px at 218px 233px, rgba(255, 255, 255, 0.85), transparent),
-    radial-gradient(1.6px 1.6px at 328px 156px, rgba(255, 255, 255, 0.78), transparent),
-    radial-gradient(1.5px 1.5px at 21px 271px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1.8px 1.8px at 141px 318px, rgba(255, 255, 255, 0.88), transparent),
-    radial-gradient(1.6px 1.6px at 302px 297px, rgba(255, 255, 255, 0.75), transparent);
-  background-size: 419px 397px;
-  animation: twinkle 9s ease-in-out infinite reverse;
-}
-
-@keyframes twinkle {
-  0%,
-  100% {
-    opacity: 0.75;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* --------------------------------------------------------------------------
-   Fonds décoratifs — discrets, sans halo coloré
-   -------------------------------------------------------------------------- */
-.hairline-grid {
-  background-image:
-    linear-gradient(to right, var(--border) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent 75%);
-  -webkit-mask-image: radial-gradient(
-    ellipse 70% 60% at 50% 0%,
-    black,
-    transparent 75%
-  );
-}
-
-.top-glow {
-  background: radial-gradient(
-    ellipse 55% 45% at 50% -10%,
-    rgba(14, 127, 140, 0.2),
-    transparent 70%
-  );
-}
-
 /* --------------------------------------------------------------------------
    Apparition au chargement (sans JS, reste visible si CSS bloqué)
    -------------------------------------------------------------------------- */
@@ -428,8 +369,6 @@ h3 {
 
 @media (prefers-reduced-motion: reduce) {
   .rise,
-  .starfield::before,
-  .starfield::after,
   .results-kpi,
   .results-row,
   .results-bar-fill,

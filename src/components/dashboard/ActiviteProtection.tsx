@@ -274,7 +274,7 @@ export function ActiviteProtection({
                 className={`inline-flex h-7 items-center rounded-md px-2.5 text-[12.5px] font-medium transition-[background-color,color,box-shadow] duration-200 ${
                   actif
                     ? "bg-accent-soft text-accent-text ring-1 ring-accent-line/50"
-                    : "text-muted hover:bg-white/[0.04] hover:text-foreground"
+                    : "text-muted hover:bg-surface-2 hover:text-foreground"
                 }`}
               >
                 {p.label}

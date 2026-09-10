@@ -138,7 +138,7 @@ function Sidebar({ companyName, userEmail }: SidebarProps) {
 
   return (
     <aside className="relative z-30 hidden w-[72px] shrink-0 lg:block">
-      <div className="group/sidebar absolute inset-y-0 left-0 flex h-full w-[72px] flex-col border-r border-border bg-surface shadow-none transition-[width,box-shadow] duration-200 ease-out hover:w-[232px] hover:shadow-[8px_0_24px_-12px_rgba(0,0,0,0.65)]">
+      <div className="group/sidebar absolute inset-y-0 left-0 flex h-full w-[72px] flex-col border-r border-border bg-surface shadow-none transition-[width,box-shadow] duration-200 ease-out hover:w-[232px] hover:shadow-[8px_0_24px_-14px_rgba(16,20,26,0.22)]">
         {/* Logo */}
         <div className="flex h-14 shrink-0 items-center border-b border-border px-3 group-hover/sidebar:px-4">
           <Link
@@ -201,10 +201,15 @@ function Sidebar({ companyName, userEmail }: SidebarProps) {
                               : "text-muted hover:bg-surface-2 hover:text-foreground"
                           }`}
                         >
+                          {/* ⚠ LE REPÈRE MARINE EST VISIBLE EN PERMANENCE. Il
+                              ne s'affichait qu'au survol de la barre : sur le
+                              rail replié de 72 px, l'écran courant ne se
+                              signalait plus que par un fond à 7 % d'opacité,
+                              indiscernable sur blanc. */}
                           {active && (
                             <span
                               aria-hidden
-                              className="absolute inset-y-[20%] left-0 w-[2px] rounded-full bg-accent-text opacity-0 group-hover/sidebar:opacity-100"
+                              className="absolute inset-y-[18%] left-0 w-[3px] rounded-full bg-accent"
                             />
                           )}
                           <span className="flex w-10 shrink-0 items-center justify-center self-stretch">

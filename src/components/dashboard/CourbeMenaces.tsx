@@ -192,7 +192,7 @@ export function CourbeMenaces({ points }: Props) {
                 y2={y}
                 stroke="currentColor"
                 strokeWidth="1"
-                className="text-white/[0.055]"
+                className="text-border"
               />
               <text
                 x={MARGE.gauche - 8}
@@ -230,7 +230,7 @@ export function CourbeMenaces({ points }: Props) {
               stroke="currentColor"
               strokeWidth="1"
               strokeDasharray="3 3"
-              className="text-white/20"
+              className="text-border-strong"
             />
             <circle
               cx={coordActive.x}

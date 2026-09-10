@@ -135,7 +135,7 @@ export async function POST(
     }
   }
 
-  const couleur = branding?.couleur_principale ?? "#0e8593";
+  const couleur = branding?.couleur_principale ?? "#17356b";
   const signatureHtml = branding?.signature_html ?? "";
   const logoUrl = branding?.logo_url ?? null;
   const nomFournisseur = supplier?.nom ?? "";

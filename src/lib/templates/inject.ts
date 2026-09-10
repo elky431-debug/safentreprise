@@ -57,7 +57,7 @@ export function injecterVariables(
     "{nom_fournisseur}": echapperHtml(variables.nomFournisseur || "Fournisseur"),
     "{prenom_employe}": echapperHtml(variables.prenomEmploye),
     "{signature}": signature,
-    "{couleur}": echapperAttr(variables.couleur || "#0e8593"),
+    "{couleur}": echapperAttr(variables.couleur || "#17356b"),
   };
 
   let resultat = gabarit;

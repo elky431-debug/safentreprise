@@ -17,12 +17,12 @@ export function AuthShell({ title, subtitle, children, footer }: Props) {
   return (
     <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[1.05fr_1fr]">
       {/* Panneau de contexte */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface px-10 py-10 lg:flex xl:px-14">
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="hairline-grid absolute inset-0" />
-          <div className="top-glow absolute inset-x-0 top-0 h-80" />
-        </div>
-
+      {/* ⚠ LES DEUX DÉCORS DE FOND ONT ÉTÉ RETIRÉS AVEC LE THÈME SOMBRE : une
+          grille de traits et un halo turquoise, tous deux pensés pour du noir.
+          Sur blanc, la grille salissait et le halo teintait la page d'une
+          couleur qui n'est plus celle de la marque. Le panneau est désormais
+          un aplat gris très clair, comme le reste de la charte. */}
+      <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface-2 px-10 py-10 lg:flex xl:px-14">
         <Link href="/" className="relative">
           <Logo />
         </Link>

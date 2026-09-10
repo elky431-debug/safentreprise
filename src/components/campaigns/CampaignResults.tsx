@@ -750,14 +750,14 @@ function KpiCard({
     <article
       className={`results-kpi results-kpi-${index} relative overflow-hidden rounded-xl border px-4 py-4 transition-colors duration-200 ${
         featured
-          ? "border-accent-line bg-surface shadow-[0_0_0_1px_rgba(14,133,147,0.12),0_8px_28px_-16px_rgba(14,133,147,0.45)]"
+          ? "border-accent-line bg-surface shadow-[0_0_0_1px_rgba(23,53,107,0.1),0_8px_28px_-18px_rgba(23,53,107,0.35)]"
           : "border-border bg-surface hover:border-border-strong"
       }`}
     >
       {featured && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_100%_0%,rgba(14,133,147,0.14),transparent_55%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_100%_0%,rgba(23,53,107,0.07),transparent_55%)]"
         />
       )}
       <div className="relative flex items-start justify-between gap-2">
@@ -812,16 +812,20 @@ function ScoreRing({
     <div className="relative h-[132px] w-[132px]">
       <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90" aria-hidden>
         <defs>
+          {/* ⚠ LES DEUX BORNES SONT DES TOKENS, PAS DES HEX. Le dégradé partait
+              d'un turquoise en dur et finissait sur trois couleurs en dur : il
+              a survécu au passage en clair sans que rien ne le signale. Passer
+              par les variables le fait suivre la charte. */}
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#5ecad4" />
+            <stop offset="0%" stopColor="var(--accent-line)" />
             <stop
               offset="100%"
               stopColor={
                 ton === "danger"
-                  ? "#f0616d"
+                  ? "var(--danger)"
                   : ton === "warning"
-                    ? "#e8b44a"
-                    : "#0e8593"
+                    ? "var(--warning)"
+                    : "var(--accent)"
               }
             />
           </linearGradient>

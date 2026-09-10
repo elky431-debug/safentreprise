@@ -237,7 +237,7 @@ export function MenacesTable({ alertes: menaces }: Props) {
                   className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-[background-color,color,box-shadow] duration-200 ${
                     actif
                       ? `${f.actif} ring-1`
-                      : "text-muted hover:bg-white/[0.04] hover:text-foreground"
+                      : "text-muted hover:bg-surface-2 hover:text-foreground"
                   }`}
                 >
                   {f.label}
@@ -246,7 +246,7 @@ export function MenacesTable({ alertes: menaces }: Props) {
                       actif
                         ? "opacity-60"
                         : vide
-                          ? "text-faint/40"
+                          ? "text-faint"
                           : "text-faint"
                     }`}
                   >
@@ -293,7 +293,7 @@ export function MenacesTable({ alertes: menaces }: Props) {
                   <Fragment key={menace.id}>
                     <tr
                       className={`menace-row group border-b border-border align-top transition-colors duration-200 last:border-0 ${
-                        estOuverte ? "bg-surface-2/60" : "hover:bg-white/[0.022]"
+                        estOuverte ? "bg-surface-2/60" : "hover:bg-surface-2/60"
                       }`}
                       /* Cascade plafonnée : au-delà de 12 lignes, plus de délai */
                       style={{ animationDelay: `${Math.min(rang, 12) * 35}ms` }}
@@ -350,7 +350,7 @@ export function MenacesTable({ alertes: menaces }: Props) {
                         </p>
                         {menace.nom_signe && (
                           <p className="mt-2 flex items-baseline gap-1.5 truncate">
-                            <span className="shrink-0 font-mono text-[9.5px] uppercase tracking-[0.12em] text-faint/60">
+                            <span className="shrink-0 font-mono text-[9.5px] uppercase tracking-[0.12em] text-faint">
                               signé
                             </span>
                             <span className="truncate text-[11.5px] text-muted">

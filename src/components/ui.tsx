@@ -14,14 +14,18 @@ const buttonBase =
 
 export const buttonPrimary = `${buttonBase} h-10 bg-accent px-4 text-accent-contraste hover:bg-accent-hover`;
 
-export const buttonSecondary = `${buttonBase} h-10 border border-border-strong bg-transparent px-4 text-foreground hover:bg-surface-2`;
+/* ⚠ LE SECONDAIRE EST EN ENCRE MARINE, PAS EN TEXTE COURANT. C'est ce qui le
+   distingue d'un simple cadre gris et le rattache au bouton principal. Sur une
+   bande marine, `--accent-text` devient bleu pâle : le bouton reste lisible
+   sans qu'il y ait de variante à écrire. */
+export const buttonSecondary = `${buttonBase} h-10 border border-border-strong bg-surface px-4 text-accent-text hover:bg-surface-2`;
 
 export const buttonGhost = `${buttonBase} h-10 px-3 text-muted hover:bg-surface-2 hover:text-foreground`;
 
 /** Variante haute, réservée aux appels à l'action de la landing. */
 export const buttonPrimaryLg = `${buttonBase} h-11 bg-accent px-5 text-sm text-accent-contraste hover:bg-accent-hover`;
 
-export const buttonSecondaryLg = `${buttonBase} h-11 border border-border-strong px-5 text-sm text-foreground hover:bg-surface-2`;
+export const buttonSecondaryLg = `${buttonBase} h-11 border border-border-strong bg-surface px-5 text-sm text-accent-text hover:bg-surface-2`;
 
 /* --------------------------------------------------------------------------
    Champs de formulaire
@@ -128,7 +132,7 @@ export function PageHeader({
 }) {
   return (
     <header className="mb-9">
-      <h1 className="text-[28px] font-semibold tracking-[-0.04em] text-foreground">
+      <h1 className="titre-page text-[28px] font-semibold text-foreground">
         {title}
       </h1>
       {description && (

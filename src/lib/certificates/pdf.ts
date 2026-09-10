@@ -45,7 +45,7 @@ export async function genererPdfAttestation(
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-  const accent = rgb(0.055, 0.522, 0.576); // #0e8593
+  const accent = rgb(0.09, 0.208, 0.42); // #17356b
   const ink = rgb(0.12, 0.14, 0.16);
   const muted = rgb(0.4, 0.43, 0.46);
   const { width, height } = page.getSize();

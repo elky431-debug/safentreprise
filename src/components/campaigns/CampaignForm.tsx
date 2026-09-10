@@ -139,7 +139,7 @@ export function CampaignForm({
 
     if (etape === "marque") {
       if (!/^#[0-9A-Fa-f]{6}$/.test(couleur.trim())) {
-        setError("La couleur doit être un code hexadécimal (#0e8593).");
+        setError("La couleur doit être un code hexadécimal (#17356b).");
         return;
       }
       setEtape("cibles");
@@ -566,7 +566,7 @@ export function CampaignForm({
                     className={inputClass}
                     value={couleur}
                     onChange={(e) => setCouleur(e.target.value)}
-                    placeholder="#0e8593"
+                    placeholder="#17356b"
                   />
                 </div>
               </label>

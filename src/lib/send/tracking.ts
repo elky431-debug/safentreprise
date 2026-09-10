@@ -85,7 +85,7 @@ export function injecterLiensSuivi(
     const bouton =
       `<p style="margin:24px 0;text-align:center;">` +
       `<a href="${lienPiege}" style="display:inline-block;padding:12px 22px;` +
-      `background:#0e8593;color:#ffffff;text-decoration:none;border-radius:6px;` +
+      `background:#17356b;color:#ffffff;text-decoration:none;border-radius:6px;` +
       `font-size:14px;font-weight:600;">Ouvrir le document</a></p>`;
     out = /<\/body>/i.test(out)
       ? out.replace(/<\/body>/i, `${bouton}</body>`)
