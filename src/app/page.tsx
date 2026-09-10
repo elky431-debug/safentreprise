@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LandingHero } from "@/components/LandingHero";
+import { BandeMotifs } from "@/components/BandeMotifs";
 import { Triptyque } from "@/components/Triptyque";
 import { TroisFraudes } from "@/components/TroisFraudes";
 import { ProtectionContinue } from "@/components/ProtectionContinue";
@@ -118,6 +119,13 @@ export default async function HomePage() {
 
       <main className="flex-1">
         <LandingHero />
+
+        {/* ⚠ SEULE EXCEPTION À L'ALTERNANCE, ET ELLE EST VOULUE. La bande est
+            marine et « Trois fraudes » l'est aussi : les deux se touchent donc,
+            au lieu d'alterner. Elles se lisent comme un seul bloc marine dont
+            la bande est l'en-tête — ce qui est l'effet recherché. Un filet
+            très pâle marque la jointure pour que ce ne soit pas un aplat. */}
+        <BandeMotifs />
 
         {/* ⚠ L'ALTERNANCE EST PORTÉE PAR LES SECTIONS, DANS CET ORDRE. Blanc,
             marine, blanc, marine, jusqu'en bas. Insérer ou retirer une section

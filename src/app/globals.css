@@ -443,6 +443,174 @@ h3 {
 }
 
 /* --------------------------------------------------------------------------
+   Bande de motifs défilants (landing, sous le hero)
+   --------------------------------------------------------------------------
+
+   ⚠ TOUT EST STYLÉ ICI, EN CSS, PLUTÔT QU'EN UTILITAIRES TAILWIND. La règle
+     `* { border-color: var(--border) }` plus haut n'est dans aucune couche :
+     elle bat toutes les utilitaires de couleur de bordure, quelle que soit
+     leur spécificité. Un sélecteur de classe (0,1,0) passe devant `*` (0,0,0)
+     et rend la bordure des pastilles prévisible.
+
+   ⚠ LA BOUCLE EST INVISIBLE PARCE QUE LA PISTE PORTE DEUX SÉRIES IDENTIQUES
+     et se translate de −50 % : la piste revient exactement sur elle-même. Cela
+     n'est vrai QUE si les deux séries ont la même largeur au pixel près — d'où
+     l'espacement porté par `margin-inline-end` sur chaque pastille et non par
+     un `gap` sur la piste. Un `gap` ne se place pas après la dernière pastille
+     d'une série : les deux moitiés cesseraient d'être égales et la boucle
+     sauterait à chaque tour.
+   -------------------------------------------------------------------------- */
+
+.bande-motifs {
+  /* Largeur du fondu de chaque côté. */
+  --fondu: 120px;
+  /* Espace entre deux pastilles ; il fait partie de la largeur d'une série. */
+  --espace: 12px;
+
+  /* La section suivante est marine elle aussi : sans ce filet, les deux
+     forment un aplat de plusieurs centaines de pixels sans articulation. */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.bande-motifs__intitule {
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--faint);
+}
+
+/* Le cadre découpe le défilement et porte le fondu des deux bords.
+   Un masque plutôt qu'un calque de dégradé : il fait disparaître la pastille
+   elle-même, sans dépendre de la teinte exacte du fond derrière. */
+.bande-motifs__cadre {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fondu),
+    #000 calc(100% - var(--fondu)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fondu),
+    #000 calc(100% - var(--fondu)),
+    transparent
+  );
+}
+
+.bande-motifs__piste {
+  display: flex;
+  width: max-content;
+  /* `transform` seul : jamais `left` ni `margin`, qui referaient la mise en
+     page à chaque image et sortiraient l'animation du compositeur. */
+  animation: defilement-motifs 40s linear infinite;
+  will-change: transform;
+}
+
+@keyframes defilement-motifs {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.bande-motifs__serie {
+  display: flex;
+  flex-shrink: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bande-motifs__pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  margin-inline-end: var(--espace);
+  padding: 9px 17px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+  color: #ffffff;
+  font-size: 13.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Le voyant. Petit, mat, sans halo : un bandeau publicitaire commence par un
+   point qui brille. */
+.bande-motifs__voyant {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #f2564d;
+}
+
+/* Arrêt au survol.
+   Repli SANS JavaScript : la pause est sèche, mais elle a lieu. Dès que le
+   composant est monté il pose `data-anime="js"` et prend la main pour
+   ralentir progressivement (voir BandeMotifs.tsx) ; cette règle se retire
+   alors d'elle-même, sinon les deux mécanismes se contrediraient. */
+.bande-motifs:not([data-anime="js"]):hover .bande-motifs__piste {
+  animation-play-state: paused;
+}
+
+/* Mouvement réduit : la bande devient une liste centrée, sur plusieurs lignes.
+   Le fondu des bords disparaît avec le défilement — il n'y a plus rien à
+   couper — et la série dupliquée n'aurait aucun sens en statique. */
+@media (prefers-reduced-motion: reduce) {
+  .bande-motifs__cadre {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .bande-motifs__piste {
+    animation: none;
+    width: auto;
+    justify-content: center;
+  }
+
+  /* ⚠ `flex-shrink` DOIT REVENIR À 1. La série est un élément flexible de la
+     piste, figé à `flex-shrink: 0` pour le défilement. Laissé tel quel, il
+     garde sa largeur d'une seule ligne — 1940 px — et se fait couper par le
+     cadre au lieu de se replier : le lecteur qui a désactivé les animations
+     voyait une ligne tronquée, pas la liste. */
+  .bande-motifs__serie {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    width: 100%;
+    justify-content: center;
+    row-gap: var(--espace);
+  }
+
+  .bande-motifs__serie[data-copie] {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .bande-motifs {
+    --fondu: 56px;
+    --espace: 8px;
+  }
+
+  .bande-motifs__pastille {
+    padding: 7px 13px;
+    font-size: 12px;
+    gap: 7px;
+  }
+}
+
+/* --------------------------------------------------------------------------
    Page Menaces — entrées en cascade et relief de la carte en alerte
    -------------------------------------------------------------------------- */
 
