@@ -78,16 +78,26 @@ function FondPhoto() {
         // Différé : la section est sous la ligne de flottaison. Le marine
         // plein tient le décor jusqu'à son arrivée.
         loading="lazy"
-        quality={70}
+        // ⚠ PAS DE `quality` PERSONNALISÉE. Next 16 n'accepte que les valeurs
+        //   déclarées dans `images.qualities` (75 par défaut) et refuse les
+        //   autres au chargement. Ouvrir la configuration pour cinq points de
+        //   compression n'en vaut pas le prix, d'autant que la photo passe
+        //   sous un voile à 78 % : ses détails fins ne se voient pas.
         className={
-          // ⚠ ANCRAGE DÉCALÉ SUR MOBILE. En `cover` sur un écran étroit, le
-          //   cadrage centré tombe sur le mur et les fenêtres vides : les
-          //   silhouettes, qui sont à droite du milieu, sortent du cadre.
-          "-z-10 object-cover object-[68%_center] md:object-center " +
-          // ⚠ DÉSATURATION LÉGÈRE. La photo est déjà froide ; sous un voile
-          //   marine, ses bleus de fenêtre virent au turquoise. C'est le
-          //   réglage à ajuster si le rendu tire encore : 1 = photo d'origine.
-          "[filter:saturate(0.78)]"
+          // ⚠ ANCRAGE DÉCALÉ SUR MOBILE. À 390 px de large, la section est
+          //   haute et étroite : `cover` n'y laisse voir qu'un bandeau
+          //   vertical d'environ 15 % de la largeur de la photo. Centré, il
+          //   tombe entre les fenêtres et le mur. À 52 % il se cale sur la
+          //   silhouette du premier plan — celle qui donne la scène.
+          //   Comparé à 45, 58 et 68 % avant de retenir cette valeur.
+          // ⚠ AUCUNE DÉSATURATION, ET C'EST VÉRIFIÉ. On redoutait que les
+          //   bleus de fenêtre virent au turquoise sous le voile marine. Ils
+          //   n'y virent pas : aux trois emplacements de texte, le bleu reste
+          //   26 à 32 points au-dessus du vert, ce qui est franchement marine.
+          //   Pour assourdir davantage la photo malgré tout, ajouter
+          //   `[filter:saturate(0.8)]` ici — c'est le seul levier à toucher,
+          //   surtout pas le fichier.
+          "-z-10 object-cover object-[52%_center] md:object-center"
         }
       />
 
