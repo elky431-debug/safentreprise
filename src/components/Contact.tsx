@@ -1,23 +1,24 @@
 import Link from "next/link";
 import { buttonPrimaryLg } from "@/components/ui";
 import { IconArrowRight, IconMail, IconPhone } from "@/components/icons";
+import {
+  EMAIL_CONTACT,
+  TELEPHONE_AFFICHE,
+  TELEPHONE_LIEN,
+} from "@/lib/contact";
 
 /**
- * Coordonnées de contact, en un seul endroit.
+ * Affichage des coordonnées de contact.
  *
- * ⚠ LE NUMÉRO EXISTE SOUS DEUX FORMES, ET ELLES NE SONT PAS INTERCHANGEABLES.
- *   Celle qui s'affiche est groupée par paires, à la française ; celle du lien
- *   `tel:` est au format international, sans espace ni zéro initial. Un lien
- *   `tel:` contenant des espaces n'est pas composé par tous les téléphones, et
- *   un numéro en 06 n'est pas joignable depuis l'étranger.
- *
- * ⚠ UNE SEULE SOURCE POUR LES DEUX EMPLACEMENTS. Le pied de page et le bloc
- *   avant pied de page lisent ces constantes : un changement de numéro se fait
- *   ici, et nulle part ailleurs.
+ * ⚠ LES VALEURS VIVENT DANS `@/lib/contact`, PAS ICI. Les emails envoyés par
+ *   la route de démonstration les reprennent : les garder dans un fichier de
+ *   composants forcerait le serveur à charger React pour trois chaînes.
  */
-export const TELEPHONE_AFFICHE = "06 37 11 40 68";
-export const TELEPHONE_LIEN = "+33637114068";
-export const EMAIL_CONTACT = "contact@safentreprise.com";
+export {
+  TELEPHONE_AFFICHE,
+  TELEPHONE_LIEN,
+  EMAIL_CONTACT,
+} from "@/lib/contact";
 
 /**
  * Colonne « Nous contacter » du pied de page.

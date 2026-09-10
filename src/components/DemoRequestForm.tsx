@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Alert, Field, buttonPrimaryLg, inputClass } from "@/components/ui";
 import { IconCheck } from "@/components/icons";
 import { EFFECTIFS, REPONSES_MICROSOFT } from "@/lib/demo";
+import { EMAIL_CONTACT, TELEPHONE_AFFICHE } from "@/lib/contact";
 
 type Champs = {
   entreprise: string;
@@ -48,6 +49,16 @@ const selectClass = `${inputClass} pr-9`;
  * `offre` : nom de l'offre depuis laquelle la demande a été lancée (page
  * /tarifs). Il pré-remplit le besoin pour que la demande arrive qualifiée.
  */
+/**
+ * Repli quand la route répond une erreur sans message exploitable.
+ *
+ * ⚠ IL PORTE LES COORDONNÉES. Une personne qui vient de remplir huit champs et
+ *   de tout perdre ne doit pas avoir à chercher comment nous joindre.
+ */
+const REPLI_ERREUR =
+  `L'enregistrement a échoué. Réessayez dans un instant, ou joignez-nous ` +
+  `directement : ${TELEPHONE_AFFICHE} ou ${EMAIL_CONTACT}.`;
+
 export function DemoRequestForm({ offre }: { offre?: string }) {
   const [champs, setChamps] = useState<Champs>(() => ({
     ...CHAMPS_VIDES,
@@ -78,16 +89,18 @@ export function DemoRequestForm({ offre }: { offre?: string }) {
 
       if (!reponse.ok) {
         setErreur(
-          donnees.erreur ??
-            "L'enregistrement a échoué. Réessayez dans un instant.",
+          donnees.erreur ?? REPLI_ERREUR,
         );
         return;
       }
 
       setEnvoye(true);
     } catch {
+      // Le serveur n'a même pas répondu : la route n'a pas pu poser son
+      // propre message, c'est donc ici qu'il faut donner les coordonnées.
       setErreur(
-        "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+        `Impossible de joindre le serveur. Joignez-nous directement : ` +
+          `${TELEPHONE_AFFICHE} ou ${EMAIL_CONTACT}.`,
       );
     } finally {
       setEnvoi(false);
