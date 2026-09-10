@@ -79,6 +79,14 @@ export function IconMail({ className }: IconProps) {
   );
 }
 
+export function IconPhone({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M8.4 3.5H5.2A1.7 1.7 0 0 0 3.5 5.4c.3 3 1.4 5.9 3.2 8.3a17 17 0 0 0 5.6 5.6c2.4 1.8 5.3 2.9 8.3 3.2a1.7 1.7 0 0 0 1.9-1.7v-3.2a1.7 1.7 0 0 0-1.5-1.7c-1 0-2-.3-3-.6a1.7 1.7 0 0 0-1.8.4l-1.3 1.4a14 14 0 0 1-5-5l1.4-1.3a1.7 1.7 0 0 0 .4-1.8c-.3-1-.5-2-.6-3a1.7 1.7 0 0 0-1.7-1.5Z" />
+    </svg>
+  );
+}
+
 export function IconSms({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

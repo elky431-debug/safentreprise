@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LandingHero } from "@/components/LandingHero";
 import { BandeMotifs } from "@/components/BandeMotifs";
+import { BlocContact, CoordonneesContact } from "@/components/Contact";
 import { Triptyque } from "@/components/Triptyque";
 import { TroisFraudes } from "@/components/TroisFraudes";
 import { ProtectionContinue } from "@/components/ProtectionContinue";
@@ -247,12 +248,22 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Dernière section de la page : blanche, l'appel à l'action qui la
+            précède étant marine. L'alternance tient jusqu'au pied de page. */}
+        <BlocContact />
       </main>
 
-      <footer className="border-t border-border px-6 py-8 lg:px-8">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4">
-          <Logo />
-          <LegalLinks />
+      <footer className="border-t border-border px-6 py-10 lg:px-8">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-8">
+            <Logo />
+            <CoordonneesContact />
+          </div>
+
+          <div className="mt-9 border-t border-border pt-6">
+            <LegalLinks />
+          </div>
         </div>
       </footer>
     </div>
