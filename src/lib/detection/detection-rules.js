@@ -1911,11 +1911,37 @@
    *   plafond de 100 — ce qui est juste — alors qu'à 90 les deux cas seraient
    *   indiscernables.
    *
-   * ⚠ IL NE DÉCLENCHE JAMAIS SUR UN DOMAINE DE L'ENTREPRISE OU AUTORISÉ. Un
-   *   collègue qui transfère une facture se présente parfois au nom du
-   *   fournisseur ; ce n'est pas une fraude, et défigurer ce message-là ferait
-   *   perdre confiance dans tous les autres.
+   * ⚠ UN EXPÉDITEUR QUI SE PRÉSENTE COMME INTERNE ALLÈGE LA RÈGLE, IL NE LA
+   *   FAIT PLUS TAIRE. C'est une correction, et la raison mérite d'être dite
+   *   en entier.
+   *
+   *   La première version renonçait purement et simplement dès que le domaine
+   *   expéditeur figurait parmi ceux de l'entreprise. L'intention était juste
+   *   — un collègue qui transfère une facture se présente parfois au nom du
+   *   fournisseur, et défigurer ce message-là ferait perdre confiance dans
+   *   tous les autres. Le moyen, lui, ne l'était pas : LE DOMAINE D'UN
+   *   EN-TÊTE « FROM » NE PROUVE RIEN. N'importe qui peut y écrire
+   *   « contact@la-societe-du-client.fr ». La règle offrait donc un
+   *   contournement en une ligne, à qui connaît le domaine de sa victime —
+   *   c'est-à-dire à tout le monde — et elle se taisait alors pour TOUS les
+   *   correspondants à la fois, le contrôle ayant lieu avant la boucle.
+   *
+   *   Sur un produit anti-fraude, un contournement qui tient dans la
+   *   connaissance du domaine de la victime est inacceptable. Le poids tombe
+   *   donc à `POINTS_INTERNE` au lieu de disparaître : le collègue légitime
+   *   ne récolte qu'une ligne grise « à vérifier », facile à ignorer et
+   *   réversible, tandis que l'usurpateur ne passe plus en silence.
+   *
+   * ⚠ CE N'EST PAS LA CORRECTION DE FOND, et il faut le savoir. Tant que rien
+   *   n'authentifie l'expéditeur — SPF, DKIM, DMARC ne sont ni demandés à
+   *   Graph ni lus par le moteur — « interne » veut dire « le From dit
+   *   interne ». La vraie réponse est de demander les en-têtes
+   *   d'authentification et de n'alléger que sur une preuve ; elle engage
+   *   l'AIPD et le DPA, qui affirment que seuls huit champs sont demandés.
    */
+  const POINTS_CORRESPONDANT = 75;
+  const POINTS_CORRESPONDANT_INTERNE = 30;
+
   function detecterCorrespondant(prep) {
     const c = prep.contexte;
 
@@ -1928,17 +1954,11 @@
       );
     }
 
-    if (
+    // Se PRÉSENTE comme interne — le verbe est choisi. On ne sait pas s'il
+    // l'est.
+    const sePresenteInterne =
       domaineDansListe(prep.domaine, c.domainesInternes) ||
-      domaineDansListe(prep.domaine, c.domainesAutorises)
-    ) {
-      return abandon(
-        "detecteur",
-        "IGNORÉ — expéditeur interne ou autorisé",
-        `« ${prep.domaine} » appartient à l'entreprise ou figure parmi ses ` +
-          `domaines autorisés : ce n'est pas un fournisseur qui change de domaine.`
-      );
-    }
+      domaineDansListe(prep.domaine, c.domainesAutorises);
 
     const motsAffiches = motsDuNom(prep.nomAffiche);
     const lignesSignature = lignesDeSignature(prep.corps);
@@ -1987,16 +2007,31 @@
     }
 
     const domaines = retenu.correspondant.domaines.join(", ");
+
+    // ⚠ LA PHRASE DIT AU LECTEUR POURQUOI C'EST ALLÉGÉ. Sans elle, un
+    //   collaborateur qui transfère une facture verrait une alerte sans
+    //   comprendre ni pouvoir l'écarter d'un coup d'œil ; et un dirigeant
+    //   qui enquête ne saurait pas que l'expéditeur s'est présenté comme
+    //   venant de chez lui — ce qui est justement l'information utile.
+    const interne =
+      ` L'expéditeur se présente comme venant d'un domaine de votre ` +
+      `entreprise : s'il s'agit d'un transfert par un collègue, ce message ` +
+      `est légitime. Cette adresse n'est cependant pas authentifiée, et un ` +
+      `tiers peut l'inscrire dans l'en-tête.`;
+
     return apports([
       {
-        points: 75,
+        points: sePresenteInterne
+          ? POINTS_CORRESPONDANT_INTERNE
+          : POINTS_CORRESPONDANT,
         raison: "correspondant_domaine_inhabituel",
         signal:
           `Correspondant connu, domaine inhabituel : le message se présente ` +
           `au nom de « ${retenu.correspondant.nom} » (${retenu.source}), que ` +
           `vous avez déclaré comme correspondant de confiance, mais il est ` +
           `envoyé depuis « ${prep.domaine} », qui ne figure pas parmi ses ` +
-          `domaines (${domaines}).`,
+          `domaines (${domaines}).` +
+          (sePresenteInterne ? interne : ""),
       },
     ]);
   }

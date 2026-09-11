@@ -154,9 +154,23 @@ const CAS = [
       corps: CORPS_NEUTRE,
     },
   },
+
+  // ——————————————— Expéditeur qui SE PRÉSENTE comme interne ———————————————
+  //
+  // ⚠ CES CAS ONT CHANGÉ DE CAMP, ET C'EST LA CORRECTION. Ils attendaient
+  //   « aucune alerte » : la règle renonçait dès que le domaine expéditeur
+  //   figurait parmi ceux de l'entreprise. Or un en-tête « From » ne prouve
+  //   rien — n'importe qui peut y écrire le domaine de la victime — et la
+  //   règle offrait donc un contournement à qui connaît ce domaine.
+  //
+  //   Elle ne se tait plus : elle s'allège, de 75 à 30 points. Le collègue
+  //   qui transfère récolte une ligne grise « à vérifier », réversible et
+  //   facile à ignorer ; l'usurpateur, lui, ne passe plus en silence.
   {
-    titre: "Un collègue transfère la facture du fournisseur",
-    attendu: null,
+    titre: "Un collègue transfère la facture : allégé, pas éteint",
+    attendu: "faible",
+    raisonsAttendues: ["correspondant_domaine_inhabituel"],
+    scoreAttendu: 30,
     data: {
       nomAffiche: "Delta-Log SARL",
       email: "yacine@safentreprise.fr",
@@ -165,8 +179,10 @@ const CAS = [
     },
   },
   {
-    titre: "Plateforme de facturation en liste autorisée",
-    attendu: null,
+    titre: "Plateforme en liste autorisée : allégée de la même façon",
+    attendu: "faible",
+    raisonsAttendues: ["correspondant_domaine_inhabituel"],
+    scoreAttendu: 30,
     data: {
       nomAffiche: "Delta-Log SARL",
       email: "noreply@facturation-partenaire.com",
@@ -174,6 +190,34 @@ const CAS = [
       corps: CORPS_NEUTRE,
     },
   },
+  {
+    titre: "Usurpation du domaine du client : plus de contournement",
+    attendu: "élevé",
+    raisonsAttendues: ["correspondant_domaine_inhabituel"],
+    data: {
+      // Le cas qui motivait la correction : se dire interne ET annoncer un
+      // changement de RIB ne doit plus retomber sous le seuil.
+      nomAffiche: "Service Comptabilité",
+      email: "contact@safentreprise.fr",
+      objet: "Nouvelle domiciliation bancaire",
+      corps:
+        "Bonjour,\n\nNotre banque a changé, merci de mettre à jour nos " +
+        "coordonnées pour vos prochains règlements.\n\n" +
+        "Delta-Log SARL\nService comptabilite",
+    },
+  },
+  {
+    titre: "Le message allégé dit POURQUOI il l'est",
+    attendu: "faible",
+    signalContient: "se présente comme venant d'un domaine de votre entreprise",
+    data: {
+      nomAffiche: "Delta-Log SARL",
+      email: "yacine@safentreprise.fr",
+      objet: "TR : Facture",
+      corps: CORPS_NEUTRE,
+    },
+  },
+
   {
     titre: "Le nom du fournisseur n'est qu'une sous-chaîne d'un autre mot",
     attendu: null,
@@ -305,11 +349,16 @@ for (const cas of CAS) {
   const parasite =
     cas.attendu === null && r.raisons.includes("correspondant_domaine_inhabituel");
 
+  const signalOk =
+    !cas.signalContient ||
+    r.signaux.some((s) => s.includes(cas.signalContient));
+
   const ok =
     obtenu === cas.attendu &&
     manquantes.length === 0 &&
     scoreOk &&
     ribOk &&
+    signalOk &&
     !parasite;
   if (!ok) echecs += 1;
 
@@ -320,6 +369,7 @@ for (const cas of CAS) {
     parasite,
     scoreOk,
     ribOk,
+    signalOk,
     attendu: libelle(cas.attendu),
     obtenu: libelle(obtenu),
     score: `${r.score}/100`,
@@ -358,6 +408,7 @@ for (const l of lignes) {
     }
     if (!l.scoreOk) console.log("     ⚠ score inattendu");
     if (!l.ribOk) console.log("     ⚠ aucune raison de la famille RIB");
+    if (!l.signalOk) console.log("     ⚠ le signal ne porte pas la phrase attendue");
   }
 }
 console.log(sep);
