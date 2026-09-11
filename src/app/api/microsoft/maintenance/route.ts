@@ -768,6 +768,7 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
           p_banniere_posee: true,
           p_erreur: null,
           p_action_etat: "posee",
+          p_pose_par: "maintenance-rattrapage-trace-corrigee",
         });
         posees += 1;
         details.push({ message: alerte.message_id.slice(0, 20), etat: "deja-la-trace-corrigee" });
@@ -790,6 +791,7 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
           p_banniere_posee: false,
           p_erreur: `corps d'origine non sauvegardé (${sauvegarde}) — message NON modifié`,
           p_action_etat: "echec",
+          p_pose_par: "maintenance-rattrapage-sauvegarde-refusee",
         });
         details.push({
           message: alerte.message_id.slice(0, 20),
@@ -848,6 +850,7 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
           p_banniere_posee: false,
           p_erreur: "bannière non retrouvable après écriture, corps rétabli",
           p_action_etat: "annulee-non-verifiable",
+          p_pose_par: "maintenance-rattrapage-annulee",
         });
         details.push({ message: alerte.message_id.slice(0, 20), etat: "annulee-non-verifiable" });
         continue;
@@ -860,6 +863,7 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         p_banniere_posee: true,
         p_erreur: null,
         p_action_etat: "posee",
+        p_pose_par: "maintenance-rattrapage-pose",
       });
       posees += 1;
 
@@ -902,6 +906,7 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         p_banniere_posee: false,
         p_erreur: detail.slice(0, 500),
         p_action_etat: "echec",
+        p_pose_par: "maintenance-rattrapage-echec",
       }).catch(() => {});
 
       console.error(`[maintenance] bannière ${alerte.message_id} : ${detail}`);
@@ -982,6 +987,7 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
           p_erreur: null,
           p_action_etat: "posee",
           p_banniere_format: "html",
+          p_pose_par: "maintenance-conversion-deja-html",
         });
         details.push({ message: court, etat: "deja-html" });
         continue;
@@ -1049,6 +1055,7 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
           p_banniere_posee: false,
           p_erreur: "bannière non retrouvable après conversion, original rétabli",
           p_action_etat: "annulee-non-verifiable",
+          p_pose_par: "maintenance-conversion-annulee",
         });
         details.push({ message: court, etat: "annulee-non-verifiable" });
         continue;
@@ -1062,6 +1069,7 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
         p_erreur: null,
         p_action_etat: "posee",
         p_banniere_format: "html",
+        p_pose_par: "maintenance-conversion-faite",
       });
       converties += 1;
 
@@ -1093,6 +1101,7 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
         p_erreur: `conversion impossible : ${detail}`.slice(0, 500),
         p_action_etat: "posee",
         p_banniere_format: "texte",
+        p_pose_par: "maintenance-conversion-echec",
       }).catch(() => {});
       details.push({ message: court, etat: "echec", erreur: detail.slice(0, 200) });
     }

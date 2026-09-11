@@ -903,6 +903,12 @@ async function traiter(
         p_erreur: erreurs ? erreurs.slice(0, 500) : null,
         p_action_etat: etatAction(action),
         p_banniere_format: action.banniere?.format ?? null,
+        // ⚠ LE NOM DU CHEMIN, ET S'IL A DE QUOI TRACER LE DÉPLACEMENT.
+        //   L'écriture de `deplacement_etat` est conditionnée par la présence
+        //   de `analyseId` : sans lui, aucune trace n'est écrite et l'état
+        //   reste NULL même si ce chemin a bien traité le message. Le nom dit
+        //   donc les deux.
+        p_pose_par: analyseId ? "worker" : "worker-SANS-ID",
       });
     }
   } catch (erreur) {
@@ -926,6 +932,7 @@ async function traiter(
       p_banniere_posee: false,
       p_erreur: `[${etapeDe(erreur)}] ${detail}`.slice(0, 500),
       p_action_etat: "echec",
+      p_pose_par: "worker-echec-enregistrement",
     }).catch(() => {});
   }
 
@@ -1761,12 +1768,13 @@ async function diagnostiquer(): Promise<Response> {
         non_tentes_24h: number;
         sans_trace_24h: number;
         discordances_24h: number;
+        poseurs_24h: string | null;
         derniere_note: string | null;
       }[]
     >("etat_dossiers_service", {});
 
     if (!etat) {
-      ajouter("dossier de service", "échec", "aucun état : migration 20260927 non appliquée ?");
+      ajouter("dossier de service", "échec", "aucun état : migration 20260928 non appliquée ?");
     } else {
       // Rien posé depuis 24 h : il n'y a rien à conclure, ni dans un sens ni
       // dans l'autre. Un voyant qui rougirait faute d'alertes apprendrait à
@@ -1806,6 +1814,10 @@ async function diagnostiquer(): Promise<Response> {
                 ? `⚠ ${etat.sans_trace_24h} bannière(s) posée(s) sans qu'aucun déplacement ` +
                   `ne soit même tenté — il manque un chemin de pose.`
                 : "",
+              // ⚠ QUI POSE, SANS DÉDUCTION. Onze appels écrivent la pose ;
+              //   trois diagnostics successifs ont désigné le mauvais. Le
+              //   chemin inscrit désormais son nom lui-même.
+              etat.poseurs_24h ? `Posée par : ${etat.poseurs_24h}.` : "",
               etat.derniere_note ? `Dernière note : ${etat.derniere_note}` : "",
             ]
               .filter(Boolean)
