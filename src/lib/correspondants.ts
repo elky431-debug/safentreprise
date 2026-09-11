@@ -243,6 +243,12 @@ export function construireApercu(
   }
 
   entrees.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  // ⚠ LES REJETS SE RELISENT DANS L'ORDRE DU FICHIER. Ils sont produits en
+  //   deux temps — ligne par ligne d'abord, puis par entrée une fois tous les
+  //   domaines connus — et sortaient donc dans l'ordre 8, 5, 7. Un client qui
+  //   parcourt son export pour corriger les lignes signalées a besoin de les
+  //   suivre de haut en bas.
+  rejets.sort((a, b) => a.ligne - b.ligne);
 
   return {
     entrees,
@@ -259,22 +265,84 @@ export function construireApercu(
  *   listes déroulantes, même quand la devinette est bonne : un fichier dont
  *   les colonnes s'appellent « Tiers » et « Contact » serait importé de
  *   travers sans que personne ne le voie.
+ *
+ * ⚠ LA COLONNE DES DOMAINES SE DEVINE SUR LE CONTENU, PAS SUR L'EN-TÊTE, et
+ *   c'est la leçon d'un export comptable réel. Un fichier
+ *   « Code tiers | Raison sociale | Contact | Téléphone » n'a aucun en-tête
+ *   contenant « mail » : la version précédente retombait sur la deuxième
+ *   colonne et proposait « Raison sociale » comme colonne de domaines — la
+ *   même que le nom. Une colonne qui contient des adresses se reconnaît à ses
+ *   adresses.
+ *
+ * ⚠ LES MOTS-CLÉS SONT TESTÉS DANS L'ORDRE, DU PLUS PRÉCIS AU PLUS VAGUE. La
+ *   version précédente parcourait les EN-TÊTES et retenait le premier qui
+ *   contenait n'importe lequel des mots : « Code tiers » gagnait sur « Raison
+ *   sociale » parce qu'il arrivait avant dans le fichier, pas parce qu'il
+ *   était plus pertinent.
  */
-export function devinerCorrespondance(entetes: string[]): Correspondance {
-  const rangee = (mots: string[]) =>
-    entetes.find((e) => {
-      const n = e.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-      return mots.some((m) => n.includes(m));
-    });
+function sansAccent(texte: string): string {
+  return texte.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
 
-  return {
-    nom:
-      rangee(["raison sociale", "fournisseur", "tiers", "societe", "nom", "name", "client"]) ??
-      entetes[0] ??
-      "",
-    domaine:
-      rangee(["email", "e-mail", "mail", "courriel", "domaine", "domain", "site"]) ??
+function parMotsCles(entetes: string[], mots: string[]): string | undefined {
+  for (const mot of mots) {
+    const trouve = entetes.find((e) => sansAccent(e).includes(mot));
+    if (trouve) return trouve;
+  }
+  return undefined;
+}
+
+/** Part des valeurs de cette colonne qui donnent un domaine exploitable. */
+function tauxDeDomaines(lignes: LigneTableur[], entete: string): number {
+  let remplies = 0;
+  let domaines = 0;
+  for (const ligne of lignes) {
+    const v = String(ligne[entete] ?? "").trim();
+    if (!v) continue;
+    remplies += 1;
+    if (domaineDe(v)) domaines += 1;
+  }
+  return remplies === 0 ? 0 : domaines / remplies;
+}
+
+export function devinerCorrespondance(
+  entetes: string[],
+  lignes: LigneTableur[] = [],
+): Correspondance {
+  // — La colonne des domaines —
+  let domaine = "";
+  let meilleur = 0;
+  for (const entete of entetes) {
+    const taux = tauxDeDomaines(lignes, entete);
+    // La moitié des valeurs suffit : un export comporte toujours des
+    // fournisseurs sans adresse renseignée.
+    if (taux > meilleur && taux >= 0.5) {
+      meilleur = taux;
+      domaine = entete;
+    }
+  }
+  if (!domaine) {
+    domaine =
+      parMotsCles(entetes, [
+        "e-mail", "email", "courriel", "mail", "domaine", "domain",
+        "site web", "site", "contact",
+      ]) ??
       entetes[1] ??
-      "",
-  };
+      "";
+  }
+
+  // — La colonne du nom —
+  // Elle ne peut pas être celle des domaines : une même colonne ne porte pas
+  // les deux, et proposer deux fois la même garantit un import de travers.
+  const restants = entetes.filter((e) => e !== domaine);
+  const nom =
+    parMotsCles(restants, [
+      "raison sociale", "raison_sociale", "fournisseur", "societe", "tiers",
+      "client", "nom", "name", "libelle", "intitule",
+    ]) ??
+    restants[0] ??
+    entetes[0] ??
+    "";
+
+  return { nom, domaine };
 }

@@ -247,6 +247,55 @@ test("les en-têtes courants d'un export comptable sont reconnus", () => {
   );
 });
 
+test("le mot-clé le plus précis gagne, pas la colonne la plus à gauche", () => {
+  // ⚠ « Code tiers » arrive avant « Raison sociale » dans le fichier, et
+  //   contient le mot « tiers ». La version précédente le retenait comme nom
+  //   du correspondant : les 300 lignes de l'export s'appelaient « F0012 ».
+  assert.equal(
+    devinerCorrespondance(["Code tiers", "Raison sociale", "Email"]).nom,
+    "Raison sociale",
+  );
+});
+
+test("la colonne des domaines se devine sur le CONTENU", () => {
+  // ⚠ LE CAS RÉEL QUI A RÉVÉLÉ LE DÉFAUT : aucun en-tête ne contient « mail »,
+  //   et la colonne « Contact » porte pourtant les adresses. La devinette
+  //   proposait alors « Raison sociale » comme colonne de domaines — la même
+  //   que le nom, donc un import garanti de travers.
+  const entetes = ["Code tiers", "Raison sociale", "Contact", "Téléphone"];
+  const lignes: LigneTableur[] = [
+    { "Code tiers": "F0012", "Raison sociale": "Delta Log", Contact: "compta@delta-log.fr", "Téléphone": "01 40 11 22 33" },
+    { "Code tiers": "F0031", "Raison sociale": "Sogefi", Contact: "f@sogefi.fr", "Téléphone": "04 78 00 00 00" },
+    { "Code tiers": "F0044", "Raison sociale": "BRM", Contact: "contact@brm.fr", "Téléphone": "02 99 00 00 00" },
+  ];
+  assert.deepEqual(devinerCorrespondance(entetes, lignes), {
+    nom: "Raison sociale",
+    domaine: "Contact",
+  });
+});
+
+test("le nom proposé n'est jamais la colonne des domaines", () => {
+  // Deux colonnes seulement, toutes deux plausibles par leur en-tête.
+  const lignes: LigneTableur[] = [
+    { Nom: "Delta Log", "Nom du contact": "compta@delta-log.fr" },
+    { Nom: "Sogefi", "Nom du contact": "f@sogefi.fr" },
+  ];
+  const choix = devinerCorrespondance(["Nom", "Nom du contact"], lignes);
+  assert.equal(choix.domaine, "Nom du contact");
+  assert.notEqual(choix.nom, choix.domaine);
+});
+
+test("une colonne à moitié vide reste reconnaissable", () => {
+  // Un export comporte toujours des fournisseurs sans adresse renseignée :
+  // c'est la part des cellules REMPLIES qui compte, pas des lignes.
+  const lignes: LigneTableur[] = [
+    { Tiers: "Delta Log", Coord: "compta@delta-log.fr" },
+    { Tiers: "Sogefi", Coord: "" },
+    { Tiers: "BRM", Coord: "contact@brm.fr" },
+  ];
+  assert.equal(devinerCorrespondance(["Tiers", "Coord"], lignes).domaine, "Coord");
+});
+
 test("des en-têtes inconnus retombent sur les deux premières colonnes", () => {
   // ⚠ C'EST UNE PROPOSITION, PAS UNE DÉCISION : l'écran affiche toujours les
   //   deux listes déroulantes pour que le client corrige.
@@ -258,4 +307,22 @@ test("des en-têtes inconnus retombent sur les deux premières colonnes", () => 
 
 test("un fichier sans en-tête exploitable ne fait pas planter la devinette", () => {
   assert.deepEqual(devinerCorrespondance([]), { nom: "", domaine: "" });
+});
+
+test("les lignes écartées se relisent dans l'ordre du fichier", () => {
+  // Elles sont produites en deux temps — ligne par ligne, puis par entrée une
+  // fois tous les domaines connus. Sans tri, elles sortaient dans le désordre.
+  const apercu = construireApercu(
+    lignes(
+      ["Alpha", "a@alpha.fr"],
+      ["Perrin", "perrin@gmail.com"],
+      ["Beta", "b@beta.fr"],
+      ["Malaval", ""],
+      ["", "orphelin@x.fr"],
+    ),
+    COLONNES,
+  );
+  const numeros = apercu.rejets.map((r) => r.ligne);
+  assert.deepEqual(numeros, [...numeros].sort((a, b) => a - b));
+  assert.deepEqual(numeros, [2, 4, 5]);
 });

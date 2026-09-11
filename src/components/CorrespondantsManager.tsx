@@ -279,7 +279,7 @@ export function CorrespondantsManager({ companyId, initiaux }: Props) {
         phase: "colonnes",
         fichier: fichier.name,
         tableur,
-        choix: devinerCorrespondance(tableur.entetes),
+        choix: devinerCorrespondance(tableur.entetes, tableur.lignes),
       });
     } catch {
       setErreur("Fichier illisible. Utilisez un CSV ou un Excel (.xlsx).");
@@ -426,7 +426,11 @@ export function CorrespondantsManager({ companyId, initiaux }: Props) {
           />
           <Field
             label="Domaines secondaires"
-            hint="facultatif, séparés par des virgules"
+            // L'indication tient en un mot : « facultatif, séparés par des
+            // virgules » repliait le libellé sur deux lignes dans la troisième
+            // colonne, plus étroite que les autres. Le placeholder montre déjà
+            // la virgule.
+            hint="facultatif"
             value={secondaires}
             onChange={(e) => setSecondaires(e.target.value)}
             placeholder="delta-log.com, delta-log.eu"
