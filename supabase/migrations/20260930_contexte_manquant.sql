@@ -137,8 +137,13 @@ GRANT EXECUTE ON FUNCTION public.etat_contexte_detection() TO service_role;
 --      AND recu_at > now() - interval '6 hours'
 --    ORDER BY recu_at;
 --
---   `nom_signe` est le plus parlant : c'est le nom lu dans la signature. S'il
---   est NULL sur la ligne au score le plus bas, la signature n'a pas été
---   reconnue — et la règle des correspondants ne peut pas se déclencher, quel
---   que soit l'état du contexte. `citation_retiree` et `longueur_texte`
---   diront alors si le texte analysé était le même.
+--   ⚠ `nom_signe` NE SERT À RIEN ICI, contrairement à ce qu'on pourrait
+--     croire : il vient de `verdict.nomSignature ?? verdict.nomRetenu`, que la
+--     règle des correspondants ne renseigne pas — elle trouve le nom sans le
+--     remonter. Il reste donc NULL même quand la règle se déclenche. Constaté
+--     sur six lignes réelles, dont celle à 75 points.
+--
+--   Les colonnes qui disent vraiment quelque chose : `longueur_texte`,
+--   `citation_retiree` et `format_corps` pour savoir si le texte analysé était
+--   le même, et `contexte_manquant` pour savoir si le moteur avait de quoi
+--   appliquer ses règles à 75 points.
