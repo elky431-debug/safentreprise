@@ -523,23 +523,44 @@ async function deplacerPourRafraichir(
   travail: Travail,
   analyseId: string | null,
 ): Promise<void> {
-  // ⚠ AVANT TOUT LE RESTE, Y COMPRIS AVANT LE PREMIER APPEL À MICROSOFT.
-  await rpc("marquer_deplacement_graph", {
-    p_company_id: travail.company_id,
-    p_message_id: travail.message_id,
-  });
-
   /** Le message est-il sorti de la boîte de réception ? Pas encore. */
   let sorti = false;
-  const libererSiPossible = async (raison: string) => {
-    if (analyseId) {
-      await rpc("marquer_echec_deplacement", {
-        p_analyse_id: analyseId,
-        p_erreur: raison,
-        p_sorti: sorti,
-      }).catch(() => {});
-    }
+  const tracer = async (etat: string, note?: string) => {
+    if (!analyseId) return;
+    await rpc("tracer_deplacement", {
+      p_analyse_id: analyseId,
+      p_etat: etat,
+      p_note: note ?? null,
+      p_sorti: sorti,
+    }).catch((erreur) => {
+      console.error(`[worker] trace de déplacement non écrite : ${messageDe(erreur)}`);
+    });
   };
+
+  // ⚠ AVANT TOUT LE RESTE, Y COMPRIS AVANT LE PREMIER APPEL À MICROSOFT, ET
+  //   PAR L'IDENTIFIANT DE LIGNE. `marquer_deplacement_graph` désignait la
+  //   ligne par le message : quand l'identifiant ne correspondait pas, l'ordre
+  //   ne trouvait rien, n'écrivait rien, ne levait rien — et tous les suivants
+  //   non plus. Le déplacement pouvait avoir lieu pendant que la base affirmait
+  //   que rien ne s'était passé. `ouvrir_deplacement` trouve toujours sa ligne,
+  //   et RÉPOND.
+  const ouverture = analyseId
+    ? await rpc<string>("ouvrir_deplacement", {
+        p_analyse_id: analyseId,
+        p_message_id: travail.message_id,
+      }).catch((erreur) => `ouverture impossible (${messageDe(erreur)})`)
+    : "sans-analyse";
+
+  // ⚠ UNE DISCORDANCE N'ARRÊTE PAS LE DÉPLACEMENT, ELLE S'ÉCRIT. Si la ligne
+  //   porte un autre identifiant, le renommage final ne la retrouvera pas : le
+  //   message sera déplacé et la base ne suivra pas — la restauration d'un faux
+  //   positif deviendrait impossible. `ouvrir_deplacement` a déjà consigné les
+  //   deux identifiants ; le contrôle les compte.
+  if (ouverture !== "concordant") {
+    console.error(
+      `[worker] ouverture du déplacement sur ${travail.message_id} : ${ouverture}`,
+    );
+  }
 
   let dossier: string;
   try {
@@ -547,7 +568,7 @@ async function deplacerPourRafraichir(
       assurerDossierService(travail.tenant_id, travail.graph_user_id),
     );
   } catch (erreur) {
-    await libererSiPossible(`dossier de service : ${messageDe(erreur)}`.slice(0, 300));
+    await tracer("echec", `dossier de service : ${messageDe(erreur)}`.slice(0, 300));
     throw erreur;
   }
 
@@ -570,7 +591,7 @@ async function deplacerPourRafraichir(
     );
   } catch (erreur) {
     // Le message n'a pas quitté sa boîte de réception : on libère le marqueur.
-    await libererSiPossible(`aller : ${messageDe(erreur)}`.slice(0, 300));
+    await tracer("echec", `aller : ${messageDe(erreur)}`.slice(0, 300));
     throw erreur;
   }
 
@@ -592,11 +613,30 @@ async function deplacerPourRafraichir(
       //   lieu, le message porte une bannière sous un identifiant que la base
       //   ignore — et la restauration ne le retrouverait pas. Le jeton
       //   `data-ref` de la bannière est ce qui couvre l'intervalle.
-      await rpc("renommer_message_graph", {
-        p_company_id: travail.company_id,
-        p_ancien_id: travail.message_id,
-        p_nouveau_id: revenu,
-      });
+      const renomme = await rpc<{ table_modifiee: string; lignes: number }[]>(
+        "renommer_message_graph",
+        {
+          p_company_id: travail.company_id,
+          p_ancien_id: travail.message_id,
+          p_nouveau_id: revenu,
+        },
+      );
+
+      // ⚠ LE RENOMMAGE PEUT NE RIEN TROUVER SANS RIEN DIRE. Trois lignes à
+      //   zéro veut dire que le message a bougé et que la base n'a pas suivi :
+      //   sa sauvegarde de corps n'est plus rattachable, donc la restauration
+      //   d'un faux positif est perdue. Ça ne doit pas passer pour un succès.
+      const bascules = Array.isArray(renomme)
+        ? renomme.reduce((somme, ligne) => somme + (ligne?.lignes ?? 0), 0)
+        : 0;
+
+      await tracer(
+        "reussi",
+        bascules > 0
+          ? `déplacé, ${bascules} ligne(s) renommée(s)`
+          : `DÉPLACÉ SANS SUIVI : le renommage n'a trouvé aucune ligne sous ` +
+            `« ${travail.message_id} ». La restauration de ce message est compromise.`,
+      );
       return;
     } catch (erreur) {
       dernierEchec = erreur;
@@ -606,6 +646,12 @@ async function deplacerPourRafraichir(
       );
     }
   }
+
+  await tracer(
+    "echec",
+    `retour impossible après ${ESSAIS_DEPLACEMENT} essais (${messageDe(dernierEchec)}) ` +
+      `— le message est dans le dossier de service, le balayage le ramènera`,
+  );
 
   throw new ErreurEtape(
     `message laissé dans le dossier de service après ${ESSAIS_DEPLACEMENT} essais ` +
@@ -930,10 +976,16 @@ async function traiter(
       action = { ...action, deplacement: echec };
     }
   } else {
-    action = {
-      ...action,
-      deplacement: `non tenté — bannière « ${action.banniere?.etat ?? "absente"} »`,
-    };
+    const note = `non tenté — bannière « ${action.banniere?.etat ?? "absente"} »`;
+    action = { ...action, deplacement: note };
+    if (analyseId) {
+      await rpc("tracer_deplacement", {
+        p_analyse_id: analyseId,
+        p_etat: "non-tente",
+        p_note: note,
+        p_sorti: false,
+      }).catch(() => {});
+    }
   }
 
   return {
@@ -1704,34 +1756,60 @@ async function diagnostiquer(): Promise<Response> {
         avec_dossier: number;
         bannieres_24h: number;
         deplacees_24h: number;
-        derniere_erreur: string | null;
+        reussis_24h: number;
+        echecs_24h: number;
+        non_tentes_24h: number;
+        sans_trace_24h: number;
+        discordances_24h: number;
+        derniere_note: string | null;
       }[]
     >("etat_dossiers_service", {});
 
     if (!etat) {
-      ajouter("dossier de service", "échec", "aucun état : migration 20260924 non appliquée ?");
+      ajouter("dossier de service", "échec", "aucun état : migration 20260927 non appliquée ?");
     } else {
       // Rien posé depuis 24 h : il n'y a rien à conclure, ni dans un sens ni
       // dans l'autre. Un voyant qui rougirait faute d'alertes apprendrait à
       // être ignoré.
       const sansMatiere = etat.bannieres_24h === 0;
-      const aucunDeplacement = etat.bannieres_24h > 0 && etat.deplacees_24h === 0;
+
+      // ⚠ TROIS DÉFAUTS DISTINCTS, QUI NE SE CORRIGENT PAS PAREIL.
+      //
+      //   sans_trace   — une bannière posée sans qu'AUCUN chemin n'ait appelé
+      //                  le déplacement : il manque un chemin. C'est le défaut
+      //                  qui a tenu trois jours sans que rien ne le dise.
+      //   discordances — le message a bougé mais la base ne l'a pas suivi : la
+      //                  restauration de ce message est perdue. Le plus grave.
+      //   echecs       — le déplacement a été tenté et a échoué ; la note dit
+      //                  à quelle étape.
+      const graves = etat.discordances_24h > 0;
+      const manquant = etat.bannieres_24h > 0 && etat.sans_trace_24h > 0;
+      const enEchec = etat.echecs_24h > 0;
 
       ajouter(
         "dossier de service",
-        aucunDeplacement ? "échec" : "ok",
+        graves || manquant || enEchec ? "échec" : "ok",
         sansMatiere
           ? `aucune bannière posée depuis 24 h — rien à conclure ` +
             `(${etat.avec_dossier}/${etat.boites_actives} boîte(s) ont leur dossier)`
-          : aucunDeplacement
-            ? `${etat.bannieres_24h} bannière(s) posée(s) depuis 24 h et AUCUNE déplacée. ` +
-              `L'avertissement reste invisible dans Outlook desktop sur une boîte ouverte. ` +
-              `${etat.avec_dossier}/${etat.boites_actives} boîte(s) ont un dossier de service. ` +
-              (etat.derniere_erreur
-                ? `Dernière raison : ${etat.derniere_erreur}`
-                : `Aucune raison consignée — POST ?essai-deplacement=1 pour la provoquer.`)
-            : `${etat.deplacees_24h}/${etat.bannieres_24h} bannière(s) déplacée(s) sur 24 h, ` +
-              `${etat.avec_dossier}/${etat.boites_actives} boîte(s) ont leur dossier de service`,
+          : [
+              `sur 24 h : ${etat.bannieres_24h} bannière(s), ` +
+                `${etat.reussis_24h} déplacement(s) réussi(s), ${etat.echecs_24h} en échec, ` +
+                `${etat.non_tentes_24h} non tenté(s), ${etat.sans_trace_24h} sans aucune trace.`,
+              graves
+                ? `⚠ ${etat.discordances_24h} message(s) DÉPLACÉ(S) SANS SUIVI : leur ligne ` +
+                  `porte un autre identifiant, leur restauration est compromise. ` +
+                  `SELECT message_id, deplacement_note FROM graph_analyses ` +
+                  `WHERE deplacement_note LIKE 'discordance%';`
+                : "",
+              manquant
+                ? `⚠ ${etat.sans_trace_24h} bannière(s) posée(s) sans qu'aucun déplacement ` +
+                  `ne soit même tenté — il manque un chemin de pose.`
+                : "",
+              etat.derniere_note ? `Dernière note : ${etat.derniere_note}` : "",
+            ]
+              .filter(Boolean)
+              .join(" "),
       );
     }
   } catch (erreur) {

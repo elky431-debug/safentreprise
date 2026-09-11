@@ -623,36 +623,38 @@ async function rafraichirApresPose(cible: {
 }): Promise<string | null> {
   /** Le message est-il sorti de la boîte de réception ? Pas encore. */
   let sorti = false;
-  const consigner = async (raison: string) => {
-    await rpc("marquer_echec_deplacement", {
+  const tracer = async (etat: string, note: string) => {
+    await rpc("tracer_deplacement", {
       p_analyse_id: cible.analyse_id,
-      p_erreur: raison,
+      p_etat: etat,
+      p_note: note,
       // Tant qu'il n'est pas sorti, on libère le marqueur : le laisser
       // enverrait le balayage chercher dans le dossier de service un message
       // qui n'en a jamais bougé.
       p_sorti: sorti,
     }).catch((secondaire) => {
-      console.error(`[maintenance] échec de déplacement non consigné : ${messageDe(secondaire)}`);
+      console.error(`[maintenance] trace de déplacement non écrite : ${messageDe(secondaire)}`);
     });
-    return raison;
+    return note;
   };
 
-  // ⚠ L'INTENTION AVANT TOUT APPEL À MICROSOFT, comme dans le worker. Posée
-  //   plus tard, elle ne dirait pas si la fonction a été entrée.
-  try {
-    await rpc("marquer_deplacement_graph", {
-      p_company_id: cible.company_id,
-      p_message_id: cible.message_id,
-    });
-  } catch (erreur) {
-    return consigner(`marquage : ${messageDe(erreur)}`.slice(0, 400));
+  // ⚠ PAR L'IDENTIFIANT DE LIGNE, ET AVANT TOUT APPEL À MICROSOFT. Désigner la
+  //   ligne par le message laissait l'ordre ne rien trouver, ne rien écrire et
+  //   ne rien dire — le déplacement pouvait avoir lieu sans que la base suive.
+  const ouverture = await rpc<string>("ouvrir_deplacement", {
+    p_analyse_id: cible.analyse_id,
+    p_message_id: cible.message_id,
+  }).catch((erreur) => `ouverture impossible (${messageDe(erreur)})`);
+
+  if (ouverture !== "concordant") {
+    console.error(`[maintenance] ouverture du déplacement : ${ouverture}`);
   }
 
   let dossier: string;
   try {
     dossier = await assurerDossierService(cible.tenant_id, cible.graph_user_id);
   } catch (erreur) {
-    return consigner(`dossier de service : ${messageDe(erreur)}`.slice(0, 400));
+    return tracer("echec", `dossier de service : ${messageDe(erreur)}`.slice(0, 400));
   }
 
   await rpc("enregistrer_dossier_service", {
@@ -669,7 +671,7 @@ async function rafraichirApresPose(cible: {
       dossier,
     );
   } catch (erreur) {
-    return consigner(`aller : ${messageDe(erreur)}`.slice(0, 400));
+    return tracer("echec", `aller : ${messageDe(erreur)}`.slice(0, 400));
   }
 
   // À partir d'ici le message est hors de sa boîte : le marqueur reste, c'est
@@ -685,11 +687,28 @@ async function rafraichirApresPose(cible: {
         enTransit,
         "inbox",
       );
-      await rpc("renommer_message_graph", {
-        p_company_id: cible.company_id,
-        p_ancien_id: cible.message_id,
-        p_nouveau_id: revenu,
-      });
+      const renomme = await rpc<{ table_modifiee: string; lignes: number }[]>(
+        "renommer_message_graph",
+        {
+          p_company_id: cible.company_id,
+          p_ancien_id: cible.message_id,
+          p_nouveau_id: revenu,
+        },
+      );
+
+      // Un renommage qui ne trouve rien n'est pas un succès : le message a
+      // bougé et sa sauvegarde de corps n'est plus rattachable.
+      const bascules = Array.isArray(renomme)
+        ? renomme.reduce((somme, ligne) => somme + (ligne?.lignes ?? 0), 0)
+        : 0;
+
+      await tracer(
+        "reussi",
+        bascules > 0
+          ? `déplacé, ${bascules} ligne(s) renommée(s)`
+          : `DÉPLACÉ SANS SUIVI : le renommage n'a trouvé aucune ligne sous ` +
+            `« ${cible.message_id} ». La restauration de ce message est compromise.`,
+      );
       return null;
     } catch (erreur) {
       dernier = messageDe(erreur);
@@ -701,7 +720,8 @@ async function rafraichirApresPose(cible: {
 
   // Le message est resté dans le dossier de service. Il y est VISIBLE, et la
   // ligne porte encore `deplacement_at` : le balayage le ramènera.
-  return consigner(
+  return tracer(
+    "echec",
     `retour impossible après ${ESSAIS_DEPLACEMENT} essais (${dernier}) — le balayage le ramènera`.slice(0, 400),
   );
 }
