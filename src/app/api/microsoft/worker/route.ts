@@ -786,10 +786,39 @@ async function etape<T>(nom: string, action: () => Promise<T> | T): Promise<T> {
  * l'invocation — pas de risque de servir à une société le contexte d'une
  * autre entre deux appels.
  */
+type ResultatContexte = {
+  contexte: ContexteDetection | undefined;
+  /** NULL si le contexte est complet ; sinon la raison de son absence. */
+  manquant: string | null;
+};
+
+/**
+ * Le contexte de détection, et à défaut POURQUOI il manque.
+ *
+ * ⚠ SANS LUI, LE VERDICT EST PARTIEL — ET SOUS-ÉVALUÉ. Le moteur perd d'un
+ *   coup la règle des correspondants, l'usurpation d'identité annuaire et le
+ *   typosquattage, c'est-à-dire les règles à 75 points. Un même message peut
+ *   donc ressortir « Risque élevé » à un passage et « À vérifier » au suivant.
+ *
+ *   Continuer sans contexte reste le bon choix — mieux vaut un verdict partiel
+ *   qu'un message non analysé — mais il doit S'ÉCRIRE. Un avertissement
+ *   affaibli sans que personne le sache est pire qu'un avertissement absent :
+ *   le client le lit, et il rassure.
+ *
+ * ⚠ LA RAISON DISTINGUE DEUX PANNES qui ne se corrigent pas au même endroit :
+ *   l'appel a échoué, ou il a répondu sans aucun domaine interne.
+ *
+ * Le cache ne vit QUE le temps d'une invocation : il est créé dans `executer`
+ * et n'en sort pas. Deux messages traités à quinze minutes d'écart sont deux
+ * invocations distinctes — aucune entrée en échec ne peut survivre de l'une à
+ * l'autre.
+ */
 async function contextePour(
   companyId: string,
   cache: Map<string, ContexteDetection | null>,
-): Promise<ContexteDetection | undefined> {
+): Promise<ResultatContexte> {
+  let echec: string | null = null;
+
   if (!cache.has(companyId)) {
     try {
       cache.set(
@@ -799,24 +828,31 @@ async function contextePour(
         }),
       );
     } catch (erreur) {
-      // Sans contexte le moteur reste opérant : il perd la détection de
-      // typosquattage et d'usurpation, pas le reste. Mieux vaut un verdict
-      // partiel qu'un message non analysé.
+      echec = `appel en échec — ${messageDe(erreur)}`;
       console.error("[worker] contexte indisponible :", erreur);
       cache.set(companyId, null);
     }
   }
 
   const contexte = cache.get(companyId);
+
+  if (!contexte) {
+    return { contexte: undefined, manquant: echec ?? "contexte vide" };
+  }
+
   // Un contexte sans domaine interne n'apprend rien au moteur et l'exposerait
   // à conclure sur du vide : on préfère ne rien passer du tout.
-  if (!contexte || contexte.domainesInternes.length === 0) return undefined;
-  return contexte;
+  if (contexte.domainesInternes.length === 0) {
+    return { contexte: undefined, manquant: "aucun domaine interne à l'annuaire" };
+  }
+
+  return { contexte, manquant: null };
 }
 
 async function traiter(
   travail: Travail,
   contexte: ContexteDetection | undefined,
+  contexteManquant: string | null = null,
 ): Promise<Resultat> {
   const debut = Date.now();
 
@@ -952,6 +988,18 @@ async function traiter(
     p_longueur_texte: corps.texte.length,
     p_duree_ms: Date.now() - debut,
   });
+
+  // ⚠ UN VERDICT PARTIEL LE DIT. Les règles à 75 points n'ont pas pu
+  //   s'appliquer : ce niveau est peut-être sous-évalué, et seule la ligne
+  //   peut encore en témoigner une fois la réponse HTTP oubliée.
+  if (contexteManquant && analyseId) {
+    await rpc("marquer_contexte_manquant", {
+      p_analyse_id: analyseId,
+      p_raison: contexteManquant,
+    }).catch((erreur) => {
+      console.error(`[worker] contexte manquant non consigné : ${messageDe(erreur)}`);
+    });
+  }
 
   // L'action vient APRÈS l'enregistrement du verdict, jamais avant : si elle
   // échoue, on garde la trace de ce qu'on a décidé. L'inverse laisserait un
@@ -1399,8 +1447,8 @@ async function executer(): Promise<Response> {
     }
 
     try {
-      const contexte = await contextePour(travail.company_id, contextes);
-      resultats.push(await traiter(travail, contexte));
+      const { contexte, manquant } = await contextePour(travail.company_id, contextes);
+      resultats.push(await traiter(travail, contexte, manquant));
     } catch (erreur) {
       const graph = erreur instanceof ErreurGraph ? erreur : null;
       const detail = messageDe(erreur);
@@ -2000,6 +2048,54 @@ async function diagnostiquer(): Promise<Response> {
     }
   } catch (erreur) {
     ajouter("dossier de service", "échec", messageDe(erreur));
+  }
+
+  // 2 septies. LE CONTEXTE DE DÉTECTION.
+  //
+  // ⚠ LE PIRE CAS DU PRODUIT, ET LE PLUS DISCRET. Sans contexte, le moteur
+  //   perd la règle des correspondants, l'usurpation d'identité annuaire et le
+  //   typosquattage — les règles à 75 points. Le message est analysé quand
+  //   même, et ressort SOUS-ÉVALUÉ. Un avertissement affaibli sans que
+  //   personne le sache est pire qu'un avertissement absent : le client le
+  //   lit, et il rassure.
+  try {
+    const [etat] = await rpc<
+      {
+        analyses_24h: number;
+        sans_contexte_24h: number;
+        alertes_sans_contexte_24h: number;
+        derniere_raison: string | null;
+        dernier_at: string | null;
+      }[]
+    >("etat_contexte_detection", {});
+
+    if (!etat) {
+      ajouter("contexte de détection", "échec", "aucun état : migration 20260930 non appliquée ?");
+    } else {
+      // Une analyse anodine rendue sans contexte n'a probablement rien changé.
+      // Une ALERTE rendue sans contexte est un message dont le niveau est
+      // peut-être faux — et sous-évalué, jamais l'inverse.
+      ajouter(
+        "contexte de détection",
+        etat.alertes_sans_contexte_24h > 0 ? "échec" : "ok",
+        etat.sans_contexte_24h === 0
+          ? `${etat.analyses_24h} analyse(s) sur 24 h, toutes avec le contexte complet`
+          : [
+              `${etat.sans_contexte_24h}/${etat.analyses_24h} analyse(s) rendues SANS contexte`,
+              etat.alertes_sans_contexte_24h > 0
+                ? `dont ${etat.alertes_sans_contexte_24h} ALERTE(S) : leur niveau est ` +
+                  `peut-être sous-évalué, les règles à 75 points n'ont pas pu s'appliquer. ` +
+                  `SELECT message_id, niveau, score, contexte_manquant FROM graph_analyses ` +
+                  `WHERE contexte_manquant IS NOT NULL ORDER BY analyse_at DESC;`
+                : "aucune alerte concernée",
+              etat.derniere_raison ? `Dernière raison : ${etat.derniere_raison}` : "",
+            ]
+              .filter(Boolean)
+              .join(" — "),
+      );
+    }
+  } catch (erreur) {
+    ajouter("contexte de détection", "échec", messageDe(erreur));
   }
 
   // 2 sexies. LE RAPPORT MENSUEL. Sa panne est la plus discrète du produit :
