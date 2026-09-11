@@ -678,52 +678,103 @@ async function rafraichirApresPose(cible: {
   // lui qui permet au balayage d'aller le rechercher.
   sorti = true;
 
+  // ⚠ ON NE REJOUE QUE LE DÉPLACEMENT, JAMAIS LE RENOMMAGE AVEC LUI — même
+  //   défaut, même correction que dans le worker. Les avoir dans le même
+  //   `try` faisait redéplacer `enTransit` après un retour RÉUSSI dont le
+  //   renommage avait échoué : l'identifiant venait d'être invalidé, les
+  //   essais suivants tombaient sur « The specified object was not found in
+  //   the store », et cette erreur trompeuse remplaçait la vraie cause.
+  let viser = enTransit;
+  let revenu: string | null = null;
+  let rentreSeul = false;
+  let certain = true;
   let dernier = "";
-  for (let essai = 1; essai <= ESSAIS_DEPLACEMENT; essai += 1) {
+
+  for (let essai = 1; essai <= ESSAIS_DEPLACEMENT && !revenu && !rentreSeul; essai += 1) {
     try {
-      const revenu = await deplacerMessage(
+      revenu = await deplacerMessage(
         cible.tenant_id,
         cible.graph_user_id,
-        enTransit,
+        viser,
         "inbox",
       );
-      const renomme = await rpc<{ table_modifiee: string; lignes: number }[]>(
-        "renommer_message_graph",
-        {
-          p_company_id: cible.company_id,
-          p_ancien_id: cible.message_id,
-          p_nouveau_id: revenu,
-        },
-      );
-
-      // Un renommage qui ne trouve rien n'est pas un succès : le message a
-      // bougé et sa sauvegarde de corps n'est plus rattachable.
-      const bascules = Array.isArray(renomme)
-        ? renomme.reduce((somme, ligne) => somme + (ligne?.lignes ?? 0), 0)
-        : 0;
-
-      await tracer(
-        "reussi",
-        bascules > 0
-          ? `déplacé, ${bascules} ligne(s) renommée(s)`
-          : `DÉPLACÉ SANS SUIVI : le renommage n'a trouvé aucune ligne sous ` +
-            `« ${cible.message_id} ». La restauration de ce message est compromise.`,
-      );
-      return null;
     } catch (erreur) {
       dernier = messageDe(erreur);
       console.error(
         `[maintenance] retour en boîte de réception, essai ${essai}/${ESSAIS_DEPLACEMENT} : ${dernier}`,
       );
+
+      const restants = await listerDossierService(
+        cible.tenant_id,
+        cible.graph_user_id,
+        dossier,
+      ).catch(() => null);
+
+      if (restants === null) continue;
+      if (restants.length === 0) { rentreSeul = true; break; }
+
+      viser = restants[0];
+      certain = restants.length === 1;
     }
   }
 
-  // Le message est resté dans le dossier de service. Il y est VISIBLE, et la
-  // ligne porte encore `deplacement_at` : le balayage le ramènera.
-  return tracer(
-    "echec",
-    `retour impossible après ${ESSAIS_DEPLACEMENT} essais (${dernier}) — le balayage le ramènera`.slice(0, 400),
-  );
+  if (rentreSeul) {
+    return tracer(
+      "echec",
+      `retour constaté mais identifiant inconnu (${dernier}) — le message est en ` +
+        `boîte de réception ; rattachement par jeton attendu`.slice(0, 400),
+    );
+  }
+
+  if (!revenu) {
+    return tracer(
+      "echec",
+      `retour impossible après ${ESSAIS_DEPLACEMENT} essais (${dernier}) — le balayage le ramènera`.slice(0, 400),
+    );
+  }
+
+  // Rentré : le marqueur peut tomber quoi qu'il advienne du renommage.
+  sorti = false;
+
+  if (!certain) {
+    return tracer(
+      "echec",
+      `ramené mais plusieurs messages dans le dossier : renommage refusé, ` +
+        `rattachement par jeton attendu`,
+    );
+  }
+
+  try {
+    const renomme = await rpc<{ table_modifiee: string; lignes: number }[]>(
+      "renommer_message_graph",
+      {
+        p_company_id: cible.company_id,
+        p_ancien_id: cible.message_id,
+        p_nouveau_id: revenu,
+      },
+    );
+
+    // Un renommage qui ne trouve rien n'est pas un succès : le message a
+    // bougé et sa sauvegarde de corps n'est plus rattachable.
+    const bascules = Array.isArray(renomme)
+      ? renomme.reduce((somme, ligne) => somme + (ligne?.lignes ?? 0), 0)
+      : 0;
+
+    await tracer(
+      "reussi",
+      bascules > 0
+        ? `déplacé, ${bascules} ligne(s) renommée(s)`
+        : `DÉPLACÉ SANS SUIVI : le renommage n'a trouvé aucune ligne sous ` +
+          `« ${cible.message_id} ». La restauration de ce message est compromise.`,
+    );
+    return null;
+  } catch (erreur) {
+    return tracer(
+      "echec",
+      `message revenu en boîte de réception, mais renommage impossible ` +
+        `(${messageDe(erreur)}) — rattachement par jeton attendu`.slice(0, 400),
+    );
+  }
 }
 
 async function rattraperBannieres(): Promise<Record<string, unknown>> {

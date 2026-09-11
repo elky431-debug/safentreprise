@@ -23,6 +23,7 @@ import {
   assurerDossierService,
   deplacerMessage,
   lireMessage,
+  listerDossierService,
   obtenirJeton,
   poserCategorie,
   remplacerCorps,
@@ -599,66 +600,151 @@ async function deplacerPourRafraichir(
   // ne se lève plus : il est ce qui permet au balayage d'aller le rechercher.
   sorti = true;
 
-  let dernierEchec: unknown = null;
-  for (let essai = 1; essai <= ESSAIS_DEPLACEMENT; essai += 1) {
+  // ─────────────────────────────────────────────────────────────────────
+  // LE RETOUR. RIEN NE COMPTE PLUS QUE CETTE ÉTAPE.
+  //
+  // ⚠ ON NE REJOUE QUE LE DÉPLACEMENT, JAMAIS LE RENOMMAGE AVEC LUI. La
+  //   version précédente les avait dans le même `try` : quand le renommage
+  //   échouait après un retour RÉUSSI, la boucle redéplaçait `enTransit` —
+  //   un identifiant que le retour venait justement d'invalider. Les deux
+  //   essais suivants échouaient donc sur « The specified object was not
+  //   found in the store », et le message était déclaré perdu alors qu'il
+  //   était revenu. Pire, dans l'autre sens, un vrai échec de retour était
+  //   masqué par la même erreur trompeuse.
+  //
+  // ⚠ ET ON NE S'ACHARNE PAS SUR UN IDENTIFIANT PÉRIMÉ. À chaque échec on
+  //   relit le dossier de service : c'est la seule source qui dise où en est
+  //   réellement le message. Dossier vide = il est déjà rentré.
+  // ─────────────────────────────────────────────────────────────────────
+  let cible = enTransit;
+  let revenu: string | null = null;
+  let rentreSeul = false;
+  /** L'identifiant rendu est-il bien celui de NOTRE message ? */
+  let certain = true;
+  let dernier = "";
+
+  for (let essai = 1; essai <= ESSAIS_DEPLACEMENT && !revenu && !rentreSeul; essai += 1) {
     try {
-      const revenu = await deplacerMessage(
+      revenu = await deplacerMessage(
         travail.tenant_id,
         travail.graph_user_id,
-        enTransit,
+        cible,
         "inbox",
       );
-
-      // ⚠ C'EST ICI QUE LA FENÊTRE SE FERME. Tant que cet appel n'a pas eu
-      //   lieu, le message porte une bannière sous un identifiant que la base
-      //   ignore — et la restauration ne le retrouverait pas. Le jeton
-      //   `data-ref` de la bannière est ce qui couvre l'intervalle.
-      const renomme = await rpc<{ table_modifiee: string; lignes: number }[]>(
-        "renommer_message_graph",
-        {
-          p_company_id: travail.company_id,
-          p_ancien_id: travail.message_id,
-          p_nouveau_id: revenu,
-        },
-      );
-
-      // ⚠ LE RENOMMAGE PEUT NE RIEN TROUVER SANS RIEN DIRE. Trois lignes à
-      //   zéro veut dire que le message a bougé et que la base n'a pas suivi :
-      //   sa sauvegarde de corps n'est plus rattachable, donc la restauration
-      //   d'un faux positif est perdue. Ça ne doit pas passer pour un succès.
-      const bascules = Array.isArray(renomme)
-        ? renomme.reduce((somme, ligne) => somme + (ligne?.lignes ?? 0), 0)
-        : 0;
-
-      await tracer(
-        "reussi",
-        bascules > 0
-          ? `déplacé, ${bascules} ligne(s) renommée(s)`
-          : `DÉPLACÉ SANS SUIVI : le renommage n'a trouvé aucune ligne sous ` +
-            `« ${travail.message_id} ». La restauration de ce message est compromise.`,
-      );
-      return;
     } catch (erreur) {
-      dernierEchec = erreur;
+      dernier = messageDe(erreur);
       console.error(
-        `[worker] retour en boîte de réception, essai ${essai}/${ESSAIS_DEPLACEMENT} : ` +
-          `${messageDe(erreur)}`,
+        `[worker] retour en boîte de réception, essai ${essai}/${ESSAIS_DEPLACEMENT} : ${dernier}`,
       );
+
+      const restants = await listerDossierService(
+        travail.tenant_id,
+        travail.graph_user_id,
+        dossier,
+      ).catch(() => null);
+
+      if (restants === null) continue; // on ne sait pas : on retente tel quel
+
+      if (restants.length === 0) {
+        // Le dossier est vide : le message est rentré, sous un identifiant
+        // qu'on ignore. Le jeton `data-ref` de sa bannière le rattachera à la
+        // prochaine notification — c'est exactement ce pour quoi il existe.
+        rentreSeul = true;
+        break;
+      }
+
+      // Un identifiant frais, lu à la source.
+      cible = restants[0];
+      certain = restants.length === 1;
     }
   }
 
-  await tracer(
-    "echec",
-    `retour impossible après ${ESSAIS_DEPLACEMENT} essais (${messageDe(dernierEchec)}) ` +
-      `— le message est dans le dossier de service, le balayage le ramènera`,
-  );
+  if (rentreSeul) {
+    // ⚠ LE MARQUEUR RESTE POSÉ, à dessein : c'est lui qui garde le
+    //   rattachement par jeton « dans la fenêtre ». Le balayage, lui, trouvera
+    //   le dossier vide et n'aura rien à faire.
+    await tracer(
+      "echec",
+      `retour constaté mais identifiant inconnu (${dernier}) — le message est ` +
+        `en boîte de réception ; rattachement par jeton attendu à la prochaine notification`,
+    );
+    return;
+  }
 
-  throw new ErreurEtape(
-    `message laissé dans le dossier de service après ${ESSAIS_DEPLACEMENT} essais ` +
-      `(${messageDe(dernierEchec)}) — la maintenance le ramènera`,
-    "retour en boîte de réception",
-    dernierEchec,
-  );
+  if (!revenu) {
+    // ⚠ LE SEUL CAS OÙ UN MESSAGE RESTE HORS DE SA BOÎTE. Le marqueur reste,
+    //   le balayage de la maintenance le ramène, et le dossier de service est
+    //   un sous-dossier VISIBLE de la boîte de réception : son destinataire
+    //   l'y voit et peut l'en sortir lui-même.
+    await tracer(
+      "echec",
+      `retour impossible après ${ESSAIS_DEPLACEMENT} essais (${dernier}) — le message ` +
+        `est dans « ${DOSSIER_SERVICE} », le balayage le ramènera`,
+    );
+
+    throw new ErreurEtape(
+      `message laissé dans le dossier de service après ${ESSAIS_DEPLACEMENT} essais ` +
+        `(${dernier}) — la maintenance le ramènera`,
+      "retour en boîte de réception",
+      dernier,
+    );
+  }
+
+  // Le message est rentré. Le marqueur peut tomber : quoi qu'il advienne du
+  // renommage ci-dessous, il n'est plus hors de sa boîte.
+  sorti = false;
+
+  if (!certain) {
+    // On a ramené un message du dossier, mais plusieurs s'y trouvaient : rien
+    // ne dit que c'est le nôtre. Renommer sur cette base rattacherait une
+    // sauvegarde de corps au mauvais message — pire que ne pas renommer.
+    await tracer(
+      "echec",
+      `ramené depuis « ${DOSSIER_SERVICE} » mais plusieurs messages s'y trouvaient : ` +
+        `renommage refusé, rattachement par jeton attendu`,
+    );
+    return;
+  }
+
+  // ⚠ C'EST ICI QUE LA FENÊTRE SE FERME. Tant que cet appel n'a pas eu lieu,
+  //   le message porte une bannière sous un identifiant que la base ignore —
+  //   et la restauration ne le retrouverait pas. Le jeton `data-ref` de la
+  //   bannière est ce qui couvre l'intervalle.
+  //
+  // ⚠ SON ÉCHEC NE FAIT PLUS REDÉPLACER QUOI QUE CE SOIT. Le message est en
+  //   boîte de réception ; le rejouer l'en ressortirait.
+  try {
+    const renomme = await rpc<{ table_modifiee: string; lignes: number }[]>(
+      "renommer_message_graph",
+      {
+        p_company_id: travail.company_id,
+        p_ancien_id: travail.message_id,
+        p_nouveau_id: revenu,
+      },
+    );
+
+    // ⚠ LE RENOMMAGE PEUT NE RIEN TROUVER SANS RIEN DIRE. Trois lignes à zéro
+    //   veut dire que le message a bougé et que la base n'a pas suivi : sa
+    //   sauvegarde de corps n'est plus rattachable, donc la restauration d'un
+    //   faux positif est perdue. Ça ne doit pas passer pour un succès.
+    const bascules = Array.isArray(renomme)
+      ? renomme.reduce((somme, ligne) => somme + (ligne?.lignes ?? 0), 0)
+      : 0;
+
+    await tracer(
+      "reussi",
+      bascules > 0
+        ? `déplacé, ${bascules} ligne(s) renommée(s)`
+        : `DÉPLACÉ SANS SUIVI : le renommage n'a trouvé aucune ligne sous ` +
+          `« ${travail.message_id} ». La restauration de ce message est compromise.`,
+    );
+  } catch (erreur) {
+    await tracer(
+      "echec",
+      `message revenu en boîte de réception, mais renommage impossible ` +
+        `(${messageDe(erreur)}) — rattachement par jeton attendu`,
+    );
+  }
 }
 
 /* ==========================================================================
