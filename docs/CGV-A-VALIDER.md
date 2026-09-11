@@ -181,10 +181,25 @@ et **n'a pas été relue par un juriste**.
 
 Situation factuelle, vérifiée : la base de données est en France (Supabase,
 eu-west-3, Paris), l'application s'exécute en Allemagne (Netlify, eu-central-1,
-Francfort). **Aucun contenu de message ne sort de l'Union européenne.** Deux
-flux seulement en sortent, sans contenu de message : Resend (États-Unis, envoi
-des simulations et d'alertes techniques réduites à des compteurs) et Stripe
-(paiements).
+Francfort). **Aucun contenu de message ne sort de l'Union européenne.** Trois
+flux seulement en sortent : Resend (États-Unis) pour l'envoi des simulations,
+des alertes techniques réduites à des compteurs, et — depuis le 11 septembre
+2026 — des **alertes de fraude au dirigeant** ; et Stripe (paiements).
+
+**L'alerte de fraude au dirigeant est nouvelle, et c'est celle qui emporte le
+plus de données.** Elle ne contient ni l'objet ni le corps du message
+frauduleux, mais elle contient l'adresse du dirigeant, celle de la boîte
+visée, le nom et l'adresse de l'expéditeur frauduleux, et les motifs de
+détection. Elle est décrite en détail dans l'AIPD (§ 1.5 bis) et dans
+l'annexe 2 du DPA. Le conseil doit être interrogé sur ce point précis :
+
+- un email en clair chez un prestataire américain apprend à celui-ci qu'une
+  entreprise française nommée a été visée par une fraude, quand et par qui.
+  **Est-ce couvert par la même base de transfert que le reste, ou faut-il un
+  prestataire européen pour ce flux-là ?**
+- le Collaborateur dont la boîte est visée est informé par la bannière posée
+  dans son message, mais pas du fait que son adresse est transmise à un tiers
+  américain à cette occasion. **Faut-il l'en informer, et comment ?**
 
 - Supabase et Netlify sont des sociétés **américaines** dont les données
   restent en Europe. Les clauses contractuelles types suffisent-elles à

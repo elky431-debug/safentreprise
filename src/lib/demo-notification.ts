@@ -12,6 +12,7 @@
  *   partir un message qui finirait en indésirable.
  */
 import { envoyerEmail, type ResultatEnvoiEmail } from "@/lib/send/email";
+import { erreurExpediteur, expediteurVerifie } from "@/lib/send/expediteur";
 import { EMAIL_CONTACT, TELEPHONE_AFFICHE } from "@/lib/contact";
 
 /** Ce qu'une demande contient, une fois validée par la route. */
@@ -26,28 +27,12 @@ export type DemandeDemo = {
   besoin: string;
 };
 
-/** Domaine seul autorisé à expédier. */
-const DOMAINE_EXPEDITEUR = "safentreprise.com";
-
 /**
- * Adresse d'expédition.
- *
- * ⚠ ELLE DOIT ÊTRE VÉRIFIÉE CHEZ RESEND, sans quoi l'envoi échoue. En
- *   développement, `onboarding@resend.dev` ne peut écrire qu'à l'adresse du
- *   compte Resend — il ne convient donc pas ici et la garde le refusera.
+ * Variables consultées, dans l'ordre, pour l'adresse d'expédition.
+ * La garde elle-même vit dans `@/lib/send/expediteur`, partagée avec l'alerte
+ * au dirigeant.
  */
-function expediteur(): string | null {
-  const brut =
-    process.env.DEMO_FROM_EMAIL?.trim() ||
-    process.env.VEILLE_FROM_EMAIL?.trim() ||
-    `contact@${DOMAINE_EXPEDITEUR}`;
-
-  const adresse = brut.toLowerCase();
-  if (!adresse.endsWith(`@${DOMAINE_EXPEDITEUR}`)) {
-    return null;
-  }
-  return brut;
-}
+const VARIABLES_EXPEDITEUR = ["DEMO_FROM_EMAIL", "VEILLE_FROM_EMAIL"];
 
 /** Destinataire de la notification interne. */
 function destinataireInterne(): string {
@@ -117,13 +102,10 @@ export type ResultatNotification = {
 export async function notifierDemande(
   d: DemandeDemo,
 ): Promise<ResultatNotification> {
-  const from = expediteur();
+  const from = expediteurVerifie(VARIABLES_EXPEDITEUR);
 
   if (!from) {
-    const erreur =
-      `Aucune adresse d'expédition sur @${DOMAINE_EXPEDITEUR} : poser ` +
-      `DEMO_FROM_EMAIL (ou VEILLE_FROM_EMAIL) sur une adresse du domaine, ` +
-      `vérifiée chez Resend.`;
+    const erreur = erreurExpediteur(VARIABLES_EXPEDITEUR);
     return {
       interne: { ok: false, erreur },
       confirmation: { ok: false, erreur },

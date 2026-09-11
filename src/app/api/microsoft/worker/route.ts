@@ -35,7 +35,15 @@ import {
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
 import { convertirCorps } from "@/lib/detection/html-texte.js";
-import { avecContexteJournal } from "@/lib/microsoft/journal";
+import { avecContexteJournal, journaliserAcces } from "@/lib/microsoft/journal";
+import {
+  alerteFictive,
+  envoyerAlerteDirigeant,
+  envoyerResumeDirigeant,
+  type AlerteANotifier,
+  type ResumeANotifier,
+} from "@/lib/microsoft/alerte-dirigeant";
+import { erreurExpediteur, expediteurVerifie } from "@/lib/send/expediteur";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -662,6 +670,168 @@ async function traiter(
 }
 
 /* ==========================================================================
+   Alerte au dirigeant
+   ========================================================================== */
+
+/**
+ * Prévenir le dirigeant des tentatives de RISQUE ÉLEVÉ, et d'elles seules.
+ *
+ * ⚠ UNE PASSE SÉPARÉE, PAS UN APPEL DANS LA BOUCLE DES MESSAGES. Trois
+ *   raisons, dans l'ordre d'importance :
+ *
+ *   1. Le mécanisme anti-rafale se raisonne par société, pas par message —
+ *      il vit donc en base, dans deux fonctions qui réclament leur lot. Une
+ *      décision prise message par message ne pourrait pas voir la rafale.
+ *   2. Le résumé d'une fenêtre close doit partir même quand plus rien
+ *      n'arrive. C'est précisément le cas où la file des messages est vide :
+ *      un appel dans la boucle ne se déclencherait jamais.
+ *   3. Un envoi lent n'a alors aucun effet sur le budget de traitement des
+ *      messages.
+ *
+ * ⚠ ELLE NE LÈVE JAMAIS. Une panne Resend, une société sans destinataire, une
+ *   fonction absente : tout revient en `erreur` dans le compte rendu. La
+ *   bannière est la protection ; l'email n'en est que l'écho, et le worker ne
+ *   doit pas s'arrêter pour lui.
+ */
+const ALERTES_PAR_PASSE = 5;
+
+function fenetreAlerte(): number {
+  const brut = Number(process.env.ALERTE_FENETRE_MINUTES);
+  return Number.isFinite(brut) && brut >= 1 ? Math.floor(brut) : 60;
+}
+
+type Notification = {
+  type: "alerte" | "resume";
+  company_id: string;
+  destinataires: number;
+  envoyes: number;
+  nombre?: number;
+  erreur?: string;
+};
+
+async function destinatairesDe(companyId: string): Promise<string[]> {
+  const lignes = await rpc<{ email: string }[]>("destinataires_alerte", {
+    p_company_id: companyId,
+  });
+  return (Array.isArray(lignes) ? lignes : [])
+    .map((l) => (l?.email ?? "").trim())
+    .filter(Boolean);
+}
+
+/**
+ * Une notification envoyée est une sortie de données hors de l'Union
+ * européenne. Elle se journalise, comme les accès Graph — et pour une raison
+ * plus forte : c'est le seul flux du produit dans ce cas.
+ *
+ * ⚠ ON NE JOURNALISE PAS LES ADRESSES, seulement leur NOMBRE. `journal_acces`
+ *   refuse d'ailleurs toute valeur contenant « @ ». Recopier dans le journal
+ *   ce qu'on surveille doublerait le risque au lieu de le réduire.
+ */
+async function tracerNotification(n: Notification): Promise<void> {
+  await journaliserAcces({
+    ressource: "notification",
+    operation: "ecriture",
+    resultat: n.envoyes > 0 ? "ok" : "erreur",
+    companyId: n.company_id,
+    ressourceRef: n.type === "resume" ? "resume-alertes" : "alerte-eleve",
+    code: n.erreur ? "envoi-refuse" : null,
+    volume: n.envoyes,
+  });
+}
+
+async function notifierAlertes(): Promise<Notification[]> {
+  const faits: Notification[] = [];
+  const fenetre = fenetreAlerte();
+
+  // ── Les résumés de fenêtre close ──────────────────────────────────────
+  try {
+    const resumes = await rpc<ResumeANotifier[]>("reclamer_resumes_alertes", {
+      p_fenetre_minutes: fenetre,
+      p_limite: ALERTES_PAR_PASSE,
+    });
+
+    for (const resume of Array.isArray(resumes) ? resumes : []) {
+      const destinataires = await destinatairesDe(resume.company_id).catch(
+        () => [] as string[],
+      );
+      const r = await envoyerResumeDirigeant(destinataires, resume);
+      const fait: Notification = {
+        type: "resume",
+        company_id: resume.company_id,
+        nombre: resume.nombre,
+        ...r,
+      };
+      faits.push(fait);
+      await tracerNotification(fait);
+
+      // ⚠ ON NE REND PAS UN RÉSUMÉ À LA FILE. Il couvre N alertes déjà
+      //   marquées ; les rendre toutes ferait repartir la société pour un
+      //   deuxième résumé identique au passage suivant, et ainsi de suite
+      //   tant que Resend est en panne. Une alerte détaillée, elle, est
+      //   rendue : elle est seule, et la rejouer ne duplique rien.
+      if (r.envoyes === 0) {
+        console.error(
+          `[worker] résumé d'alertes non envoyé pour ${resume.company_id} : ${r.erreur}`,
+        );
+      }
+    }
+  } catch (erreur) {
+    faits.push({
+      type: "resume",
+      company_id: "-",
+      destinataires: 0,
+      envoyes: 0,
+      erreur: messageDe(erreur),
+    });
+  }
+
+  // ── Les alertes détaillées ────────────────────────────────────────────
+  try {
+    const alertes = await rpc<AlerteANotifier[]>(
+      "reclamer_notifications_alertes",
+      { p_fenetre_minutes: fenetre, p_limite: ALERTES_PAR_PASSE },
+    );
+
+    for (const alerte of Array.isArray(alertes) ? alertes : []) {
+      const destinataires = await destinatairesDe(alerte.company_id).catch(
+        () => [] as string[],
+      );
+      const r = await envoyerAlerteDirigeant(destinataires, alerte);
+      const fait: Notification = {
+        type: "alerte",
+        company_id: alerte.company_id,
+        ...r,
+      };
+      faits.push(fait);
+      await tracerNotification(fait);
+
+      if (r.envoyes === 0) {
+        console.error(
+          `[worker] alerte non envoyée pour ${alerte.message_id} : ${r.erreur}`,
+        );
+        // Rendue à la file : sans ça, une panne Resend CONSOMMERAIT la
+        // notification — l'alerte serait marquée comme rapportée alors que
+        // personne n'a rien reçu.
+        await rpc("rendre_notification_alerte", {
+          p_company_id: alerte.company_id,
+          p_message_id: alerte.message_id,
+        }).catch(() => {});
+      }
+    }
+  } catch (erreur) {
+    faits.push({
+      type: "alerte",
+      company_id: "-",
+      destinataires: 0,
+      envoyes: 0,
+      erreur: messageDe(erreur),
+    });
+  }
+
+  return faits;
+}
+
+/* ==========================================================================
    Point d'entrée
    ========================================================================== */
 
@@ -671,7 +841,15 @@ async function executer(): Promise<Response> {
   });
 
   if (!Array.isArray(travaux) || travaux.length === 0) {
-    return Response.json({ traites: 0, resultats: [] });
+    // ⚠ LA PASSE D'ALERTES TOURNE MÊME QUAND LA FILE EST VIDE, et c'est
+    //   indispensable : le résumé d'une fenêtre close part une heure APRÈS la
+    //   dernière alerte, c'est-à-dire au moment le plus probable où plus rien
+    //   n'arrive. Sous l'ancien retour anticipé, il n'aurait jamais été envoyé.
+    return Response.json({
+      traites: 0,
+      resultats: [],
+      notifications: await notifierAlertes(),
+    });
   }
 
   const resultats: Resultat[] = [];
@@ -726,6 +904,8 @@ async function executer(): Promise<Response> {
     traites: resultats.filter((r) => r.statut === "analyse").length,
     echecs: resultats.filter((r) => r.statut === "echec").length,
     resultats,
+    // Après la boucle : les bannières du lot sont posées, donc éligibles.
+    notifications: await notifierAlertes(),
   });
 }
 
@@ -1011,6 +1191,63 @@ async function diagnostiquer(): Promise<Response> {
     ajouter("veille (alerte par mail)", "échec", messageDe(erreur));
   }
 
+  // 2 quinquies. L'ALERTE AU DIRIGEANT. Deux choses peuvent la rendre muette
+  //              sans que rien d'autre ne bouge : une adresse d'expédition
+  //              hors du domaine — la garde refuse alors chaque envoi — et
+  //              une file qui s'allonge parce que les envois échouent.
+  {
+    const from = expediteurVerifie([
+      "ALERTE_FROM_EMAIL",
+      "VEILLE_FROM_EMAIL",
+      "DEMO_FROM_EMAIL",
+    ]);
+    ajouter(
+      "expéditeur des alertes",
+      from ? "ok" : "échec",
+      from
+        ? `${from} — doit être vérifiée chez Resend`
+        : erreurExpediteur(["ALERTE_FROM_EMAIL", "VEILLE_FROM_EMAIL"]),
+    );
+  }
+
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const cle = process.env.SUPABASE_SECRET_KEY as string;
+    // ⚠ LECTURE DIRECTE, PAS `reclamer_notifications_alertes` : celle-ci
+    //   MARQUE ce qu'elle rend. Un diagnostic qui consomme la file enverrait
+    //   des alertes à chaque contrôle.
+    const r = await fetch(
+      `${url}/rest/v1/graph_analyses?select=company_id,analyse_at` +
+        `&alerte=is.true&niveau=eq.eleve&notifiee_at=is.null` +
+        `&banniere_posee_at=not.is.null&restauree_at=is.null` +
+        `&order=analyse_at.asc&limit=200`,
+      { headers: { apikey: cle, Authorization: `Bearer ${cle}` } },
+    );
+    const lignes = (await r.json()) as { analyse_at: string }[];
+    const attente = Array.isArray(lignes) ? lignes.length : 0;
+
+    // Une alerte encore en attente une heure après son analyse n'attend plus
+    // la fenêtre : elle n'est pas partie.
+    const limite = Date.now() - fenetreAlerte() * 60_000;
+    const bloquees = (Array.isArray(lignes) ? lignes : []).filter(
+      (l) => new Date(l.analyse_at).getTime() < limite,
+    ).length;
+
+    ajouter(
+      "alertes dirigeant en attente",
+      bloquees > 0 ? "échec" : "ok",
+      attente === 0
+        ? "aucune"
+        : bloquees === 0
+          ? `${attente} en attente de la prochaine fenêtre (${fenetreAlerte()} min) — normal`
+          : `${bloquees} alerte(s) en attente depuis plus de ${fenetreAlerte()} min ` +
+            `sur ${attente}. L'envoi ne passe pas : vérifier la clé Resend et ` +
+            `l'adresse d'expédition. Essai en blanc : POST ?essai-alerte=1.`,
+    );
+  } catch (erreur) {
+    ajouter("alertes dirigeant en attente", "échec", messageDe(erreur));
+  }
+
   // 3. État de la file, par simple lecture.
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -1102,6 +1339,59 @@ async function diagnostiquer(): Promise<Response> {
   );
 }
 
+/**
+ * Essai de l'alerte au dirigeant, en blanc.
+ *
+ * ⚠ IL N'ÉCRIT RIEN ET NE CONSOMME RIEN. Aucune alerte n'est réclamée, aucune
+ *   ligne marquée : on peut le lancer en production autant qu'on veut. C'est
+ *   la seule façon de vérifier la chaîne d'envoi — domaine vérifié chez
+ *   Resend, clé valide, mise en forme lisible sur un téléphone — sans
+ *   attendre qu'une vraie fraude arrive.
+ *
+ * ⚠ IL N'ÉCRIT PAS AU DIRIGEANT NON PLUS. Le destinataire est
+ *   `ALERTE_ESSAI_EMAIL`, à défaut `DEMO_NOTIFICATION_EMAIL` : une adresse
+ *   d'exploitation. Envoyer un faux « tentative de fraude détectée » à un
+ *   client est exactement ce qu'un mode d'essai ne doit pas pouvoir faire.
+ *
+ * ⚠ LES DONNÉES SONT FICTIVES, y compris l'expéditeur et la boîte. Rien de
+ *   réel ne part vers Resend pour un essai.
+ */
+async function essaiAlerte(): Promise<Response> {
+  const destinataire =
+    process.env.ALERTE_ESSAI_EMAIL?.trim() ||
+    process.env.DEMO_NOTIFICATION_EMAIL?.trim() ||
+    "";
+
+  if (!destinataire) {
+    return Response.json(
+      {
+        essai: "alerte-dirigeant",
+        envoye: false,
+        erreur:
+          "Aucun destinataire d'essai : poser ALERTE_ESSAI_EMAIL (ou, à " +
+          "défaut, DEMO_NOTIFICATION_EMAIL). L'essai n'écrit jamais au " +
+          "dirigeant d'un client.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const resultat = await envoyerAlerteDirigeant([destinataire], alerteFictive());
+
+  return Response.json(
+    {
+      essai: "alerte-dirigeant",
+      destinataire,
+      envoye: resultat.envoyes > 0,
+      erreur: resultat.erreur,
+      rappel:
+        "Aucune ligne n'a été lue ni marquée : la file des alertes est " +
+        "intacte. Les données de ce message sont fictives.",
+    },
+    { status: resultat.envoyes > 0 ? 200 : 502 },
+  );
+}
+
 /** Le secret partagé protège le déclenchement. */
 function autorise(request: Request): boolean {
   const attendu = process.env.WORKER_SECRET;
@@ -1120,9 +1410,16 @@ async function postInterne(request: Request) {
     return new Response("non autorisé", { status: 401 });
   }
 
+  const parametres = new URL(request.url).searchParams;
+
   // ?verifier=1 — contrôle les dépendances sans rien consommer.
-  if (new URL(request.url).searchParams.has("verifier")) {
+  if (parametres.has("verifier")) {
     return diagnostiquer();
+  }
+
+  // ?essai-alerte=1 — envoie l'alerte au dirigeant, en blanc.
+  if (parametres.has("essai-alerte")) {
+    return essaiAlerte();
   }
 
   try {

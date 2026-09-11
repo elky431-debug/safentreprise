@@ -480,7 +480,7 @@ Liste au 8 septembre 2026.
 |---|---|---|---|
 | **Supabase** (infrastructure AWS) | Base de données et authentification | **La totalité** des données enregistrées, corps de messages compris | **France** — AWS `eu-west-3` (Paris) |
 | **Netlify** (infrastructure AWS) | Hébergement et exécution de l'application | Tout ce qui transite pendant une requête, **corps des messages compris**, **en mémoire seulement** — aucune écriture durable | **Allemagne** — AWS `eu-central-1` (Francfort) |
-| **Resend** | Envoi des messages de simulation des Campagnes ; envoi des alertes techniques internes | Adresses des Collaborateurs destinataires et contenu des messages de simulation. Les alertes techniques internes sont **réduites à des compteurs et à la nature du problème** : elles ne comportent ni objet, ni adresse d'expéditeur, ni adresse de boîte | **États-Unis** |
+| **Resend** | Envoi des messages de simulation des Campagnes ; envoi des alertes techniques internes ; **envoi des alertes de fraude au Responsable de traitement** | Adresses des Collaborateurs destinataires et contenu des messages de simulation. Les alertes techniques internes sont **réduites à des compteurs et à la nature du problème** : elles ne comportent ni objet, ni adresse d'expéditeur, ni adresse de boîte. **Les alertes de fraude comportent l'adresse du Responsable de traitement, l'adresse de la boîte visée, le nom et l'adresse de l'expéditeur frauduleux, les motifs de détection, la date, le niveau et le score — mais en aucun cas l'objet ni le corps du message** (voir ci-dessous) | **États-Unis** |
 | **SMS Partner** | Envoi des simulations par SMS, si ce canal est utilisé | Numéros de téléphone professionnels et contenu du SMS | **France** |
 
 **Ne figure pas dans cette liste, et ne doit pas y être ajouté sans
@@ -489,6 +489,42 @@ mais **aucun appel à Stripe n'est effectué par le code à ce jour**. Cette lig
 sera ajoutée si et quand l'encaissement en ligne sera mis en service.
 
 **Microsoft** n'est pas un sous-traitant de Safentreprise (voir préambule).
+
+## L'alerte de fraude au Responsable de traitement
+
+Mise en service le 11 septembre 2026. C'est **le seul traitement du Service
+qui fasse sortir de l'Union européenne des données nominatives relatives aux
+Collaborateurs du Client**, et il est décrit ici pour cette raison.
+
+**Déclenchement.** Une tentative de **risque élevé uniquement**, et seulement
+**après qu'une bannière d'avertissement a été posée dans le message**. Les
+niveaux modéré et faible ne déclenchent aucun envoi.
+
+**Destinataire.** Le titulaire du compte de la société concernée, et lui
+seul. Aucune donnée d'un Client n'est adressée à un autre.
+
+**Contenu transmis.** Adresse du destinataire ; adresse de la boîte visée ;
+nom affiché et adresse réelle de l'expéditeur du message frauduleux ; jusqu'à
+cinq motifs de détection, lesquels peuvent citer le nom et l'adresse de cet
+expéditeur ; date de réception ; niveau et score.
+
+**Contenu exclu — l'objet et le corps du message.** Cette exclusion est
+imposée par la structure du code, non par une consigne : la fonction Postgres
+qui alimente l'envoi ne rend pas la colonne `objet`, le type qui porte
+l'alerte n'a aucun champ de contenu, et un essai automatisé vérifie qu'un
+champ ajouté par inadvertance ne ressortirait pas dans l'email.
+
+**Volume.** Un email par société et par heure au maximum — deux dans l'heure
+suivant la première alerte. Les alertes survenues pendant la fenêtre sont
+regroupées dans un résumé qui ne reprend aucun motif.
+
+**Traçabilité.** Chaque envoi est journalisé (`journal_acces`,
+`ressource = 'notification'`), sans aucune adresse.
+
+**Transfert hors Union européenne.** Il relève de l'article 8 du présent
+contrat, dont la vérification reste **en attente** (voir la liste des points à
+valider). Aucune garantie n'est ici affirmée qui ne le soit déjà à
+l'article 8 — et cet article n'est pas encore vérifié.
 
 ---
 

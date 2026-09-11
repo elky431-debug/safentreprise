@@ -311,6 +311,25 @@ export default function PolitiqueConfidentialitePage() {
         </Encadre>
 
         <P>
+          <Fort>Le dirigeant est prévenu par e-mail, et seulement pour les
+          tentatives les plus graves.</Fort>{" "}
+          Lorsque le service classe une tentative en <Fort>risque élevé</Fort>{" "}
+          et qu’il a effectivement posé l’avertissement dans le message, un
+          e-mail est adressé au dirigeant de l’entreprise concernée. Cet e-mail
+          indique l’adresse de la boîte visée, le nom et l’adresse de
+          l’expéditeur, les motifs de détection, la date, le niveau et le
+          score.{" "}
+          <Fort>
+            Il ne contient ni l’objet ni le contenu du message.
+          </Fort>{" "}
+          Le dirigeant apprend qu’une tentative a visé son entreprise ; il ne
+          lit pas la correspondance de ses collaborateurs — le produit ne le lui
+          permet nulle part. Les tentatives de niveau modéré ou faible ne
+          déclenchent aucun e-mail. Cet envoi passe par un prestataire établi
+          aux États-Unis : voir le point 3.1, « Sous-traitants ultérieurs ».
+        </P>
+
+        <P>
           <Fort>Comment le service est raccordé.</Fort> Un administrateur
           Microsoft 365 de l’entreprise donne son accord une fois. Le service se
           connecte ensuite avec sa propre identité applicative, jamais avec le
@@ -587,7 +606,7 @@ export default function PolitiqueConfidentialitePage() {
             ],
             [
               "Resend, Inc.",
-              "Envoi des e-mails de simulation et des alertes techniques internes",
+              "Envoi des e-mails de simulation, des alertes techniques internes et des alertes de fraude adressées au dirigeant",
               "États-Unis",
             ],
             [
@@ -623,7 +642,7 @@ export default function PolitiqueConfidentialitePage() {
           Microsoft 365 de l’entreprise cliente.
         </P>
         <P>
-          <Fort>Transferts hors Union européenne.</Fort> Deux flux seulement
+          <Fort>Transferts hors Union européenne.</Fort> Trois flux seulement
           sortent de l’Union européenne, et aucun ne porte le contenu d’un
           message :
         </P>
@@ -633,6 +652,17 @@ export default function PolitiqueConfidentialitePage() {
             envoyés aux collaborateurs dans le cadre des campagnes, et les
             alertes techniques internes, qui ne contiennent que des compteurs
             et la nature du problème rencontré ;
+          </Li>
+          <Li>
+            <Fort>Resend, pour l’alerte de fraude.</Fort> Lorsqu’une tentative
+            de <Fort>risque élevé</Fort> est détectée et signalée par une
+            bannière, un e-mail prévient le dirigeant de l’entreprise
+            concernée. Cet e-mail comporte l’adresse de la boîte visée, le nom
+            et l’adresse de l’expéditeur du message frauduleux, les motifs de
+            détection, la date, le niveau et le score. Il ne comporte{" "}
+            <Fort>ni l’objet ni le contenu du message</Fort> : le produit ne
+            les transmet nulle part, et ne les conserve pas. Un seul e-mail est
+            envoyé par heure et par entreprise au maximum ;
           </Li>
           <Li>
             <Fort>Stripe</Fort> — le traitement des paiements, le cas échéant,

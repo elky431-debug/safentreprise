@@ -63,12 +63,29 @@ export type RessourceJournal =
   | "analyse"
   | "abonnement"
   | "categorie"
-  | "application";
+  | "application"
+  /**
+   * ⚠ SORTIE DE DONNÉES VERS L'EXTÉRIEUR, pas une lecture. C'est le seul flux
+   *   du produit qui quitte l'Union européenne (Resend, États-Unis). Il est
+   *   journalisé pour cette raison, et la valeur est admise en base depuis la
+   *   migration 20260920.
+   */
+  | "notification";
 
 export type EntreeJournal = {
   ressource: RessourceJournal;
   operation: "lecture" | "ecriture" | "modification" | "suppression";
   resultat: "ok" | "refuse" | "introuvable" | "erreur";
+  /**
+   * La société concernée, quand l'appelant la connaît.
+   *
+   * ⚠ LES ACCÈS GRAPH NE LA RENSEIGNENT PAS, ET C'EST VOULU : ils sont
+   *   rattachés à un locataire, pas à une société, et un identifiant deviné
+   *   vaudrait moins que l'absence. Une notification, elle, est envoyée POUR
+   *   une société nommée — ne pas l'écrire rendrait la trace inexploitable
+   *   le jour où un dirigeant demande ce qui lui a été envoyé.
+   */
+  companyId?: string | null;
   tenantId?: string | null;
   boiteRef?: string | null;
   ressourceRef?: string | null;
@@ -192,7 +209,7 @@ export async function journaliserAcces(entree: EntreeJournal): Promise<void> {
         p_operation: entree.operation,
         p_resultat: entree.resultat,
         p_tache: sansAdresse(tache),
-        p_company_id: null,
+        p_company_id: entree.companyId ?? null,
         p_tenant_id: entree.tenantId ?? null,
         p_boite_ref: sansAdresse(entree.boiteRef),
         p_ressource_ref: sansAdresse(entree.ressourceRef),

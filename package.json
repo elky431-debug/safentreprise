@@ -21,7 +21,8 @@
     "graph:restaurer": "node scripts/graph-restaurer.mjs",
     "graph:essai-conversion": "node scripts/graph-essai-conversion.mjs",
     "journal:test": "node --experimental-strip-types --test src/lib/microsoft/journal.test.ts",
-    "risque:test": "node --experimental-strip-types --test src/lib/risk-surveillance.test.ts"
+    "risque:test": "node --experimental-strip-types --test src/lib/risk-surveillance.test.ts",
+    "alerte:test": "node --experimental-strip-types --test src/lib/microsoft/alerte-dirigeant.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

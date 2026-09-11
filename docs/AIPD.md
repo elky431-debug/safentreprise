@@ -177,7 +177,7 @@ donnée personnelle).
 | **Supabase** (AWS) | La totalité des données enregistrées | **France**, région AWS eu-west-3 (Paris) |
 | **Netlify** | Tout ce qui transite pendant une requête, **corps des messages compris**, en mémoire seulement | **Allemagne**, région AWS eu-central-1 (Francfort) |
 | **Microsoft** | Source des données. Le service y écrit les modifications | Locataire du client |
-| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** | États-Unis |
+| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** ; **alertes de fraude au dirigeant** (voir ci-dessous) | États-Unis |
 | **SMS Partner** | Numéros de téléphone, si le canal SMS est utilisé | France |
 | **Stripe** | Données de facturation, le cas échéant | États-Unis / UE |
 
@@ -188,6 +188,60 @@ Le mail d'alerte interne ne contient ni objet, ni adresse d'expéditeur, ni
 adresse de boîte — l'agrégation est faite en base avant l'envoi
 (`20260906_conservation.sql:70-90`), et un test vérifie qu'aucune chaîne
 sensible présente en base ne s'y retrouve.
+
+### 1.5 bis L'alerte de fraude au dirigeant
+
+**C'est le seul flux du produit qui fasse sortir de l'Union européenne des
+données nominatives de client.** Il a été ajouté le 11 septembre 2026
+(`20260920_alerte_dirigeant.sql`, `src/lib/microsoft/alerte-dirigeant.ts`) et
+mérite d'être décrit à part, parce qu'il ne se réduit pas à des compteurs.
+
+**Ce qui déclenche l'envoi.** Une tentative de **risque élevé uniquement**
+(score ≥ 75), et seulement **après qu'une bannière d'avertissement a été posée
+dans le message** — jamais à la seule analyse. Prévenir le dirigeant d'une
+protection qui n'a pas fonctionné serait pire que ne rien dire. Les niveaux
+modéré et faible ne déclenchent aucun envoi.
+
+**À qui.** Au dirigeant titulaire du compte de la société concernée, et à lui
+seul (`destinataires_alerte`). Aucun envoi à une autre société, aucun envoi à
+Safentreprise.
+
+**Ce qui transite par Resend :**
+
+- l'adresse du dirigeant destinataire ;
+- l'adresse de la boîte visée, c'est-à-dire d'un Collaborateur ;
+- le nom affiché et l'adresse réelle de l'expéditeur frauduleux ;
+- les motifs de détection, au maximum cinq, tels que le moteur les formule —
+  **ils peuvent citer le nom et l'adresse de l'expéditeur** ;
+- la date de réception, le niveau et le score.
+
+**Ce qui n'y transite jamais : l'objet et le corps du message.** La garantie
+n'est pas une consigne de rédaction. La fonction Postgres qui alimente l'envoi
+ne rend pas la colonne `objet`, et le type TypeScript qui porte l'alerte n'a
+aucun champ de contenu (`alerte-dirigeant-texte.ts`). Un essai automatisé
+vérifie qu'un champ ajouté par inadvertance ne ressortirait pas dans le corps
+de l'email (`alerte-dirigeant.test.ts`).
+
+**Volume.** Un mécanisme anti-rafale limite l'envoi à un email par société et
+par heure — deux au plus dans l'heure qui suit la première alerte. Aucune
+alerte n'est perdue pour autant : celles qui tombent pendant la fenêtre sont
+regroupées dans un email de résumé, qui ne reprend ni les motifs ni rien du
+contenu.
+
+**Traçabilité.** Chaque envoi écrit une ligne dans `journal_acces`
+(`ressource = 'notification'`, société concernée, nombre de destinataires
+servis). Le journal ne contient aucune adresse — la base le refuse.
+
+**Le risque, énoncé.** Un email en clair chez un prestataire américain apprend
+à celui-ci qu'une entreprise française nommée a été visée, quand, et par qui.
+C'est une donnée de sécurité, et elle a de la valeur pour un tiers. Elle est
+mise en balance avec ce que l'alerte évite : un virement frauduleux exécuté
+faute d'avoir été signalé à temps. **Une alternative existe et n'a pas été
+retenue** — un email nu (« une tentative a été détectée, connectez-vous ») —
+parce qu'un dirigeant qui doit ouvrir une console pour savoir de quoi il
+s'agit n'agit pas dans l'heure. Si le transfert vers les États-Unis devient
+inacceptable, c'est le prestataire d'envoi qu'il faut changer, pas le contenu
+de l'alerte.
 
 ## 1.6 Supports
 
