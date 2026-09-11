@@ -9,6 +9,7 @@ import { LegalLinks } from "@/components/LegalLinks";
 import {
   IconBilling,
   IconCampaign,
+  IconContacts,
   IconDashboard,
   IconDeliverability,
   IconEye,
@@ -45,7 +46,14 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
   {
     id: "surveillance",
     title: "Surveillance",
-    items: [{ href: "/microsoft", label: "Microsoft 365", Icon: IconEye }],
+    items: [
+      { href: "/microsoft", label: "Microsoft 365", Icon: IconEye },
+      {
+        href: "/correspondants",
+        label: "Correspondants",
+        Icon: IconContacts,
+      },
+    ],
   },
   {
     id: "campagnes",

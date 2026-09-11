@@ -308,3 +308,19 @@ export function IconDownload({ className }: IconProps) {
     </svg>
   );
 }
+
+/**
+ * Correspondants de confiance — un carnet d'adresses.
+ * Pas un bouclier ni un cadenas : cet écran sert à DÉCLARER qui l'on connaît,
+ * pas à se protéger. L'icône dit ce qu'on y fait, pas ce que ça produit.
+ */
+export function IconContacts({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M3 8h2M3 12h2M3 16h2" />
+      <circle cx="12" cy="10" r="2.2" />
+      <path d="M8.6 16.2a3.6 3.6 0 0 1 6.8 0" />
+    </svg>
+  );
+}

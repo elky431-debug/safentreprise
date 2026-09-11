@@ -14,6 +14,7 @@
     "moteur:empreinte": "node src/lib/detection/empreinte.mjs",
     "moteur:test-rib": "node src/lib/detection/changement-rib.test.js",
     "moteur:test-domaine": "node src/lib/detection/domaine.test.js",
+    "moteur:test-correspondant": "node src/lib/detection/correspondant.test.js",
     "graph:annuaire": "node scripts/graph-annuaire.mjs",
     "banniere:test": "node --experimental-strip-types src/lib/microsoft/banniere.test.ts",
     "consentement:test": "node --experimental-strip-types --test src/lib/microsoft/consentement.test.ts",
@@ -23,6 +24,7 @@
     "journal:test": "node --experimental-strip-types --test src/lib/microsoft/journal.test.ts",
     "risque:test": "node --experimental-strip-types --test src/lib/risk-surveillance.test.ts",
     "rapport:test": "node --experimental-strip-types --test src/lib/microsoft/rapport-mensuel.test.ts",
+    "correspondants:test": "node --experimental-strip-types --test src/lib/correspondants.test.ts",
     "alerte:test": "node --experimental-strip-types --test src/lib/microsoft/alerte-dirigeant.test.ts"
   },
   "dependencies": {

@@ -161,6 +161,38 @@ Ne figurent donc pas dans la demande, et ne sont pas « filtrées après coup »
 - les messages **envoyés** — seule la boîte de réception est abonnée
   (`scripts/graph-abonner.mjs:222`, ressource `mailFolders('inbox')/messages`).
 
+### Correspondants de confiance — ajoutés le 11 septembre 2026
+
+Table `correspondants_confiance` (migration 20260922). Le Client y déclare ses
+fournisseurs et partenaires habituels — **un nom, un ou plusieurs noms de
+domaine** — pour que le moteur repère les messages qui se présentent à leur nom
+depuis un autre domaine.
+
+**Ce n'est pas une extension du périmètre d'accès.** Rien ne parcourt
+l'historique des boîtes pour fabriquer cette liste : elle vient d'un écran de
+saisie et d'un import de fichier déposé par le Client. C'est l'engagement
+commercial du produit, et il tient ici par l'absence de code.
+
+**Seul le domaine est conservé, jamais l'adresse.** Le fichier importé contient
+généralement une colonne d'adresses électroniques ; le domaine en est extrait
+**dans le navigateur**, et la partie locale n'est ni transmise ni enregistrée.
+`prenom.nom@fournisseur.fr` ne laisse en base que `fournisseur.fr`. C'est la
+seule minimisation qui compte ici : un nom de société et un nom de domaine ne
+sont en règle générale pas des données personnelles, une adresse nominative
+de contact l'est.
+
+**Réserve honnête :** le nom d'un correspondant peut être celui d'un
+entrepreneur individuel — « Cabinet Martin », « Jean Dupont Électricité » —
+auquel cas il est bien une donnée personnelle. La table est soumise à la même
+RLS stricte que les alertes : chaque Client ne voit et ne modifie que ses
+propres lignes, et il peut les supprimer à tout moment depuis l'écran.
+
+**Une contrainte de base refuse les messageries grand public** comme domaine de
+confiance. Ce n'est pas une règle de saisie mais une protection : un seul
+fournisseur déclaré sur `gmail.com` rendrait tout `gmail.com` légitime aux yeux
+de la règle, et désactiverait la détection sur le canal le plus utilisé par les
+fraudeurs — à l'endroit précis où le Client croit l'avoir renforcée.
+
 ### Données d'autres traitements présentes dans la même base
 
 Hors périmètre de cette AIPD mais dans la même base, donc exposées aux mêmes

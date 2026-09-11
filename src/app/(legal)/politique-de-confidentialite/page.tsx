@@ -450,8 +450,28 @@ export default function PolitiqueConfidentialitePage() {
               "Raccordement Microsoft : adresses des boîtes surveillées, identifiants techniques",
               "Durée du contrat",
             ],
+            [
+              "Correspondants de confiance : nom et noms de domaine des fournisseurs et partenaires, déclarés par l’entreprise cliente elle-même",
+              "Durée du contrat ; modifiables et supprimables à tout moment depuis l’application",
+            ],
           ]}
         />
+        <P>
+          <Fort>
+            Les correspondants de confiance sont déclarés, jamais déduits.
+          </Fort>{" "}
+          Safentreprise ne parcourt pas l’historique des boîtes pour deviner
+          avec qui l’entreprise travaille : cette liste est saisie ou importée
+          par l’entreprise cliente. Lorsque le fichier importé contient des
+          adresses électroniques,{" "}
+          <Fort>
+            seul le domaine en est conservé, et l’extraction se fait dans le
+            navigateur
+          </Fort>{" "}
+          : d’une adresse <em>prenom.nom@fournisseur.fr</em>, il ne reste en
+          base que <em>fournisseur.fr</em>. La partie qui précède l’arobase
+          n’est ni transmise ni enregistrée.
+        </P>
         <P>
           Ces suppressions sont automatiques : elles s’exécutent chaque nuit,
           sans intervention. Une seule exception, volontaire : tant qu’un

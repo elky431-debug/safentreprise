@@ -96,7 +96,8 @@
     "hotmail.fr", "live.com", "live.fr", "msn.com", "yahoo.com", "yahoo.fr",
     "icloud.com", "me.com", "proton.me", "protonmail.com", "aol.com",
     "mail.com", "gmx.com", "gmx.fr", "orange.fr", "wanadoo.fr", "free.fr",
-    "laposte.net", "sfr.fr", "bbox.fr",
+    "laposte.net", "sfr.fr", "bbox.fr", "neuf.fr", "numericable.fr",
+    "aliceadsl.fr", "club-internet.fr", "voila.fr", "yopmail.com",
   ];
 
   // ---------------------------------------------------------------------------
@@ -1128,6 +1129,22 @@
       domainesAutorises: tableau(c.domainesAutorises),
       /** Instantané de l'annuaire : [{ nom, email }]. */
       annuaire: tableau(c.annuaire),
+      /**
+       * Fournisseurs et partenaires DÉCLARÉS PAR LE CLIENT : [{ nom, domaines }].
+       *
+       * ⚠ DÉCLARÉS, JAMAIS DÉDUITS DU COURRIER. Le moteur ne les fabrique pas
+       *   et l'appelant ne les tire pas de l'historique des boîtes : ils
+       *   viennent d'un écran de saisie et d'un import de fichier. C'est le
+       *   périmètre d'accès du produit, et il ne change pas ici.
+       */
+      correspondants: tableau(c.correspondants)
+        .map((e) => ({
+          nom: typeof e?.nom === "string" ? e.nom : "",
+          domaines: Array.isArray(e?.domaines)
+            ? e.domaines.filter((d) => typeof d === "string" && d.trim())
+            : [],
+        }))
+        .filter((e) => e.nom.trim() && e.domaines.length > 0),
       /** { spf, dkim, dmarc, compauth } tels que lus dans les en-têtes. */
       authentification: c.authentification || null,
       /** Adresse de réponse, si elle diffère de l'expéditeur. */
@@ -1764,6 +1781,227 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Détecteur — CORRESPONDANT DE CONFIANCE (faux fournisseur)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Formes juridiques retirées avant comparaison.
+   *
+   * ⚠ CETTE LISTE EST LE MIROIR DE CELLE DE `normaliser_nom_correspondant`,
+   *   côté base (migration 20260922). Les deux normalisent le MÊME nom : la
+   *   base pour l'unicité, le moteur pour la comparaison. Si elles divergent,
+   *   un correspondant déclaré « Delta-Log SARL » cesse d'être reconnu quand
+   *   l'expéditeur se présente comme « Delta Log » — la règle se tait sans que
+   *   rien ne le signale. Un essai vérifie l'alignement.
+   */
+  const FORMES_JURIDIQUES = new Set([
+    "sarl", "sarlu", "sas", "sasu", "sa", "eurl", "sci", "scop", "snc", "gie",
+    "eirl", "scm", "selarl", "ltd", "llc", "inc", "corp", "gmbh", "bv", "nv",
+    "srl", "spa", "plc", "ag", "cie", "ets",
+  ]);
+
+  /**
+   * Un nom, réduit à ses mots significatifs.
+   *
+   * ⚠ LES ACRONYMES POINTÉS SE RECOLLENT D'ABORD — « S.A.R.L. » doit devenir
+   *   le mot « sarl », sinon le retrait des formes juridiques ne le voit pas.
+   *   Même raison, même ordre qu'en base.
+   *
+   * ⚠ REPLI SI LE RETRAIT VIDE TOUT, comme en base : un fournisseur nommé
+   *   « SA » existe, et sa ligne ne doit pas devenir incomparable.
+   */
+  function motsDuNom(nom) {
+    const recolle = String(nom || "").replace(/\b([a-zA-Z])\./g, "$1");
+    const mots = normaliser(recolle)
+      .replace(/[.@]/g, " ")
+      .split(" ")
+      .filter(Boolean);
+    const sansForme = mots.filter((m) => !FORMES_JURIDIQUES.has(m));
+    return sansForme.length > 0 ? sansForme : mots;
+  }
+
+  /**
+   * Les mots de `aiguille` apparaissent-ils À LA SUITE dans `meule` ?
+   *
+   * ⚠ UNE SUITE DE MOTS, PAS UNE SOUS-CHAÎNE. `"catalogue".includes("log")`
+   *   est vrai, et suffirait à déclencher une alerte élevée sur un message
+   *   parfaitement légitime. Ici « delta log » ne correspond qu'à « delta »
+   *   suivi de « log ».
+   */
+  function suiteDeMots(meule, aiguille) {
+    if (aiguille.length === 0 || meule.length < aiguille.length) return false;
+    for (let i = 0; i <= meule.length - aiguille.length; i += 1) {
+      let complet = true;
+      for (let j = 0; j < aiguille.length; j += 1) {
+        if (meule[i + j] !== aiguille[j]) {
+          complet = false;
+          break;
+        }
+      }
+      if (complet) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Les dernières lignes du corps — la zone de signature.
+   *
+   * ⚠ LES DERNIÈRES LIGNES SEULEMENT, ET C'EST UNE PROTECTION. Chercher le nom
+   *   du fournisseur dans TOUT le corps ferait déclencher la règle sur un
+   *   message légitime qui le cite — une plateforme de facturation écrivant
+   *   « pour le compte de Delta-Log », un comptable accusant réception d'une
+   *   facture. La signature, elle, dit qui parle.
+   */
+  const LIGNES_SIGNATURE = 6;
+
+  function lignesDeSignature(corps) {
+    return String(corps || "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(-LIGNES_SIGNATURE);
+  }
+
+  /**
+   * Le nom occupe-t-il une LIGNE de signature, plutôt qu'un bout de phrase ?
+   *
+   * ⚠ CE N'EST PAS LA MÊME QUESTION QUE « LE NOM EST-IL DANS LA ZONE ». Un
+   *   message court — un accusé de réception de trois lignes — tient tout
+   *   entier dans les six dernières lignes : « Nous avons bien reçu la facture
+   *   de Delta-Log SARL » y figurait donc, et la règle déclenchait à 75 points
+   *   sur le mail parfaitement légitime d'un cabinet comptable. La zone seule
+   *   ne discrimine rien sur les messages brefs.
+   *
+   *   Ce qui discrimine, c'est la PROPORTION : dans une signature, le nom de
+   *   l'entreprise occupe sa ligne ou presque ; dans une phrase, il est noyé.
+   *   On exige donc qu'il pèse au moins la moitié des mots de sa ligne.
+   */
+  function nomDansUneLigneDeSignature(lignes, aiguille) {
+    for (const ligne of lignes) {
+      const mots = motsDuNom(ligne);
+      if (!suiteDeMots(mots, aiguille)) continue;
+      if (aiguille.length * 2 >= mots.length) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Un nom trop court ne peut pas servir de clé.
+   *
+   * ⚠ SANS CE PLANCHER, UN CORRESPONDANT NOMMÉ « SA » OU « BT » DÉCLENCHERAIT
+   *   LA RÈGLE SUR PRESQUE TOUT. Quatre caractères significatifs est le
+   *   minimum en dessous duquel une correspondance ne veut plus rien dire.
+   */
+  const LONGUEUR_NOM_MIN = 4;
+
+  /**
+   * Le faux fournisseur : un correspondant déclaré, un domaine qui n'est pas
+   * le sien.
+   *
+   * ⚠ 75 POINTS — « ÉLEVÉ » À LUI SEUL, ET AU MÊME RANG QUE LE TYPOSQUATTAGE.
+   *   Le barème du moteur réserve 75 aux faits vérifiables dont
+   *   l'interprétation n'est pas discutable, et 55 à ceux dont elle l'est
+   *   (`usurpation_identite_annuaire`, `marque_dans_domaine_tiers`). Celui-ci
+   *   appartient au premier groupe pour une raison précise : ce n'est pas le
+   *   moteur qui a deviné le domaine légitime du fournisseur, c'est LE CLIENT
+   *   QUI L'A DÉCLARÉ. Il n'y a rien à interpréter.
+   *
+   *   Et pas davantage que 75 : au-dessus, la gradation se perdrait. À 75, un
+   *   faux fournisseur qui annonce en plus un changement de RIB atteint le
+   *   plafond de 100 — ce qui est juste — alors qu'à 90 les deux cas seraient
+   *   indiscernables.
+   *
+   * ⚠ IL NE DÉCLENCHE JAMAIS SUR UN DOMAINE DE L'ENTREPRISE OU AUTORISÉ. Un
+   *   collègue qui transfère une facture se présente parfois au nom du
+   *   fournisseur ; ce n'est pas une fraude, et défigurer ce message-là ferait
+   *   perdre confiance dans tous les autres.
+   */
+  function detecterCorrespondant(prep) {
+    const c = prep.contexte;
+
+    if (!c.fourni || c.correspondants.length === 0) {
+      return abandon(
+        "detecteur",
+        "IGNORÉ — aucun correspondant de confiance déclaré",
+        "La liste des correspondants de confiance est vide : il n'y a rien à " +
+          "comparer."
+      );
+    }
+
+    if (
+      domaineDansListe(prep.domaine, c.domainesInternes) ||
+      domaineDansListe(prep.domaine, c.domainesAutorises)
+    ) {
+      return abandon(
+        "detecteur",
+        "IGNORÉ — expéditeur interne ou autorisé",
+        `« ${prep.domaine} » appartient à l'entreprise ou figure parmi ses ` +
+          `domaines autorisés : ce n'est pas un fournisseur qui change de domaine.`
+      );
+    }
+
+    const motsAffiches = motsDuNom(prep.nomAffiche);
+    const lignesSignature = lignesDeSignature(prep.corps);
+
+    let retenu = null;
+
+    for (const correspondant of c.correspondants) {
+      const aiguille = motsDuNom(correspondant.nom);
+      if (aiguille.join("").length < LONGUEUR_NOM_MIN) continue;
+
+      const source = suiteDeMots(motsAffiches, aiguille)
+        ? "nom affiché"
+        : nomDansUneLigneDeSignature(lignesSignature, aiguille)
+          ? "signature"
+          : null;
+      if (!source) continue;
+
+      // ⚠ UN SEUL CORRESPONDANT RECONNU DEPUIS SON PROPRE DOMAINE SUFFIT À
+      //   TOUT ARRÊTER. Le cas ordinaire : le fournisseur écrit depuis son
+      //   domaine et cite un autre partenaire dans sa signature. Sans cette
+      //   sortie, le second déclencherait une alerte élevée sur un message
+      //   que le premier authentifie.
+      if (domaineDansListe(prep.domaine, correspondant.domaines)) {
+        return abandon(
+          "detecteur",
+          "IGNORÉ — correspondant reconnu, domaine déclaré",
+          `« ${correspondant.nom} » écrit depuis « ${prep.domaine} », qui ` +
+            `figure parmi ses domaines déclarés.`
+        );
+      }
+
+      // Le nom le plus long l'emporte : « Delta Log Industrie » est plus
+      // spécifique que « Delta Log », et son libellé sera plus juste.
+      if (!retenu || aiguille.length > retenu.aiguille.length) {
+        retenu = { correspondant, aiguille, source };
+      }
+    }
+
+    if (!retenu) {
+      return abandon(
+        "detecteur",
+        "IGNORÉ — aucun correspondant reconnu",
+        "Ni le nom affiché ni la signature ne correspondent à un " +
+          "correspondant déclaré."
+      );
+    }
+
+    const domaines = retenu.correspondant.domaines.join(", ");
+    return apports([
+      {
+        points: 75,
+        raison: "correspondant_domaine_inhabituel",
+        signal:
+          `Correspondant connu, domaine inhabituel : le message se présente ` +
+          `au nom de « ${retenu.correspondant.nom} » (${retenu.source}), que ` +
+          `vous avez déclaré comme correspondant de confiance, mais il est ` +
+          `envoyé depuis « ${prep.domaine} », qui ne figure pas parmi ses ` +
+          `domaines (${domaines}).`,
+      },
+    ]);
+  }
+
+  // ---------------------------------------------------------------------------
   // Composition
   // ---------------------------------------------------------------------------
 
@@ -1872,6 +2110,10 @@
       identite,
       detecterChangementRib(prep, identite),
       detecterDomaine(prep, identite),
+      // Indépendant des trois autres : il ne lit ni `identite` ni la
+      // signature de personne. C'est voulu — « Comptabilité DELTA-LOG » n'est
+      // pas un nom de personne, et c'est précisément le cas qu'il attrape.
+      detecterCorrespondant(prep),
     ];
 
     return composer(prep, detecteurs);

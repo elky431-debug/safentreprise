@@ -265,3 +265,24 @@ export type ActivationExtension = {
   activated_at: string;
   last_seen_at: string;
 };
+
+/**
+ * Correspondant de confiance : un fournisseur ou partenaire DÉCLARÉ par le
+ * client, avec ses domaines légitimes.
+ *
+ * ⚠ DÉCLARÉ, JAMAIS DÉDUIT. Rien dans le produit ne fabrique ces lignes à
+ *   partir du courrier reçu : elles viennent d'un écran de saisie et d'un
+ *   import de fichier. Le périmètre d'accès reste celui annoncé au client.
+ */
+export type CorrespondantConfiance = {
+  id: string;
+  company_id: string;
+  nom: string;
+  /** Forme comparable, calculée par la base — jamais écrite par l'application. */
+  nom_normalise: string;
+  domaine_principal: string;
+  domaines_secondaires: string[];
+  source: "manuel" | "import";
+  created_at: string;
+  updated_at: string;
+};

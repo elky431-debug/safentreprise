@@ -449,6 +449,7 @@ chaque nuit sans intervention.
 | Annuaire : nom et adresse de chaque personne du locataire | `annuaire_personnes` | Instantané **remplacé** à chaque rafraîchissement ; une personne retirée de l'annuaire Microsoft en disparaît | Effacé en fin de contrat (art. 13) |
 | Identifiants techniques de messages en attente d'analyse | `graph_file_attente` | **7 jours** après traitement, **30 jours** en cas d'échec | Automatique |
 | Adresses des Boîtes raccordées, identifiants de raccordement, preuve de restriction | `boites_surveillees`, `microsoft_tenants` | Durée du contrat | Effacé en fin de contrat (art. 13) |
+| Correspondants de confiance : **nom** d'un fournisseur ou partenaire et ses **noms de domaine**, déclarés par le Client | `correspondants_confiance` | Durée du contrat, modifiable et supprimable par le Client à tout moment | Effacé en fin de contrat (art. 13) |
 | Journaux techniques des appels internes | `net._http_response` | **7 jours** | Automatique |
 
 **Ne sont jamais demandées à Microsoft**, et ne sont donc pas « filtrées après
@@ -460,6 +461,19 @@ abonnée). Le service demande exactement huit champs.
 avertissement qui n'a pas été retiré, la ligne qui le décrit est conservée
 quelle que soit son ancienneté. Sans elle, plus rien n'indiquerait qu'un
 message a été modifié, ni ne permettrait de le remettre en état.
+
+**Les correspondants de confiance sont déclarés par le Client, jamais déduits
+de son courrier.** Aucune fonction du Service ne parcourt l'historique des
+Boîtes pour construire cette liste : elle vient d'un écran de saisie et d'un
+import de fichier déposé par le Client. Le périmètre d'accès décrit à
+l'article 3 est inchangé.
+
+**Seul le nom de domaine est conservé, jamais l'adresse.** Lorsque le fichier
+importé contient une colonne d'adresses électroniques, le domaine en est
+extrait **dans le navigateur du Client** et la partie qui précède l'arobase
+n'est jamais transmise ni enregistrée. Une adresse nominative de contact
+— `prenom.nom@fournisseur.fr` — ne laisse donc dans la base que
+`fournisseur.fr`.
 
 ## Traitement B — Campagnes de sensibilisation
 
