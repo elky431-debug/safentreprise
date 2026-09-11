@@ -44,6 +44,11 @@ import {
   type ResumeANotifier,
 } from "@/lib/microsoft/alerte-dirigeant";
 import { erreurExpediteur, expediteurVerifie } from "@/lib/send/expediteur";
+import {
+  envoyerRapportMensuel,
+  rapportFictif,
+  type DonneesRapport,
+} from "@/lib/microsoft/rapport-mensuel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -832,6 +837,109 @@ async function notifierAlertes(): Promise<Notification[]> {
 }
 
 /* ==========================================================================
+   Rapport mensuel
+   ========================================================================== */
+
+/**
+ * Le rapport mensuel au dirigeant, le 1er de chaque mois.
+ *
+ * ⚠ PAS DE PLANIFICATEUR, ET C'EST VOULU. Le worker tourne déjà toutes les
+ *   minutes ; lui greffer cette passe évite d'introduire une seconde
+ *   mécanique de déclenchement — donc un second endroit où la panne peut se
+ *   loger silencieusement. La date n'est pas décidée ici mais en base :
+ *   `mois_ecoule()` donne le mois couvert, et l'unicité
+ *   `(company_id, mois)` fait que cent passages du worker ne produisent
+ *   qu'un seul rapport.
+ *
+ * ⚠ ELLE NE LÈVE JAMAIS, comme la passe d'alertes. Un rapport qui ne part pas
+ *   est un incident de communication ; il ne doit pas arrêter l'analyse des
+ *   messages.
+ */
+const RAPPORTS_PAR_PASSE = 3;
+
+type RapportEnvoye = {
+  company_id: string;
+  mois: string;
+  reprise: boolean;
+  destinataires: number;
+  envoyes: number;
+  erreur?: string;
+};
+
+type LigneRapport = {
+  societe_id: string;
+  mois_couvert: string;
+  reprise: boolean;
+  donnees: DonneesRapport;
+};
+
+async function rapporterMensuel(): Promise<RapportEnvoye[]> {
+  const faits: RapportEnvoye[] = [];
+
+  try {
+    const lignes = await rpc<LigneRapport[]>("reclamer_rapports_mensuels", {
+      p_limite: RAPPORTS_PAR_PASSE,
+    });
+
+    for (const ligne of Array.isArray(lignes) ? lignes : []) {
+      const destinataires = await destinatairesDe(ligne.societe_id).catch(
+        () => [] as string[],
+      );
+      const r = await envoyerRapportMensuel(destinataires, ligne.donnees);
+
+      const fait: RapportEnvoye = {
+        company_id: ligne.societe_id,
+        mois: ligne.mois_couvert,
+        reprise: ligne.reprise,
+        ...r,
+      };
+      faits.push(fait);
+
+      // ⚠ ON MARQUE L'ISSUE DANS LES DEUX CAS. Un échec laisse la ligne avec
+      //   `envoye_at IS NULL` : elle repart après le délai de garde, et c'est
+      //   elle que le contrôle « rapport mensuel » compte. L'effacer rendrait
+      //   l'incident invisible.
+      await rpc("marquer_rapport_mensuel", {
+        p_company_id: ligne.societe_id,
+        p_mois: ligne.mois_couvert,
+        p_envoye: r.envoyes > 0,
+        p_destinataires: r.envoyes,
+        p_erreur: r.erreur ?? null,
+      }).catch(() => {});
+
+      await journaliserAcces({
+        ressource: "rapport",
+        operation: "ecriture",
+        resultat: r.envoyes > 0 ? "ok" : "erreur",
+        companyId: ligne.societe_id,
+        // Le mois, pas une adresse : `journal_acces` refuse tout « @ ».
+        ressourceRef: `rapport-${ligne.mois_couvert}`,
+        code: r.erreur ? "envoi-refuse" : null,
+        volume: r.envoyes,
+      });
+
+      if (r.envoyes === 0) {
+        console.error(
+          `[worker] rapport mensuel non envoyé pour ${ligne.societe_id} ` +
+            `(${ligne.mois_couvert}) : ${r.erreur}`,
+        );
+      }
+    }
+  } catch (erreur) {
+    faits.push({
+      company_id: "-",
+      mois: "-",
+      reprise: false,
+      destinataires: 0,
+      envoyes: 0,
+      erreur: messageDe(erreur),
+    });
+  }
+
+  return faits;
+}
+
+/* ==========================================================================
    Point d'entrée
    ========================================================================== */
 
@@ -849,6 +957,9 @@ async function executer(): Promise<Response> {
       traites: 0,
       resultats: [],
       notifications: await notifierAlertes(),
+      // Le 1er du mois, la file des messages est vide comme n'importe quel
+      // autre jour : le rapport ne peut pas dépendre de ce qu'elle contient.
+      rapports: await rapporterMensuel(),
     });
   }
 
@@ -906,6 +1017,7 @@ async function executer(): Promise<Response> {
     resultats,
     // Après la boucle : les bannières du lot sont posées, donc éligibles.
     notifications: await notifierAlertes(),
+    rapports: await rapporterMensuel(),
   });
 }
 
@@ -1248,6 +1360,54 @@ async function diagnostiquer(): Promise<Response> {
     ajouter("alertes dirigeant en attente", "échec", messageDe(erreur));
   }
 
+  // 2 sexies. LE RAPPORT MENSUEL. Sa panne est la plus discrète du produit :
+  //           elle ne casse rien, ne produit aucune erreur visible, et ne se
+  //           constate qu'en s'apercevant qu'un client n'a rien reçu depuis
+  //           trois mois. D'où un contrôle explicite.
+  try {
+    const [etat] = await rpc<
+      {
+        mois: string;
+        eligibles: number;
+        envoyes: number;
+        en_echec: number;
+        jamais_reclames: number;
+        derniere_erreur: string | null;
+      }[]
+    >("etat_rapports_mensuels", {});
+
+    // ⚠ ON NE PASSE AU ROUGE QU'APRÈS UN DÉLAI DE COURTOISIE. Le 1er à
+    //   00 h 05, `jamais_reclames` vaut légitimement le nombre de clients :
+    //   le worker n'est pas encore passé. Rougir immédiatement ferait du
+    //   contrôle une alarme mensuelle qu'on apprendrait à ignorer.
+    const jour = new Date().getUTCDate();
+    const enRetard = jour >= 2;
+    const manquants = etat
+      ? etat.en_echec + (enRetard ? etat.jamais_reclames : 0)
+      : 0;
+
+    ajouter(
+      "rapport mensuel",
+      !etat ? "échec" : manquants > 0 ? "échec" : "ok",
+      !etat
+        ? "aucun état : migration 20260921 non appliquée ?"
+        : manquants === 0
+          ? `${etat.mois} — ${etat.envoyes} envoyé(s) sur ${etat.eligibles} ` +
+            `société(s)` +
+            (etat.jamais_reclames > 0
+              ? `, ${etat.jamais_reclames} en attente du prochain passage`
+              : "")
+          : `${etat.mois} — ${manquants} rapport(s) DÛ(S) NON PARTI(S) : ` +
+            `${etat.en_echec} en échec, ${etat.jamais_reclames} jamais ` +
+            `réclamé(s), sur ${etat.eligibles} société(s). ` +
+            `Dernière erreur : ${etat.derniere_erreur ?? "aucune"}. ` +
+            `Détail : SELECT * FROM etat_rapports_mensuels(); ` +
+            `Essai en blanc : POST ?essai-rapport=1.`,
+    );
+  } catch (erreur) {
+    ajouter("rapport mensuel", "échec", messageDe(erreur));
+  }
+
   // 3. État de la file, par simple lecture.
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -1392,6 +1552,52 @@ async function essaiAlerte(): Promise<Response> {
   );
 }
 
+/**
+ * Essai du rapport mensuel, en blanc. Mêmes garanties que `essaiAlerte` :
+ * aucune lecture, aucune écriture, aucune ligne réclamée, et jamais un
+ * destinataire client.
+ *
+ * ⚠ IL N'ATTEND PAS LE 1er DU MOIS. C'est tout l'intérêt : le rendu d'un
+ *   email HTML se vérifie dans un vrai client de messagerie, pas sur une
+ *   capture. Sans ce mode, il faudrait attendre trente jours pour voir si le
+ *   tableau tient dans Outlook.
+ */
+async function essaiRapport(): Promise<Response> {
+  const destinataire =
+    process.env.ALERTE_ESSAI_EMAIL?.trim() ||
+    process.env.DEMO_NOTIFICATION_EMAIL?.trim() ||
+    "";
+
+  if (!destinataire) {
+    return Response.json(
+      {
+        essai: "rapport-mensuel",
+        envoye: false,
+        erreur:
+          "Aucun destinataire d'essai : poser ALERTE_ESSAI_EMAIL (ou, à " +
+          "défaut, DEMO_NOTIFICATION_EMAIL). L'essai n'écrit jamais au " +
+          "dirigeant d'un client.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const resultat = await envoyerRapportMensuel([destinataire], rapportFictif());
+
+  return Response.json(
+    {
+      essai: "rapport-mensuel",
+      destinataire,
+      envoye: resultat.envoyes > 0,
+      erreur: resultat.erreur,
+      rappel:
+        "Aucune ligne n'a été lue ni marquée : la file des rapports est " +
+        "intacte. Les chiffres de ce message sont fictifs.",
+    },
+    { status: resultat.envoyes > 0 ? 200 : 502 },
+  );
+}
+
 /** Le secret partagé protège le déclenchement. */
 function autorise(request: Request): boolean {
   const attendu = process.env.WORKER_SECRET;
@@ -1420,6 +1626,11 @@ async function postInterne(request: Request) {
   // ?essai-alerte=1 — envoie l'alerte au dirigeant, en blanc.
   if (parametres.has("essai-alerte")) {
     return essaiAlerte();
+  }
+
+  // ?essai-rapport=1 — envoie le rapport mensuel, en blanc.
+  if (parametres.has("essai-rapport")) {
+    return essaiRapport();
   }
 
   try {

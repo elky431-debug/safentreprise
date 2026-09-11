@@ -328,6 +328,21 @@ export default function PolitiqueConfidentialitePage() {
           déclenchent aucun e-mail. Cet envoi passe par un prestataire établi
           aux États-Unis : voir le point 3.1, « Sous-traitants ultérieurs ».
         </P>
+        <P>
+          <Fort>
+            Un rapport mensuel est également adressé au dirigeant, le 1er de
+            chaque mois.
+          </Fort>{" "}
+          Il est <Fort>agrégé</Fort> : des décomptes — messages analysés,
+          alertes par niveau, types de fraude rencontrés — et l’adresse des
+          trois boîtes les plus visées. Il ne comporte ni objet, ni contenu, ni
+          adresse d’expéditeur d’aucun message, et ne nomme jamais un
+          collaborateur autrement que par l’adresse de sa boîte, lorsque
+          celle-ci figure parmi les plus visées. Il est envoyé{" "}
+          <Fort>même lorsqu’aucune tentative n’a été détectée</Fort> : c’est
+          alors le compte rendu d’un mois sans incident. Cet envoi passe par le
+          même prestataire établi aux États-Unis.
+        </P>
 
         <P>
           <Fort>Comment le service est raccordé.</Fort> Un administrateur
@@ -606,7 +621,7 @@ export default function PolitiqueConfidentialitePage() {
             ],
             [
               "Resend, Inc.",
-              "Envoi des e-mails de simulation, des alertes techniques internes et des alertes de fraude adressées au dirigeant",
+              "Envoi des e-mails de simulation, des alertes techniques internes, des alertes de fraude et des rapports mensuels adressés au dirigeant",
               "États-Unis",
             ],
             [
@@ -642,7 +657,7 @@ export default function PolitiqueConfidentialitePage() {
           Microsoft 365 de l’entreprise cliente.
         </P>
         <P>
-          <Fort>Transferts hors Union européenne.</Fort> Trois flux seulement
+          <Fort>Transferts hors Union européenne.</Fort> Quatre flux seulement
           sortent de l’Union européenne, et aucun ne porte le contenu d’un
           message :
         </P>
@@ -663,6 +678,20 @@ export default function PolitiqueConfidentialitePage() {
             <Fort>ni l’objet ni le contenu du message</Fort> : le produit ne
             les transmet nulle part, et ne les conserve pas. Un seul e-mail est
             envoyé par heure et par entreprise au maximum ;
+          </Li>
+          <Li>
+            <Fort>Resend, pour le rapport mensuel.</Fort> Le 1er de chaque
+            mois, un rapport de surveillance est adressé au dirigeant pour le
+            mois écoulé — <Fort>y compris lorsqu’aucune tentative n’a été
+            détectée</Fort>, puisqu’il sert précisément à rendre compte du
+            travail accompli. Il est <Fort>agrégé</Fort> : nom de la société,
+            décomptes de messages analysés et d’alertes par niveau, nombre de
+            boîtes surveillées, nombre d’alertes par type de fraude, et
+            l’adresse des trois boîtes les plus visées. Il ne comporte{" "}
+            <Fort>
+              ni objet, ni contenu, ni adresse d’expéditeur d’aucun message
+            </Fort>{" "}
+            ;
           </Li>
           <Li>
             <Fort>Stripe</Fort> — le traitement des paiements, le cas échéant,

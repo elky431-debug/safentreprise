@@ -65,12 +65,18 @@ export type RessourceJournal =
   | "categorie"
   | "application"
   /**
-   * ⚠ SORTIE DE DONNÉES VERS L'EXTÉRIEUR, pas une lecture. C'est le seul flux
-   *   du produit qui quitte l'Union européenne (Resend, États-Unis). Il est
-   *   journalisé pour cette raison, et la valeur est admise en base depuis la
-   *   migration 20260920.
+   * ⚠ SORTIE DE DONNÉES VERS L'EXTÉRIEUR, pas une lecture. Avec « rapport »
+   *   ci-dessous, ce sont les deux seuls flux du produit qui quittent l'Union
+   *   européenne (Resend, États-Unis). Ils sont journalisés pour cette raison,
+   *   et la valeur est admise en base depuis la migration 20260920.
    */
-  | "notification";
+  | "notification"
+  /**
+   * ⚠ L'AUTRE SORTIE : le rapport mensuel au dirigeant. Agrégé — aucun objet,
+   *   aucun corps, aucune adresse d'expéditeur — mais il passe par le même
+   *   prestataire américain. Valeur admise depuis la migration 20260921.
+   */
+  | "rapport";
 
 export type EntreeJournal = {
   ressource: RessourceJournal;

@@ -480,7 +480,7 @@ Liste au 8 septembre 2026.
 |---|---|---|---|
 | **Supabase** (infrastructure AWS) | Base de données et authentification | **La totalité** des données enregistrées, corps de messages compris | **France** — AWS `eu-west-3` (Paris) |
 | **Netlify** (infrastructure AWS) | Hébergement et exécution de l'application | Tout ce qui transite pendant une requête, **corps des messages compris**, **en mémoire seulement** — aucune écriture durable | **Allemagne** — AWS `eu-central-1` (Francfort) |
-| **Resend** | Envoi des messages de simulation des Campagnes ; envoi des alertes techniques internes ; **envoi des alertes de fraude au Responsable de traitement** | Adresses des Collaborateurs destinataires et contenu des messages de simulation. Les alertes techniques internes sont **réduites à des compteurs et à la nature du problème** : elles ne comportent ni objet, ni adresse d'expéditeur, ni adresse de boîte. **Les alertes de fraude comportent l'adresse du Responsable de traitement, l'adresse de la boîte visée, le nom et l'adresse de l'expéditeur frauduleux, les motifs de détection, la date, le niveau et le score — mais en aucun cas l'objet ni le corps du message** (voir ci-dessous) | **États-Unis** |
+| **Resend** | Envoi des messages de simulation des Campagnes ; envoi des alertes techniques internes ; **envoi des alertes de fraude au Responsable de traitement** | Adresses des Collaborateurs destinataires et contenu des messages de simulation. Les alertes techniques internes sont **réduites à des compteurs et à la nature du problème** : elles ne comportent ni objet, ni adresse d'expéditeur, ni adresse de boîte. **Les alertes de fraude comportent l'adresse du Responsable de traitement, l'adresse de la boîte visée, le nom et l'adresse de l'expéditeur frauduleux, les motifs de détection, la date, le niveau et le score — mais en aucun cas l'objet ni le corps du message.** Les rapports mensuels comportent l'adresse du Responsable de traitement, le nom de la société, des décomptes agrégés et l'adresse des trois boîtes les plus visées — **aucune donnée nominative sur les messages** (voir ci-dessous) | **États-Unis** |
 | **SMS Partner** | Envoi des simulations par SMS, si ce canal est utilisé | Numéros de téléphone professionnels et contenu du SMS | **France** |
 
 **Ne figure pas dans cette liste, et ne doit pas y être ajouté sans
@@ -525,6 +525,40 @@ regroupées dans un résumé qui ne reprend aucun motif.
 contrat, dont la vérification reste **en attente** (voir la liste des points à
 valider). Aucune garantie n'est ici affirmée qui ne le soit déjà à
 l'article 8 — et cet article n'est pas encore vérifié.
+
+## Le rapport mensuel au Responsable de traitement
+
+Mis en service le 11 septembre 2026. Second traitement du Service à faire
+sortir des données de l'Union européenne, avec l'alerte de fraude.
+
+**Déclenchement.** Le 1er de chaque mois, pour le mois écoulé, pour toute
+société ayant au moins une boîte surveillée ou une activité pendant ce mois.
+**Un mois sans incident donne lieu au même envoi.**
+
+**Destinataire.** Le titulaire du compte de la société concernée, et lui seul
+— même fonction que pour l'alerte.
+
+**Contenu transmis.** Adresse du destinataire ; nom de la société ; décomptes
+agrégés (messages analysés, alertes par niveau, boîtes surveillées, effectif
+déclaré, mêmes chiffres pour le mois précédent, alertes par type de fraude) ;
+adresse des trois boîtes les plus visées et leur nombre d'alertes.
+
+**Contenu exclu.** Ni objet, ni corps, ni adresse d'expéditeur, ni
+identifiant de message. **Le rapport est agrégé, non nominatif sur les
+messages.** L'exclusion est structurelle : la fonction Postgres qui alimente
+l'envoi ne rend que des agrégats, et un essai automatisé le vérifie sur les
+deux formats produits.
+
+**Volume.** Un envoi par société et par mois, garanti par une contrainte
+d'unicité en base et non par le code applicatif.
+
+**Traçabilité.** Chaque envoi est journalisé (`journal_acces`,
+`ressource = 'rapport'`), sans aucune adresse.
+
+**Transfert hors Union européenne.** Même régime, et même réserve, que
+l'alerte : article 8, **non vérifié**. La circonstance aggravante propre à ce
+flux est sa régularité — le prestataire reçoit chaque mois le nom de chaque
+société cliente et son exposition à la fraude.
 
 ---
 

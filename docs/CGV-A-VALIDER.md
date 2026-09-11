@@ -181,10 +181,11 @@ et **n'a pas été relue par un juriste**.
 
 Situation factuelle, vérifiée : la base de données est en France (Supabase,
 eu-west-3, Paris), l'application s'exécute en Allemagne (Netlify, eu-central-1,
-Francfort). **Aucun contenu de message ne sort de l'Union européenne.** Trois
-flux seulement en sortent : Resend (États-Unis) pour l'envoi des simulations,
-des alertes techniques réduites à des compteurs, et — depuis le 11 septembre
-2026 — des **alertes de fraude au dirigeant** ; et Stripe (paiements).
+Francfort). **Aucun contenu de message ne sort de l'Union européenne.** Les
+seuls flux sortants sont Resend (États-Unis) — pour l'envoi des simulations,
+des alertes techniques réduites à des compteurs, et, depuis le 11 septembre
+2026, des **alertes de fraude au dirigeant** et des **rapports mensuels** —
+et Stripe (paiements).
 
 **L'alerte de fraude au dirigeant est nouvelle, et c'est celle qui emporte le
 plus de données.** Elle ne contient ni l'objet ni le corps du message
@@ -200,6 +201,20 @@ l'annexe 2 du DPA. Le conseil doit être interrogé sur ce point précis :
 - le Collaborateur dont la boîte est visée est informé par la bannière posée
   dans son message, mais pas du fait que son adresse est transmise à un tiers
   américain à cette occasion. **Faut-il l'en informer, et comment ?**
+
+**Le rapport mensuel pose la même question sous une autre forme.** Il est
+agrégé — aucun objet, aucun corps, aucune adresse d'expéditeur — mais il part
+tous les mois, pour tous les clients, et il emporte le nom de la société, son
+volume de courrier analysé, son exposition à la fraude et l'adresse de ses
+trois boîtes les plus visées. Sur douze mois, le prestataire dispose d'une
+cartographie du portefeuille client.
+
+- ce caractère **régulier et systématique** change-t-il l'analyse du
+  transfert, par rapport à une alerte ponctuelle ?
+- l'adresse des boîtes les plus visées est la seule donnée nominative du
+  rapport. Elle est nécessaire au dirigeant pour savoir quel poste protéger.
+  **Faut-il malgré tout la remplacer par un libellé non nominatif** (« une
+  boîte de la comptabilité »), ou la conserver telle quelle ?
 
 - Supabase et Netlify sont des sociétés **américaines** dont les données
   restent en Europe. Les clauses contractuelles types suffisent-elles à

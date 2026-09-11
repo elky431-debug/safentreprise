@@ -177,7 +177,7 @@ donnée personnelle).
 | **Supabase** (AWS) | La totalité des données enregistrées | **France**, région AWS eu-west-3 (Paris) |
 | **Netlify** | Tout ce qui transite pendant une requête, **corps des messages compris**, en mémoire seulement | **Allemagne**, région AWS eu-central-1 (Francfort) |
 | **Microsoft** | Source des données. Le service y écrit les modifications | Locataire du client |
-| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** ; **alertes de fraude au dirigeant** (voir ci-dessous) | États-Unis |
+| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** ; **alertes de fraude au dirigeant** et **rapports mensuels** (voir ci-dessous) | États-Unis |
 | **SMS Partner** | Numéros de téléphone, si le canal SMS est utilisé | France |
 | **Stripe** | Données de facturation, le cas échéant | États-Unis / UE |
 
@@ -242,6 +242,57 @@ parce qu'un dirigeant qui doit ouvrir une console pour savoir de quoi il
 s'agit n'agit pas dans l'heure. Si le transfert vers les États-Unis devient
 inacceptable, c'est le prestataire d'envoi qu'il faut changer, pas le contenu
 de l'alerte.
+
+### 1.5 ter Le rapport mensuel au dirigeant
+
+Ajouté le 11 septembre 2026 (`20260921_rapport_mensuel.sql`,
+`src/lib/microsoft/rapport-mensuel.ts`). **Second flux sortant de l'Union
+européenne, et second seulement.** Il emporte moins de données que l'alerte,
+mais il part tous les mois, pour tous les clients, y compris quand il ne
+s'est rien passé.
+
+**Ce qui déclenche l'envoi.** Le 1er de chaque mois, pour le mois écoulé, pour
+toute société ayant au moins une boîte surveillée ou une activité pendant le
+mois couvert. **Le mois sans incident donne lieu au même envoi** : c'est
+l'objet même du rapport — prouver que la surveillance a tourné.
+
+**À qui.** Au dirigeant, par `destinataires_alerte()`, la même fonction que
+l'alerte. Une seule définition de destinataire pour les deux flux.
+
+**Ce qui transite par Resend :**
+
+- l'adresse du dirigeant destinataire ;
+- le nom de la société ;
+- des **décomptes** : messages analysés, alertes par niveau, boîtes
+  surveillées, effectif déclaré, mêmes chiffres pour le mois précédent,
+  nombre d'alertes par type de fraude ;
+- l'adresse des **trois boîtes les plus visées**, avec leur nombre d'alertes.
+
+**Ce qui n'y transite jamais.** Ni objet, ni corps, ni adresse d'expéditeur
+frauduleux, ni identifiant de message. **Le rapport est agrégé.** La garantie
+est structurelle : `donnees_rapport_mensuel` ne rend que des agrégats et le
+type `DonneesRapport` ne porte aucun champ de contenu. Un essai automatisé
+vérifie qu'un champ ajouté par inadvertance ne ressortirait ni dans le HTML
+ni dans la version texte (`rapport-mensuel.test.ts`).
+
+**Volume.** Un envoi par société et par mois, garanti par la contrainte
+`UNIQUE (company_id, mois)` : la réclamation est un `INSERT … ON CONFLICT DO
+NOTHING`, et cent passages du worker ne produisent qu'une ligne.
+
+**Traçabilité.** Chaque envoi écrit une ligne dans `journal_acces`
+(`ressource = 'rapport'`, société concernée, mois couvert, nombre de
+destinataires servis). Aucune adresse n'y figure — la base la refuse.
+
+**Le risque, énoncé.** Il est de même nature que celui de l'alerte, mais plus
+diffus : Resend apprend, chaque mois, le nom de chaque entreprise cliente,
+son volume de courrier analysé, son exposition à la fraude et les adresses de
+ses postes les plus visés. Accumulé sur douze mois, cela dessine une
+cartographie commerciale du portefeuille client. **L'alternative écartée** —
+n'envoyer qu'une notification « votre rapport est disponible » — vide le
+rapport de sa fonction : un client qui doit se connecter pour constater qu'il
+ne s'est rien passé ne se connecte pas, et c'est précisément lui qu'il s'agit
+de rassurer. Là encore, la réponse au risque est de changer de prestataire
+d'envoi, pas d'appauvrir le contenu.
 
 ## 1.6 Supports
 
