@@ -848,14 +848,31 @@ async function diagnostiquer(): Promise<Response> {
     );
   }
 
-  // 2. Les trois fonctions du worker répondent-elles ?
-  //    On les appelle avec des paramètres inoffensifs : un UUID nul ne
-  //    correspond à aucun travail, donc rien n'est modifié.
-  const NUL = "00000000-0000-0000-0000-000000000000";
+  // 2. Les fonctions du worker répondent-elles ?
+  //    On les appelle avec des paramètres inoffensifs.
+  //
+  // ⚠ L'UUID NUL NE CONVIENT PLUS POUR UNE SOCIÉTÉ, ET C'EST RÉCENT. Tant que
+  //   `contexte_detection_graph` se contentait de LIRE (version SQL de la
+  //   migration 20260827), un identifiant ne correspondant à rien renvoyait
+  //   trois tableaux vides sans rien toucher. Depuis 20260915, elle ÉCRIT une
+  //   ligne de journal avant de rendre son résultat, en y reportant le
+  //   `company_id` reçu — et `journal_acces.company_id` porte une clé
+  //   étrangère vers `companies`. Un zéro, syntaxiquement valide mais absent
+  //   de la table, fait donc échouer toute la fonction sur un 23503.
+  //
+  //   `NULL` passe, lui : la colonne est nullable. Et c'est la valeur juste,
+  //   pas un contournement — un appel de diagnostic n'est rattaché à aucune
+  //   société, et la ligne de journal doit dire exactement cela.
+  //
+  // ⚠ LE ZÉRO RESTE BON POUR UN IDENTIFIANT DE TRAVAIL. `echec_travail_graph`
+  //   n'a pas été réécrite par 20260915, ne journalise pas, et se contente de
+  //   ne mettre à jour aucune ligne. La distinction est dans la contrainte, pas
+  //   dans le type.
+  const TRAVAIL_INEXISTANT = "00000000-0000-0000-0000-000000000000";
 
   for (const [nom, parametres, attendu] of [
-    ["contexte_detection_graph", { p_company_id: NUL }, "objet JSON"],
-    ["echec_travail_graph", { p_travail_id: NUL, p_erreur: "diagnostic", p_definitif: false }, "corps vide (RETURNS VOID)"],
+    ["contexte_detection_graph", { p_company_id: null }, "objet JSON"],
+    ["echec_travail_graph", { p_travail_id: TRAVAIL_INEXISTANT, p_erreur: "diagnostic", p_definitif: false }, "corps vide (RETURNS VOID)"],
   ] as const) {
     try {
       const r = await rpc<unknown>(nom, parametres);
