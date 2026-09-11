@@ -822,7 +822,25 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
           p_pose_par: "maintenance-rattrapage-trace-corrigee",
         });
         posees += 1;
-        details.push({ message: alerte.message_id.slice(0, 20), etat: "deja-la-trace-corrigee" });
+
+        // ⚠ LA BANNIÈRE ÉTAIT LÀ, MAIS RIEN NE DIT QU'ELLE A ÉTÉ VUE. C'est
+        //   la trace qui manquait, pas la pose — et c'est justement le cas où
+        //   le déplacement du worker a pu ne jamais avoir lieu. Sans lui,
+        //   l'avertissement reste invisible dans Outlook desktop.
+        const rafraichi = await rafraichirApresPose({
+          analyse_id: alerte.analyse_id,
+          company_id: alerte.company_id,
+          boite_id: alerte.boite_id,
+          tenant_id: alerte.tenant_id,
+          graph_user_id: alerte.graph_user_id,
+          message_id: alerte.message_id,
+        });
+
+        details.push({
+          message: alerte.message_id.slice(0, 20),
+          etat: "deja-la-trace-corrigee",
+          ...(rafraichi ? { deplacement: rafraichi } : {}),
+        });
         continue;
       }
 
@@ -1040,7 +1058,24 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
           p_banniere_format: "html",
           p_pose_par: "maintenance-conversion-deja-html",
         });
-        details.push({ message: court, etat: "deja-html" });
+
+        // Même raison : on n'a rien modifié, mais on ne sait pas si le
+        // déplacement a eu lieu. Ce chemin ne se représente pas — il inscrit
+        // le format « html », ce qui retire le message de la sélection.
+        const rafraichi = await rafraichirApresPose({
+          analyse_id: cible.analyse_id,
+          company_id: cible.company_id,
+          boite_id: cible.boite_id,
+          tenant_id: cible.tenant_id,
+          graph_user_id: cible.graph_user_id,
+          message_id: cible.message_id,
+        });
+
+        details.push({
+          message: court,
+          etat: "deja-html",
+          ...(rafraichi ? { deplacement: rafraichi } : {}),
+        });
         continue;
       }
 
@@ -1154,6 +1189,15 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
         p_banniere_format: "texte",
         p_pose_par: "maintenance-conversion-echec",
       }).catch(() => {});
+
+      // ⚠ PAS DE DÉPLACEMENT SUR CE CHEMIN, ET C'EST DÉLIBÉRÉ. Il réinscrit
+      //   le format « texte », donc le message reste éligible à la conversion
+      //   et ce bloc se rejouera au passage suivant. Or `p_banniere_posee` à
+      //   vrai n'incrémente pas `action_tentatives` : rien ne borne les
+      //   reprises. Y ajouter un déplacement, ce serait faire sortir et
+      //   rentrer le même message toutes les dix minutes, indéfiniment —
+      //   exactement la boucle que le compteur `deplacements > 2` surveille.
+      //   Le corps n'a d'ailleurs pas changé : il n'y a rien à rafraîchir.
       details.push({ message: court, etat: "echec", erreur: detail.slice(0, 200) });
     }
   }

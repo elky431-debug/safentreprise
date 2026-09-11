@@ -1372,6 +1372,7 @@ async function executer(): Promise<Response> {
     //   dernière alerte, c'est-à-dire au moment le plus probable où plus rien
     //   n'arrive. Sous l'ancien retour anticipé, il n'aurait jamais été envoyé.
     return Response.json({
+      version: versionDuCode(),
       traites: 0,
       resultats: [],
       notifications: await notifierAlertes(),
@@ -1430,6 +1431,7 @@ async function executer(): Promise<Response> {
   }
 
   return Response.json({
+    version: versionDuCode(),
     traites: resultats.filter((r) => r.statut === "analyse").length,
     echecs: resultats.filter((r) => r.statut === "echec").length,
     resultats,
@@ -1456,10 +1458,96 @@ type Controle = { controle: string; etat: "ok" | "échec"; detail: string };
  * Aucun travail n'est réclamé, aucun message lu, aucune ligne modifiée : on
  * peut le lancer autant de fois qu'on veut, y compris en production.
  */
+/**
+ * La version du code réellement en train de s'exécuter.
+ *
+ * ⚠ LE CONTRÔLE QUI AURAIT ÉVITÉ UNE SEMAINE. La tâche planifiée appelle une
+ *   adresse rangée EN BASE ; elle pointait sur un permalien de déploiement,
+ *   c'est-à-dire un instantané figé. Quatre déploiements successifs n'ont donc
+ *   rien changé, et rien ne le disait : le produit paraissait marcher, servi
+ *   par du code vieux de trois semaines.
+ *
+ *   Inliné à la compilation (voir `next.config.ts`), ce repère décrit le
+ *   bundle servi, pas l'environnement d'exécution. « Le code que je viens de
+ *   pousser est-il celui qui tourne ? » a désormais une réponse.
+ */
+function versionDuCode(): { commit: string; deploiement: string; branche: string } {
+  const court = (v: string | undefined) => (v ?? "").trim().slice(0, 12) || "inconnu";
+  return {
+    commit: court(process.env.COMMIT_REF),
+    deploiement: court(process.env.DEPLOY_ID),
+    branche: court(process.env.BRANCHE_DEPLOYEE),
+  };
+}
+
 async function diagnostiquer(): Promise<Response> {
   const controles: Controle[] = [];
   const ajouter = (controle: string, etat: "ok" | "échec", detail: string) =>
     controles.push({ controle, etat, detail });
+
+  // 0. QUELLE VERSION DU CODE RÉPOND, ET QUI L'APPELLE.
+  //
+  // ⚠ EN PREMIER, PARCE QUE TOUS LES AUTRES CONTRÔLES EN DÉPENDENT. Un
+  //   diagnostic porté sur du code qui ne s'exécute pas ne vaut rien — et
+  //   c'est exactement ce qui est arrivé pendant une semaine.
+  const version = versionDuCode();
+  ajouter(
+    "version du code",
+    "ok",
+    `commit ${version.commit}, déploiement ${version.deploiement}, branche ${version.branche}`,
+  );
+
+  try {
+    const [plan] = await rpc<
+      {
+        base_url: string | null;
+        secret_renseigne: boolean;
+        taches: string | null;
+        dernier_appel: string | null;
+        dernier_statut: number | null;
+      }[]
+    >("etat_planification", {});
+
+    if (!plan) {
+      ajouter("planification", "échec", "aucun état : migration 20260929 non appliquée ?");
+    } else {
+      const attendu = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
+      const reelle = (plan.base_url ?? "").trim().replace(/\/$/, "");
+
+      // ⚠ UN PERMALIEN DE DÉPLOIEMENT EST FIGÉ POUR TOUJOURS. La forme
+      //   https://<identifiant>--<site>.netlify.app désigne un instantané
+      //   immuable : la tâche planifiée y tapera indéfiniment, quoi qu'on
+      //   pousse ensuite.
+      const permalien = /^https:\/\/[^.]*--/i.test(reelle);
+      const discordante = attendu !== "" && reelle !== "" && reelle !== attendu;
+
+      ajouter(
+        "planification",
+        !reelle || !plan.secret_renseigne || permalien || discordante ? "échec" : "ok",
+        [
+          !reelle
+            ? "base_url ABSENTE : la tâche planifiée n'appelle rien du tout."
+            : permalien
+              ? `base_url = ${reelle} — C'EST UN PERMALIEN DE DÉPLOIEMENT, donc du code FIGÉ. ` +
+                `Tout ce qui sera poussé restera sans effet. À remplacer par ${attendu || "le domaine de production"} : ` +
+                `UPDATE parametres_systeme SET valeur = '${attendu || "https://…"}' WHERE cle = 'base_url';`
+              : discordante
+                ? `base_url = ${reelle} alors que NEXT_PUBLIC_APP_URL vaut ${attendu}. ` +
+                  `Le code appelé n'est pas forcément celui qu'on croit déployer.`
+                : `base_url = ${reelle}`,
+          plan.secret_renseigne ? "" : "worker_secret NON RENSEIGNÉ : aucun appel ne peut aboutir.",
+          plan.taches ? `Tâches : ${plan.taches}.` : "",
+          plan.dernier_appel
+            ? `Dernier appel ${plan.dernier_appel} (HTTP ${plan.dernier_statut ?? "?"}).`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+    }
+  } catch (erreur) {
+    ajouter("planification", "échec", messageDe(erreur));
+  }
 
   // 1. Environnement. On ne révèle JAMAIS les valeurs, seulement la présence.
   const requises = [
