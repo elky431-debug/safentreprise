@@ -444,6 +444,7 @@ async function rattraper(): Promise<Record<string, unknown>> {
    ========================================================================== */
 
 type AlerteSansBanniere = {
+  analyse_id: string;
   message_id: string;
   company_id: string;
   boite_id: string;
@@ -595,6 +596,106 @@ async function ramenerMessagesEnTransit(): Promise<Record<string, unknown>> {
   return { examinees: boites.size, ramenes, details };
 }
 
+/** Au-delà, on laisse le balayage finir le travail. Même seuil que le worker. */
+const ESSAIS_DEPLACEMENT = 3;
+
+/**
+ * Sort le message de la boîte de réception et l'y remet, après une pose.
+ *
+ * ⚠ TOUTE POSE DE BANNIÈRE DOIT PASSER PAR ICI, pas seulement celle du
+ *   worker. Une bannière posée par le rattrapage ou par la conversion et non
+ *   suivie d'un déplacement reste invisible dans Outlook desktop sur une
+ *   boîte ouverte — c'est-à-dire chez la quasi-totalité des utilisateurs. Deux
+ *   des trois chemins de pose l'ignoraient, ce qui rendait la correction du
+ *   11 septembre inopérante pour eux.
+ *
+ * Rend `null` si tout s'est bien passé, sinon la raison — qui est consignée
+ * sur la ligne au passage. Ne lève jamais : l'échec du déplacement ne doit
+ * pas défaire une bannière correctement posée.
+ */
+async function rafraichirApresPose(cible: {
+  analyse_id: string;
+  company_id: string;
+  boite_id: string;
+  tenant_id: string;
+  graph_user_id: string;
+  message_id: string;
+}): Promise<string | null> {
+  const consigner = async (raison: string) => {
+    await rpc("marquer_echec_deplacement", {
+      p_analyse_id: cible.analyse_id,
+      p_erreur: raison,
+    }).catch((secondaire) => {
+      console.error(`[maintenance] échec de déplacement non consigné : ${messageDe(secondaire)}`);
+    });
+    return raison;
+  };
+
+  let dossier: string;
+  try {
+    dossier = await assurerDossierService(cible.tenant_id, cible.graph_user_id);
+  } catch (erreur) {
+    return consigner(`dossier de service : ${messageDe(erreur)}`.slice(0, 400));
+  }
+
+  await rpc("enregistrer_dossier_service", {
+    p_boite_id: cible.boite_id,
+    p_dossier_id: dossier,
+  }).catch(() => {});
+
+  // L'intention avant l'acte : si le processus meurt après le premier
+  // déplacement, cette marque désigne le message à ramener.
+  try {
+    await rpc("marquer_deplacement_graph", {
+      p_company_id: cible.company_id,
+      p_message_id: cible.message_id,
+    });
+  } catch (erreur) {
+    return consigner(`marquage : ${messageDe(erreur)}`.slice(0, 400));
+  }
+
+  let enTransit: string;
+  try {
+    enTransit = await deplacerMessage(
+      cible.tenant_id,
+      cible.graph_user_id,
+      cible.message_id,
+      dossier,
+    );
+  } catch (erreur) {
+    return consigner(`aller : ${messageDe(erreur)}`.slice(0, 400));
+  }
+
+  let dernier = "";
+  for (let essai = 1; essai <= ESSAIS_DEPLACEMENT; essai += 1) {
+    try {
+      const revenu = await deplacerMessage(
+        cible.tenant_id,
+        cible.graph_user_id,
+        enTransit,
+        "inbox",
+      );
+      await rpc("renommer_message_graph", {
+        p_company_id: cible.company_id,
+        p_ancien_id: cible.message_id,
+        p_nouveau_id: revenu,
+      });
+      return null;
+    } catch (erreur) {
+      dernier = messageDe(erreur);
+      console.error(
+        `[maintenance] retour en boîte de réception, essai ${essai}/${ESSAIS_DEPLACEMENT} : ${dernier}`,
+      );
+    }
+  }
+
+  // Le message est resté dans le dossier de service. Il y est VISIBLE, et la
+  // ligne porte encore `deplacement_at` : le balayage le ramènera.
+  return consigner(
+    `retour impossible après ${ESSAIS_DEPLACEMENT} essais (${dernier}) — le balayage le ramènera`.slice(0, 400),
+  );
+}
+
 async function rattraperBannieres(): Promise<Record<string, unknown>> {
   const mode = (process.env.GRAPH_ACTIONS ?? "off").trim().toLowerCase();
   if (mode !== "complet") {
@@ -672,6 +773,12 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         niveau: alerte.niveau,
         score: alerte.score,
         signaux: Array.isArray(alerte.signaux) ? alerte.signaux : [],
+        // ⚠ LE JETON, SANS LEQUEL LE DÉPLACEMENT QUI SUIT EST DANGEREUX. Le
+        //   retour en boîte de réception fait apparaître un nouvel élément,
+        //   Graph notifie, et le worker reprend le message sous un nouvel
+        //   identifiant. Sans jeton, il ne le reconnaît pas et crée une
+        //   SECONDE ligne : deux alertes et deux emails au dirigeant.
+        ref: alerte.analyse_id,
       };
 
       // Comme le worker : on convertit en HTML, la sauvegarde vient d'être
@@ -725,7 +832,24 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         p_action_etat: "posee",
       });
       posees += 1;
-      details.push({ message: alerte.message_id.slice(0, 20), etat: "posee" });
+
+      // Le déplacement vient APRÈS l'enregistrement, jamais avant : il change
+      // l'identifiant du message, et `marquer_action_graph` le désigne par cet
+      // identifiant. Même règle que dans le worker.
+      const deplacement = await rafraichirApresPose({
+        analyse_id: alerte.analyse_id,
+        company_id: alerte.company_id,
+        boite_id: alerte.boite_id,
+        tenant_id: alerte.tenant_id,
+        graph_user_id: alerte.graph_user_id,
+        message_id: alerte.message_id,
+      });
+
+      details.push({
+        message: alerte.message_id.slice(0, 20),
+        etat: "posee",
+        ...(deplacement ? { deplacement } : {}),
+      });
     } catch (erreur) {
       const graph = erreur instanceof ErreurGraph ? erreur : null;
       const detail = messageDe(erreur);
@@ -768,8 +892,10 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
    ========================================================================== */
 
 type ACconvertir = {
+  analyse_id: string;
   message_id: string;
   company_id: string;
+  boite_id: string;
   tenant_id: string;
   graph_user_id: string;
   upn: string;
@@ -861,6 +987,9 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
             niveau: cible.niveau,
             score: cible.score,
             signaux: Array.isArray(cible.signaux) ? cible.signaux : [],
+            // Le jeton : sans lui, le déplacement qui suit produirait un
+            // doublon au webhook rejoué. Voir `rafraichirApresPose`.
+            ref: cible.analyse_id,
           }),
         ),
         "html",
@@ -905,7 +1034,24 @@ async function convertirBannieres(): Promise<Record<string, unknown>> {
         p_banniere_format: "html",
       });
       converties += 1;
-      details.push({ message: court, etat: "convertie" });
+
+      // Le corps vient de changer : sans déplacement, Outlook desktop continue
+      // d'afficher celui qu'il a en cache — c'est-à-dire l'ancienne bannière
+      // texte, ou pas de bannière du tout.
+      const deplacement = await rafraichirApresPose({
+        analyse_id: cible.analyse_id,
+        company_id: cible.company_id,
+        boite_id: cible.boite_id,
+        tenant_id: cible.tenant_id,
+        graph_user_id: cible.graph_user_id,
+        message_id: cible.message_id,
+      });
+
+      details.push({
+        message: court,
+        etat: "convertie",
+        ...(deplacement ? { deplacement } : {}),
+      });
     } catch (erreur) {
       const detail = messageDe(erreur);
       console.error(`[maintenance] conversion ${cible.message_id} : ${detail}`);
