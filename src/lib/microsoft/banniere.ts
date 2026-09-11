@@ -152,28 +152,78 @@ export function echapper(texte: string): string {
    Construction
    ========================================================================== */
 
+/**
+ * ⚠ TROIS NIVEAUX, ET C'EST TOUT L'INTÉRÊT. Une bannière rouge sur chaque
+ *   message finit par être ignorée — et le jour où elle compte vraiment, elle
+ *   ne se distingue plus des précédentes. Le niveau faible doit être assez
+ *   discret pour qu'on l'oublie, le niveau élevé assez fort pour qu'on
+ *   s'arrête. Assourdir le rouge ou renforcer le gris reviendrait à casser
+ *   ce que ces trois variantes existent pour produire.
+ *
+ * ⚠ `encadre: false` CHANGE LA STRUCTURE, PAS SEULEMENT LA COULEUR. Le niveau
+ *   faible n'a ni fond, ni liseré, ni liste à puces, ni ligne de conseil :
+ *   une seule ligne grise portant le motif principal. Voir
+ *   `construireBanniere`.
+ *
+ * ⚠ LES PICTOGRAMMES SONT DES CARACTÈRES, PAS DES IMAGES. Une image distante
+ *   est bloquée par défaut dans Outlook ; une image jointe alourdit chaque
+ *   message. Ces trois-là sont dans le plan multilingue de base et s'affichent
+ *   partout, y compris dans un client qui ne connaît aucune émoticône.
+ */
 const APPARENCE: Record<
   NiveauBanniere,
-  { fond: string; bord: string; texte: string; titre: string }
+  {
+    fond: string;
+    bord: string;
+    texte: string;
+    titre: string;
+    picto: string;
+    encadre: boolean;
+  }
 > = {
   eleve: {
     fond: "#fdf2f2",
     bord: "#c0392b",
     texte: "#7b241c",
     titre: "Risque élevé de fraude",
+    picto: "⚠",
+    encadre: true,
   },
   modere: {
     fond: "#fef6ec",
     bord: "#d68910",
     texte: "#7e5109",
-    titre: "Message suspect",
+    titre: "Signaux suspects",
+    picto: "▲",
+    encadre: true,
   },
   faible: {
-    fond: "#fdfaec",
-    bord: "#b7950b",
-    texte: "#7d6608",
-    titre: "Message à vérifier",
+    // Pas de fond ni de liseré : ces deux valeurs ne servent qu'à la couleur
+    // du texte et du filet de séparation.
+    fond: "transparent",
+    bord: "#e5e7eb",
+    texte: "#6b7280",
+    titre: "Expéditeur inhabituel",
+    picto: "ℹ",
+    encadre: false,
   },
+};
+
+/**
+ * Conseil de vérification, gradué.
+ *
+ * ⚠ LE NIVEAU FAIBLE N'EN A PAS. Un conseil d'action sur un signal ténu est
+ *   précisément ce qui use l'attention : on ne demande pas à quelqu'un de
+ *   décrocher son téléphone parce qu'un expéditeur est inhabituel.
+ */
+const CONSEIL: Partial<Record<NiveauBanniere, string>> = {
+  eleve:
+    "Ne donnez pas suite sans vérifier par un autre moyen — appelez votre " +
+    "interlocuteur sur un numéro que vous connaissez déjà, jamais sur un " +
+    "numéro indiqué dans ce message.",
+  modere:
+    "Si ce message vous demande un paiement ou un changement de coordonnées, " +
+    "confirmez-le par un autre moyen avant d'agir.",
 };
 
 /**
@@ -184,36 +234,89 @@ const APPARENCE: Record<
  * imbriqué, pas de balise auto-fermante exotique, rien qui ne survive pas à
  * un passage dans Outlook mobile.
  */
+/**
+ * Le motif principal, ramené à ce qui tient sur une ligne.
+ *
+ * ⚠ SANS CETTE COUPE, LE NIVEAU FAIBLE N'EST PLUS DISCRET. Les signaux du
+ *   moteur sont des phrases entières — « Le message se présente au nom de
+ *   « X », qui figure à l'annuaire de l'entreprise, mais il est envoyé depuis
+ *   une adresse extérieure (…) » fait deux lignes pleines. Un avertissement
+ *   de deux lignes au-dessus du message n'est plus une mention en passant :
+ *   il redevient un encadré, et la gradation s'efface.
+ *
+ * ⚠ ON COUPE SUR UN MOT, ET ON GARDE LA PHRASE ENTIÈRE SI ELLE TIENT. Le
+ *   texte complet reste de toute façon lisible dans le tableau de bord, où
+ *   rien n'est tronqué.
+ */
+const LONGUEUR_MOTIF = 84;
+
+function resumerMotif(signal?: string): string {
+  const propre = String(signal ?? "").replace(/\s+/g, " ").trim();
+  if (propre.length <= LONGUEUR_MOTIF) return propre;
+
+  const coupe = propre.slice(0, LONGUEUR_MOTIF);
+  const espace = coupe.lastIndexOf(" ");
+  return (espace > 40 ? coupe.slice(0, espace) : coupe).replace(/[ ,;:.]+$/, "") + "…";
+}
+
 export function construireBanniere(contenu: ContenuBanniere): string {
   const apparence = APPARENCE[contenu.niveau] ?? APPARENCE.faible;
+  const police =
+    "font-family:Segoe UI,Helvetica,Arial,sans-serif;line-height:1.5;";
 
+  // ⚠ UNE SEULE <div> DANS LES TROIS CAS, Y COMPRIS LE NIVEAU FAIBLE. Le
+  //   retrait de la bannière sait replier sur la balise quand Exchange a
+  //   mangé les commentaires : il coupe du `<div data-safentreprise` jusqu'au
+  //   PREMIER `</div>`. Une div imbriquée — ou une bannière qui n'en aurait
+  //   aucune — rendrait la restauration fausse, donc un faux positif
+  //   définitif. Voir l'invariant en tête de fichier.
+  const ouverture = (style: string) =>
+    `<div ${ATTRIBUT}="banniere" style="${style}">`;
+
+  // ---- Niveau faible : une ligne, rien de plus ----
+  //
+  // Pas d'encadré, pas de liste, pas de conseil. Le motif principal tient sur
+  // la même ligne que le titre : c'est ce qui permet de le lire sans s'arrêter
+  // et de l'oublier aussitôt, ce qu'on veut à ce niveau-là.
+  if (!apparence.encadre) {
+    const motif = resumerMotif(contenu.signaux[0]);
+    const corps =
+      ouverture(
+        `color:${apparence.texte};font-size:13px;${police}` +
+          `border-bottom:1px solid ${apparence.bord};` +
+          `padding:0 0 8px 0;margin:0 0 14px 0;`,
+      ) +
+      `<p style="margin:0;">` +
+      `${apparence.picto} Safentreprise — ${echapper(apparence.titre)}` +
+      (motif ? ` · ${echapper(motif)}` : "") +
+      `</p>` +
+      `</div>`;
+
+    return MARQUEUR_DEBUT + corps + MARQUEUR_FIN;
+  }
+
+  // ---- Niveaux modéré et élevé : l'encadré ----
   const signaux = contenu.signaux
     .slice(0, 5)
-    .map(
-      (s) =>
-        `<li style="margin:0 0 4px 0;">${echapper(s)}</li>`,
-    )
+    .map((s) => `<li style="margin:0 0 4px 0;">${echapper(s)}</li>`)
     .join("");
 
-  // Une seule <div>, celle du repère. Tout le reste est du <p>, <ul>, <li>,
-  // <strong> : voir l'invariant en tête de fichier.
+  const conseil = CONSEIL[contenu.niveau];
+
   const corps =
-    `<div ${ATTRIBUT}="banniere" style="` +
-    `background:${apparence.fond};` +
-    `border-left:4px solid ${apparence.bord};` +
-    `color:${apparence.texte};` +
-    `padding:12px 16px;margin:0 0 16px 0;` +
-    `font-family:Segoe UI,Helvetica,Arial,sans-serif;font-size:14px;` +
-    `line-height:1.5;">` +
+    ouverture(
+      `background:${apparence.fond};` +
+        `border-left:4px solid ${apparence.bord};` +
+        `color:${apparence.texte};` +
+        `padding:12px 16px;margin:0 0 16px 0;font-size:14px;${police}`,
+    ) +
     `<p style="margin:0 0 8px 0;font-weight:600;font-size:15px;">` +
-    `⚠ Safentreprise — ${echapper(apparence.titre)}` +
+    `${apparence.picto} Safentreprise — ${echapper(apparence.titre)}` +
     `</p>` +
     `<ul style="margin:0 0 8px 0;padding-left:20px;">${signaux}</ul>` +
-    `<p style="margin:0;font-size:13px;">` +
-    `Ne donnez pas suite sans vérifier par un autre moyen — appelez votre ` +
-    `interlocuteur sur un numéro que vous connaissez déjà, jamais sur un ` +
-    `numéro indiqué dans ce message.` +
-    `</p>` +
+    (conseil
+      ? `<p style="margin:0;font-size:13px;">${echapper(conseil)}</p>`
+      : "") +
     `</div>`;
 
   return MARQUEUR_DEBUT + corps + MARQUEUR_FIN;
@@ -315,8 +418,8 @@ function nettoyerSignal(signal: string): string {
 
 const TITRES_TEXTE: Record<NiveauBanniere, string> = {
   eleve: "RISQUE ÉLEVÉ DE FRAUDE",
-  modere: "MESSAGE SUSPECT",
-  faible: "MESSAGE À VÉRIFIER",
+  modere: "SIGNAUX SUSPECTS",
+  faible: "EXPÉDITEUR INHABITUEL",
 };
 
 /**
@@ -337,6 +440,26 @@ export function construireBanniereTexte(contenu: ContenuBanniere): string {
   // aucune couleur ni cadre, c'est le seul moyen de faire lire l'ensemble
   // comme un encart et non comme la suite du message.
   const R = "  ";
+
+  // ---- Niveau faible : une ligne entre les deux marqueurs ----
+  //
+  // ⚠ MOINS DISCRET QUE SA VERSION HTML, ET ON NE PEUT PAS FAIRE MIEUX. Les
+  //   deux marqueurs sont les bornes de la découpe qui restaure le message ;
+  //   en texte brut ils sont forcément visibles, et les alléger pour ce
+  //   niveau-là rendrait irrécupérables les bannières déjà posées. Le repli
+  //   texte ne sert de toute façon qu'aux corps que la conversion en HTML a
+  //   refusés, c'est-à-dire à une minorité.
+  if (contenu.niveau === "faible") {
+    const motif = nettoyerSignal(contenu.signaux[0] ?? "");
+    const lignes = [
+      MARQUEUR_TEXTE_DEBUT,
+      "",
+      `${R}${titre}${motif ? ` — ${motif}` : ""}`,
+      "",
+      MARQUEUR_TEXTE_FIN,
+    ];
+    return lignes.join("\n") + "\n\n";
+  }
 
   const lignes: string[] = [
     MARQUEUR_TEXTE_DEBUT,
@@ -360,12 +483,17 @@ export function construireBanniereTexte(contenu: ContenuBanniere): string {
     lignes.push("");
   });
 
+  // Le conseil suit le niveau : impératif en rouge, mesuré en ambre. Voir
+  // `CONSEIL`, dont ceci est la transposition en texte brut.
   lignes.push(`${R}QUE FAIRE`);
   lignes.push(
     ...replier(
-      "Ne donnez pas suite sans vérifier par un autre moyen : appelez " +
-        "votre interlocuteur sur un numéro que vous connaissez déjà, jamais " +
-        "sur un numéro indiqué dans ce message.",
+      contenu.niveau === "modere"
+        ? "Si ce message vous demande un paiement ou un changement de " +
+            "coordonnées, confirmez-le par un autre moyen avant d'agir."
+        : "Ne donnez pas suite sans vérifier par un autre moyen : appelez " +
+            "votre interlocuteur sur un numéro que vous connaissez déjà, " +
+            "jamais sur un numéro indiqué dans ce message.",
       LARGEUR_TEXTE - 2,
       R,
     ),

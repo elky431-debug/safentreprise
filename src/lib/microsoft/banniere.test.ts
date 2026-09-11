@@ -124,7 +124,7 @@ const trois = poserBanniere(deux, construireBanniere({
 }));
 verifier(
   "une bannière de niveau différent REMPLACE l'ancienne",
-  retirerBanniere(trois).html === origine && trois.includes("Message suspect") &&
+  retirerBanniere(trois).html === origine && trois.includes("Signaux suspects") &&
     !trois.includes("Risque élevé"),
 );
 
@@ -178,6 +178,84 @@ for (const niveau of ["faible", "modere", "eleve"] as const) {
     `niveau ${niveau} : 1 <div> ouvrante, 1 fermante`,
     ouvrantes === 1 && fermantes === 1,
     `ouvrantes=${ouvrantes} fermantes=${fermantes}`,
+  );
+}
+
+/* ==========================================================================
+   Gradation des trois niveaux
+   ==========================================================================
+
+   ⚠ CE QUI EST VÉRIFIÉ ICI, C'EST L'ÉCART ENTRE LES NIVEAUX, PAS LEUR
+     APPARENCE. Une bannière rouge sur chaque message finit par être ignorée :
+     si le niveau faible se met à porter un encadré, une liste ou un conseil,
+     la gradation disparaît et le rouge cesse d'être un signal. Ces tests
+     échouent avant que ça n'arrive.
+   ========================================================================== */
+
+console.log("\n  GRADATION DES NIVEAUX\n");
+
+const SIGNAUX = ["Motif principal", "Motif secondaire"];
+const rendu = {
+  faible: construireBanniere({ niveau: "faible", score: 40, signaux: SIGNAUX }),
+  modere: construireBanniere({ niveau: "modere", score: 60, signaux: SIGNAUX }),
+  eleve: construireBanniere({ niveau: "eleve", score: 90, signaux: SIGNAUX }),
+};
+
+verifier(
+  "faible : pas d'encadré (ni fond, ni liseré gauche)",
+  !rendu.faible.includes("border-left") && !rendu.faible.includes("background:#"),
+);
+verifier(
+  "faible : pas de liste à puces",
+  !rendu.faible.includes("<ul") && !rendu.faible.includes("<li"),
+);
+verifier(
+  "faible : pas de ligne de conseil",
+  !rendu.faible.includes("vérifier par un autre moyen") &&
+    !rendu.faible.includes("confirmez-le"),
+);
+verifier(
+  "faible : le motif principal est sur la ligne du titre",
+  rendu.faible.includes("Expéditeur inhabituel") &&
+    rendu.faible.includes("Motif principal") &&
+    !rendu.faible.includes("Motif secondaire"),
+);
+
+verifier(
+  "modéré : encadré ambre, titre et conseil mesuré",
+  rendu.modere.includes("#d68910") &&
+    rendu.modere.includes("Signaux suspects") &&
+    rendu.modere.includes("confirmez-le par un autre moyen"),
+);
+verifier(
+  "modéré : la liste des signaux est conservée",
+  rendu.modere.includes("<ul") && rendu.modere.includes("Motif secondaire"),
+);
+
+verifier(
+  "élevé : inchangé — rouge, titre et conseil impératif",
+  rendu.eleve.includes("#c0392b") &&
+    rendu.eleve.includes("Risque élevé de fraude") &&
+    rendu.eleve.includes("appelez votre interlocuteur"),
+);
+
+verifier(
+  "les trois titres sont distincts",
+  new Set([
+    rendu.faible.includes("Expéditeur inhabituel"),
+    rendu.modere.includes("Signaux suspects"),
+    rendu.eleve.includes("Risque élevé"),
+  ]).size === 1,
+);
+
+// Le retrait doit rendre l'origine pour les TROIS niveaux : c'est la
+// restauration d'un faux positif qui est en jeu, et le niveau faible a une
+// structure différente des deux autres.
+for (const [niveau, banniere] of Object.entries(rendu)) {
+  const pose = poserBanniere(origine, banniere);
+  verifier(
+    `niveau ${niveau} : le retrait rend exactement l'origine`,
+    retirerBanniere(pose).html === origine,
   );
 }
 
