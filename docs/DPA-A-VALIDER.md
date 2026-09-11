@@ -64,7 +64,15 @@ détecter deux fraudes : la fraude au président et la fraude au fournisseur.
 Lorsqu'un message présente les caractéristiques d'une de ces fraudes,
 Safentreprise **modifie ce message dans la boîte du destinataire** : un
 avertissement est inséré en tête du corps, et une catégorie de couleur est
-posée. Le message d'origine n'est ni supprimé ni déplacé.
+posée. Le message est ensuite **sorti de la boîte de réception vers un
+sous-dossier de cette même boîte, puis aussitôt remis en boîte de réception** :
+c'est le seul moyen d'obliger le client lourd Outlook, qui garde en mémoire le
+corps qu'il a déjà téléchargé, à afficher l'avertissement. Ce mouvement dure
+une fraction de seconde et ne sort jamais de la boîte du destinataire.
+
+Le message d'origine **n'est jamais supprimé**, ne quitte ni la boîte, ni le
+locataire Microsoft du Client. Son corps d'origine est conservé avant toute
+modification, ce qui permet de rétablir le message dans son état exact.
 
 **Traitement B — Campagnes de sensibilisation.** Envoi aux Collaborateurs de
 messages de simulation, mesure de leurs réactions, mise à disposition de

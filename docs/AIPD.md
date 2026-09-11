@@ -41,7 +41,12 @@ Safentreprise se raccorde aux boîtes Microsoft 365 d'une entreprise cliente.
 Safentreprise. Le service lit le message, l'analyse, et enregistre un verdict.
 Si le message présente les caractéristiques d'une fraude, le service **modifie
 le message dans la boîte du destinataire** : il insère un avertissement en tête
-et pose une catégorie de couleur.
+et pose une catégorie de couleur. Il le sort ensuite un instant de la boîte de
+réception vers un sous-dossier de la même boîte et l'y remet aussitôt —
+manœuvre sans laquelle le client lourd Outlook, qui ne redemande jamais un
+corps déjà téléchargé, continuerait d'afficher le message sans avertissement.
+Le message ne quitte à aucun moment la boîte du destinataire, et n'est jamais
+supprimé.
 
 ### Ce que l'application est autorisée à faire
 
@@ -715,7 +720,8 @@ production.
 ### Impacts pour les personnes
 
 Faible pour les personnes concernées : elles ne dépendent pas de ces données.
-Les messages eux-mêmes restent chez Microsoft et ne sont jamais déplacés.
+Les messages eux-mêmes restent chez Microsoft, dans la boîte de leur
+destinataire : rien n'en sort, et aucune copie n'est constituée ailleurs.
 
 **Une exception, et elle est sérieuse.** Si la copie du corps d'origine
 disparaît alors que le message est encore annoté, la remise en état exacte

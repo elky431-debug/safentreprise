@@ -125,6 +125,26 @@ export type ContenuBanniere = {
   niveau: NiveauBanniere;
   score: number;
   signaux: string[];
+  /**
+   * Identifiant de la ligne `graph_analyses` qui pose cette bannière.
+   *
+   * ⚠ C'EST CE QUI PERMET DE RETROUVER UN MESSAGE DONT L'IDENTIFIANT A CHANGÉ.
+   *   Depuis qu'on déplace le message après l'avoir modifié — la seule façon
+   *   de forcer Outlook desktop à relire le corps — son identifiant Graph
+   *   change. Entre le déplacement et l'écriture en base, il existe un
+   *   instant où le message porte une bannière sous un identifiant que la
+   *   base ignore. Si le worker meurt là, la RESTAURATION NE RETROUVE PLUS LE
+   *   MESSAGE : un faux positif resterait défiguré à jamais.
+   *
+   *   La bannière porte donc l'identité de la ligne qui l'a posée. N'importe
+   *   quel message bannièrisé dit à qui il appartient, et le rattachement se
+   *   fait sans heuristique.
+   *
+   *   Facultatif : une bannière sans référence reste valide — c'est le cas de
+   *   toutes celles posées avant cette version, et elles doivent continuer de
+   *   se retirer normalement.
+   */
+  ref?: string | null;
 };
 
 /* ==========================================================================
@@ -280,8 +300,14 @@ export function construireBanniere(contenu: ContenuBanniere): string {
   //   PREMIER `</div>`. Une div imbriquée — ou une bannière qui n'en aurait
   //   aucune — rendrait la restauration fausse, donc un faux positif
   //   définitif. Voir l'invariant en tête de fichier.
+  // ⚠ `data-ref` VIENT APRÈS `data-safentreprise`, ET CE N'EST PAS INDIFFÉRENT.
+  //   L'expression de repli du retrait cherche `<div[^>]*data-safentreprise=
+  //   "banniere"[^>]*>` : tout attribut supplémentaire est absorbé par les
+  //   `[^>]*`, avant comme après. Le placer ici garde la balise lisible et
+  //   l'expression inchangée.
+  const reference = contenu.ref ? ` data-ref="${echapper(contenu.ref)}"` : "";
   const ouverture = (style: string) =>
-    `<div ${ATTRIBUT}="banniere" style="${style}">`;
+    `<div ${ATTRIBUT}="banniere"${reference} style="${style}">`;
 
   // ---- Niveau faible : une ligne, rien de plus ----
   //
@@ -634,6 +660,32 @@ export function retirerBanniere(html: string): Retrait {
 /** Le corps porte-t-il déjà une bannière ? */
 export function contientBanniere(html: string): boolean {
   return retirerBanniere(html).retirees > 0;
+}
+
+/**
+ * La référence portée par la bannière d'un corps, s'il en a une.
+ *
+ * ⚠ C'EST LA CLÉ DE VOÛTE DU RATTACHEMENT. Quand le déplacement a changé
+ *   l'identifiant Graph d'un message sans qu'on ait eu le temps de l'écrire en
+ *   base, ce jeton est LE SEUL lien qui subsiste entre le message et la ligne
+ *   qui l'a bannièrisé. Sans lui, il faudrait deviner — par l'expéditeur, par
+ *   l'heure — et une restauration qui devine est une restauration qui se
+ *   trompe de message.
+ *
+ * ⚠ ELLE REND `null` SANS SE PLAINDRE sur les bannières antérieures à cette
+ *   version, qui n'en portent pas. L'appelant retombe alors sur le
+ *   comportement d'avant : c'est dégradé, ce n'est pas cassé.
+ */
+export function refDeBanniere(html: string): string | null {
+  const source = String(html ?? "");
+  const balise = new RegExp(
+    `<div[^>]*\\s${ATTRIBUT}\\s*=\\s*["']?banniere["']?[^>]*>`,
+    "i",
+  ).exec(source);
+  if (!balise) return null;
+
+  const ref = /\sdata-ref\s*=\s*["']?([A-Za-z0-9-]{8,64})["']?/i.exec(balise[0]);
+  return ref ? ref[1] : null;
 }
 
 /**

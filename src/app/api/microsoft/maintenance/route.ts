@@ -21,7 +21,10 @@
 import {
   ErreurGraph,
   appelGraph,
+  assurerDossierService,
   creerAbonnement,
+  deplacerMessage,
+  listerDossierService,
   domainesDeAnnuaire,
   listerAnnuaire,
   remplacerCorps,
@@ -467,6 +470,131 @@ type AlerteSansBanniere = {
  * donc exactement celle qu'on aurait posée sur le moment, indépendamment du
  * contexte d'entreprise du jour.
  */
+/**
+ * Ramène en boîte de réception les messages restés dans le dossier de service.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * C'EST LA COUCHE QUI TIENT LA PROMESSE : « en aucun cas un message légitime
+ * ne doit rester coincé dans un dossier de service ».
+ *
+ * Le worker sort le message de la boîte de réception pour l'y remettre
+ * aussitôt — c'est ce qui force Outlook desktop à relire le corps modifié. Si
+ * le retour échoue trois fois de suite, le message reste dans le sous-dossier.
+ * Visible par son destinataire, certes, mais ce n'est pas à lui de réparer.
+ *
+ * Ce balayage est INDÉPENDANT DU WORKER : si celui-ci est mort au milieu de
+ * son travail, la maintenance passe quand même, de nuit, et vide le dossier.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * ⚠ IL NE LIT AUCUN CORPS. Il ne demande que les identifiants et les
+ *   déplace : un ménage n'a pas à ouvrir le courrier de qui que ce soit.
+ *
+ * ⚠ IL RAMÈNE TOUT CE QU'IL TROUVE, y compris ce dont la base n'a pas gardé
+ *   trace. Un message dans ce dossier n'a rien à y faire, quelle qu'en soit
+ *   la raison : on le rend d'abord, on s'interroge ensuite.
+ */
+async function ramenerMessagesEnTransit(): Promise<Record<string, unknown>> {
+  type EnTransit = {
+    analyse_id: string;
+    company_id: string;
+    message_id: string;
+    graph_user_id: string;
+    tenant_id: string;
+    dossier_service_id: string | null;
+  };
+
+  // Cinq minutes : un déplacement dure une fraction de seconde, mais le
+  // worker peut être en train d'en faire un à l'instant même. On ne marche
+  // pas sur ses pieds.
+  const bloques = await rpc<EnTransit[]>("messages_en_deplacement", {
+    p_minutes: 5,
+  });
+
+  if (!Array.isArray(bloques) || bloques.length === 0) {
+    return { examinees: 0, ramenes: 0, details: [] };
+  }
+
+  // Une boîte peut porter plusieurs messages bloqués : on balaie le dossier
+  // une fois par boîte plutôt qu'une fois par message.
+  const boites = new Map<string, EnTransit[]>();
+  for (const b of bloques) {
+    const liste = boites.get(b.graph_user_id);
+    if (liste) liste.push(b);
+    else boites.set(b.graph_user_id, [b]);
+  }
+
+  const details: Record<string, unknown>[] = [];
+  let ramenes = 0;
+
+  for (const [graphUserId, lignes] of boites) {
+    const ref = lignes[0];
+    try {
+      // ⚠ UN DOSSIER NON MÉMORISÉ NE DOIT PAS DEVENIR UN MESSAGE ABANDONNÉ.
+      //   Le worker enregistre l'identifiant du dossier sans faire dépendre le
+      //   déplacement de cette écriture : elle peut donc manquer alors que le
+      //   message, lui, est bien parti. On le retrouve par son nom, comme le
+      //   worker l'a créé.
+      const dossier =
+        ref.dossier_service_id ??
+        (await assurerDossierService(ref.tenant_id, graphUserId));
+
+      const dansLeDossier = await listerDossierService(
+        ref.tenant_id,
+        graphUserId,
+        dossier,
+      );
+
+      // ⚠ ON NE RENOMME QUE SI LA CORRESPONDANCE EST CERTAINE. Le dossier ne
+      //   rend que des identifiants, et celui d'un message en transit n'est
+      //   plus celui que la base connaît : rien ne dit lequel est lequel dès
+      //   qu'il y en a deux. Renommer au hasard rattacherait une sauvegarde de
+      //   corps au mauvais message — pire que ne rien faire. À plusieurs, on
+      //   se contente de tout ramener en boîte de réception : le retour
+      //   déclenche une notification, et le jeton `data-ref` de la bannière
+      //   rattache chaque message à sa ligne, exactement.
+      const certain = lignes.length === 1 && dansLeDossier.length === 1;
+
+      for (const enTransit of dansLeDossier) {
+        const revenu = await deplacerMessage(
+          ref.tenant_id,
+          graphUserId,
+          enTransit,
+          "inbox",
+        );
+        ramenes += 1;
+
+        if (!certain) {
+          details.push({
+            boite: graphUserId,
+            ramene: revenu.slice(0, 18) + "…",
+            rattachement: `différé (${lignes.length} lignes, ${dansLeDossier.length} messages)`,
+          });
+          continue;
+        }
+
+        // Le renommage se fait sur l'ancien identifiant CONNU DE LA BASE, pas
+        // sur celui qu'on vient de lire dans le dossier : entre les deux, le
+        // message a déjà changé d'identifiant une fois. La fonction est
+        // idempotente et ne fait rien si elle ne trouve pas — auquel cas le
+        // rattachement par jeton prend le relais.
+        await rpc("renommer_message_graph", {
+          p_company_id: ref.company_id,
+          p_ancien_id: ref.message_id,
+          p_nouveau_id: revenu,
+        }).catch(() => {});
+
+        details.push({ boite: graphUserId, ramene: revenu.slice(0, 18) + "…" });
+      }
+    } catch (erreur) {
+      const detail = messageDe(erreur);
+      details.push({ boite: graphUserId, erreur: detail });
+      console.error(`[maintenance] transit ${graphUserId} : ${detail}`);
+    }
+  }
+
+  return { examinees: boites.size, ramenes, details };
+}
+
 async function rattraperBannieres(): Promise<Record<string, unknown>> {
   const mode = (process.env.GRAPH_ACTIONS ?? "off").trim().toLowerCase();
   if (mode !== "complet") {
@@ -932,6 +1060,16 @@ async function postInterne(request: Request) {
     } catch (erreur) {
       resultat.annuaires = { erreur: messageDe(erreur) };
       console.error("[maintenance] annuaires :", messageDe(erreur));
+    }
+
+    // Sixième travail, et c'est celui qui tient une promesse faite au client :
+    // aucun message ne doit rester dans le dossier de service. Il passe en
+    // dernier parce qu'il est le moins urgent, mais il passe toujours.
+    try {
+      resultat.transit = await ramenerMessagesEnTransit();
+    } catch (erreur) {
+      resultat.transit = { erreur: messageDe(erreur) };
+      console.error("[maintenance] transit :", messageDe(erreur));
     }
   }
 

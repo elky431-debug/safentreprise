@@ -23,6 +23,7 @@ import {
   echapper,
   poserBanniere,
   retirerBanniere,
+  refDeBanniere,
 } from "./banniere.ts";
 
 let echecs = 0;
@@ -522,6 +523,90 @@ verifier(
   "bannière HTML sur un corps converti : aller-retour par marqueurs",
   retirerBanniere(poserBanniere(texteVersHtml("Bonjour"), BANNIERE)).html ===
     texteVersHtml("Bonjour"),
+);
+
+/* ==========================================================================
+   LE JETON `data-ref` — ce qui rend un message retrouvable après déplacement
+   ==========================================================================
+
+   ⚠ CES VÉRIFICATIONS PROTÈGENT LA RESTAURATION, c'est-à-dire la garantie
+     centrale du produit. Depuis qu'on déplace le message après l'avoir
+     modifié — la seule façon de faire relire le corps à Outlook desktop —
+     son identifiant Graph change. Entre le déplacement et l'écriture en base,
+     le jeton porté par la bannière est LE SEUL lien entre le message et la
+     ligne qui l'a bannièrisé. S'il se perd, un faux positif reste défiguré
+     pour toujours. */
+
+const REF = "8f14e45f-ceea-467a-9c7e-3b1a2d4f5e6b";
+
+for (const niveau of ["faible", "modere", "eleve"] as const) {
+  const avec = construireBanniere({ niveau, score: 50, signaux: SIGNAUX, ref: REF });
+
+  verifier(
+    `${niveau} : la référence est relisible`,
+    refDeBanniere(avec) === REF,
+    refDeBanniere(avec) ?? "(rien)",
+  );
+
+  // Le retrait doit rendre le corps AU CARACTÈRE PRÈS, jeton ou pas.
+  const corps = `<html><body>${avec}<p>Bonjour</p></body></html>`;
+  const parMarqueurs = retirerBanniere(corps);
+  verifier(
+    `${niveau} : le retrait par marqueurs ignore le jeton`,
+    parMarqueurs.retirees === 1 &&
+      parMarqueurs.html === "<html><body><p>Bonjour</p></body></html>",
+    parMarqueurs.html,
+  );
+
+  // ⚠ LE CAS QUI COMPTE : Exchange a mangé les commentaires, il ne reste que
+  //   la balise. L'attribut supplémentaire ne doit pas casser le repli.
+  const sansCommentaires = corps
+    .split(MARQUEUR_DEBUT).join("")
+    .split(MARQUEUR_FIN).join("");
+  const parAttribut = retirerBanniere(sansCommentaires);
+  verifier(
+    `${niveau} : le repli sur la balise survit à l'attribut en plus`,
+    parAttribut.retirees === 1 &&
+      parAttribut.methode === "attribut" &&
+      parAttribut.html === "<html><body><p>Bonjour</p></body></html>",
+    `${parAttribut.methode} — ${parAttribut.html}`,
+  );
+}
+
+verifier(
+  "une bannière sans référence reste valide",
+  // ⚠ TOUTES CELLES POSÉES AVANT CETTE VERSION EN SONT DÉPOURVUES. Elles
+  //   doivent continuer de se retirer : cesser de les reconnaître les
+  //   rendrait indélébiles.
+  refDeBanniere(construireBanniere({ niveau: "eleve", score: 90, signaux: SIGNAUX })) === null,
+);
+
+verifier(
+  "un corps quelconque ne rend aucune référence",
+  refDeBanniere("<p>Bonjour, voici la facture.</p>") === null &&
+    refDeBanniere("") === null,
+);
+
+verifier(
+  "une référence hostile ne sort pas de son attribut",
+  // Le jeton vient de notre base, pas de l'extérieur — mais il traverse le
+  // même échappement que le reste, et on le vérifie plutôt que de l'espérer.
+  !construireBanniere({
+    niveau: "eleve", score: 90, signaux: SIGNAUX,
+    ref: '"><script>alert(1)</script>',
+  }).includes("<script>"),
+);
+
+verifier(
+  "deux bannières successives ne s'empilent pas, jeton compris",
+  (() => {
+    const un = poserBanniere("<html><body><p>Bonjour</p></body></html>",
+      construireBanniere({ niveau: "faible", score: 35, signaux: SIGNAUX, ref: REF }));
+    const deux = poserBanniere(un,
+      construireBanniere({ niveau: "eleve", score: 90, signaux: SIGNAUX, ref: REF }));
+    return (deux.match(/data-ref=/g) ?? []).length === 1 &&
+      retirerBanniere(deux).html === "<html><body><p>Bonjour</p></body></html>";
+  })(),
 );
 
 console.log("\n  ── Aperçu d'une conversion ──\n");

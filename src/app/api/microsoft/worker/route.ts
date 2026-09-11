@@ -19,6 +19,8 @@ import { analyser } from "@/lib/detection";
 import {
   ErreurGraph,
   assurerCategorie,
+  assurerDossierService,
+  deplacerMessage,
   lireMessage,
   obtenirJeton,
   poserCategorie,
@@ -31,6 +33,7 @@ import {
   corpsEstHtml,
   poserBanniere,
   poserBanniereTexte,
+  refDeBanniere,
   texteVersHtml,
   type NiveauBanniere,
 } from "@/lib/microsoft/banniere";
@@ -265,6 +268,8 @@ async function agir(
   travail: Travail,
   message: { id: string; categories?: string[]; body?: { contentType?: string; content?: string } },
   verdict: { alerte: boolean; niveauBase: string; score: number; signaux: string[] },
+  /** Identifiant de la ligne d'analyse — inscrit dans la bannière. */
+  analyseId: string | null,
 ): Promise<Action> {
   const mode = modeAction();
   if (mode === "off") return { mode: "off" };
@@ -313,7 +318,7 @@ async function agir(
   if (mode === "categorie") return action;
 
   try {
-    action.banniere = await poserBanniereSurMessage(travail, message, verdict);
+    action.banniere = await poserBanniereSurMessage(travail, message, verdict, analyseId);
   } catch (erreur) {
     console.error(
       `[worker] bannière impossible sur ${travail.message_id} — ` +
@@ -330,6 +335,7 @@ async function poserBanniereSurMessage(
   travail: Travail,
   message: { body?: { contentType?: string; content?: string } },
   verdict: { niveauBase: string; score: number; signaux: string[] },
+  analyseId: string | null,
 ): Promise<NonNullable<Action["banniere"]>> {
   const origine = message.body?.content ?? "";
 
@@ -377,6 +383,9 @@ async function poserBanniereSurMessage(
     niveau: verdict.niveauBase as NiveauBanniere,
     score: verdict.score,
     signaux: verdict.signaux ?? [],
+    // Le jeton qui permettra de rattacher ce message à sa ligne si son
+    // identifiant Graph change au déplacement.
+    ref: analyseId,
   };
 
   // ─────────────────────────────────────────────────────────────────────
@@ -463,7 +472,90 @@ async function poserBanniereSurMessage(
     };
   }
 
+  // Le déplacement qui rend la bannière visible sous Outlook a lieu PLUS
+  // TARD, une fois la base à jour : `deplacerPourRafraichir`, appelé en toute
+  // fin de `traiter`. Il change l'identifiant du message, donc rien ne doit
+  // plus s'écrire sous l'ancien après lui.
   return { etat: "posee", format };
+}
+
+/** Au-delà, on laisse la maintenance finir le travail. */
+const ESSAIS_DEPLACEMENT = 3;
+
+/**
+ * Sort le message de la boîte de réception et l'y remet aussitôt.
+ *
+ * ⚠ L'INTENTION EST ÉCRITE AVANT L'ACTE. `marquer_deplacement_graph` pose un
+ *   horodatage que seul le retour efface. Si le processus meurt entre les
+ *   deux, la ligne dit « celui-ci était en route » : on sait lequel chercher,
+ *   sans fouiller la boîte.
+ *
+ * ⚠ LE RETOUR EST RETENTÉ. C'est le seul des deux mouvements dont l'échec
+ *   laisse le message hors de la boîte de réception. Trois essais couvrent
+ *   l'incident réseau ordinaire ; au-delà, la ligne reste marquée et le
+ *   balayage de la maintenance la ramène.
+ */
+async function deplacerPourRafraichir(travail: Travail): Promise<void> {
+  const dossier = await etape("dossier de service", () =>
+    assurerDossierService(travail.tenant_id, travail.graph_user_id),
+  );
+
+  // Mémorisé pour que le balayage sache où regarder, même si tout le reste
+  // échoue ensuite.
+  await rpc("enregistrer_dossier_service", {
+    p_boite_id: travail.boite_id,
+    p_dossier_id: dossier,
+  }).catch(() => {});
+
+  await rpc("marquer_deplacement_graph", {
+    p_company_id: travail.company_id,
+    p_message_id: travail.message_id,
+  });
+
+  const enTransit = await etape("déplacement vers le dossier de service", () =>
+    deplacerMessage(
+      travail.tenant_id,
+      travail.graph_user_id,
+      travail.message_id,
+      dossier,
+    ),
+  );
+
+  let dernierEchec: unknown = null;
+  for (let essai = 1; essai <= ESSAIS_DEPLACEMENT; essai += 1) {
+    try {
+      const revenu = await deplacerMessage(
+        travail.tenant_id,
+        travail.graph_user_id,
+        enTransit,
+        "inbox",
+      );
+
+      // ⚠ C'EST ICI QUE LA FENÊTRE SE FERME. Tant que cet appel n'a pas eu
+      //   lieu, le message porte une bannière sous un identifiant que la base
+      //   ignore — et la restauration ne le retrouverait pas. Le jeton
+      //   `data-ref` de la bannière est ce qui couvre l'intervalle.
+      await rpc("renommer_message_graph", {
+        p_company_id: travail.company_id,
+        p_ancien_id: travail.message_id,
+        p_nouveau_id: revenu,
+      });
+      return;
+    } catch (erreur) {
+      dernierEchec = erreur;
+      console.error(
+        `[worker] retour en boîte de réception, essai ${essai}/${ESSAIS_DEPLACEMENT} : ` +
+          `${messageDe(erreur)}`,
+      );
+    }
+  }
+
+  throw new ErreurEtape(
+    `message laissé dans le dossier de service après ${ESSAIS_DEPLACEMENT} essais ` +
+      `(${messageDe(dernierEchec)}) — la maintenance le ramènera`,
+    "retour en boîte de réception",
+    dernierEchec,
+  );
 }
 
 /* ==========================================================================
@@ -472,7 +564,7 @@ async function poserBanniereSurMessage(
 
 type Resultat = {
   message_id: string;
-  statut: "analyse" | "ignore" | "echec";
+  statut: "analyse" | "ignore" | "echec" | "rattache";
   niveau?: string;
   score?: number;
   alerte?: boolean;
@@ -543,6 +635,74 @@ async function traiter(
     lireMessage(travail.tenant_id, travail.graph_user_id, travail.message_id),
   );
 
+  // ─────────────────────────────────────────────────────────────────────
+  // LE WEBHOOK REJOUÉ — À TRAITER AVANT TOUT LE RESTE.
+  //
+  // Déplacer un message fait apparaître un NOUVEL élément dans la boîte de
+  // réception : Graph émet une notification, le message revient en file, et
+  // le worker le retrouve ici — sous un identifiant différent.
+  //
+  // Sans cette garde, `enregistrer_analyse_graph` ne verrait aucun conflit
+  // sur (company_id, message_id) et CRÉERAIT UNE SECONDE LIGNE pour le même
+  // message physique : deux alertes dans /menaces, DEUX EMAILS AU DIRIGEANT,
+  // et des compteurs gonflés dans le rapport mensuel. Ce serait pire que le
+  // défaut qu'on corrige.
+  //
+  // ⚠ LA RECONNAISSANCE NE REPOSE PAS SUR UNE DEVINETTE. Le corps porte
+  //   notre bannière, et la bannière porte l'identifiant de la ligne qui l'a
+  //   posée. On rattache exactement, ou on ne rattache pas.
+  // ─────────────────────────────────────────────────────────────────────
+  const refPortee = refDeBanniere(message.body?.content ?? "");
+  if (refPortee) {
+    const issue = await rpc<string>("rattacher_message_graph", {
+      p_company_id: travail.company_id,
+      p_ref: refPortee,
+      p_nouveau_id: travail.message_id,
+    }).catch((erreur) => {
+      console.error(`[worker] rattachement impossible : ${messageDe(erreur)}`);
+      return "erreur";
+    });
+
+    // ⚠ ON NE SAUTE L'ANALYSE QUE SUR UNE RÉPONSE QUI PROUVE QUELQUE CHOSE.
+    //
+    //   Une référence se lit dans le corps du message : elle est visible de
+    //   son destinataire, donc recopiable. Si en porter une suffisait à être
+    //   « rattaché », il suffirait d'en coller une dans un mail frauduleux
+    //   pour n'être jamais analysé. Le doublon qu'on cherche à éviter serait
+    //   remplacé par un contournement, ce qui est bien pire.
+    //
+    //   « rattachee » et « deja-a-jour » supposent une ligne à nous dont on
+    //   venait d'annoncer le déplacement : elles se refusent à qui n'est pas
+    //   ce message-là. « inconnue » et « hors-fenetre » ne prouvent rien : on
+    //   analyse, comme n'importe quel message. Il n'en sortira pas de seconde
+    //   bannière — `poserBanniereSurMessage` s'arrête sur « deja-presente ».
+    if (issue === "rattachee" || issue === "deja-a-jour") {
+      await signalerEchec(travail.travail_id, `rattaché (${issue})`, true);
+      return {
+        message_id: travail.message_id,
+        statut: "rattache",
+        motif: `bannière déjà posée, ligne ${issue}`,
+      };
+    }
+
+    // La base n'a pas répondu : on ne tranche pas à l'aveugle. Analyser
+    // risquerait le doublon, ignorer risquerait la fraude non vue — on
+    // repasse, c'est la seule sortie qui ne perde rien.
+    if (issue === "erreur") {
+      const secondaire = await signalerEchec(
+        travail.travail_id,
+        "rattachement indisponible, à reprendre",
+        false,
+      );
+      return {
+        message_id: travail.message_id,
+        statut: "echec",
+        motif: "rattachement indisponible",
+        echecSecondaire: secondaire ?? undefined,
+      };
+    }
+  }
+
   // Un brouillon n'a pas été reçu : rien à analyser.
   if (message.isDraft) {
     const secondaire = await signalerEchec(
@@ -578,7 +738,10 @@ async function traiter(
     ),
   );
 
-  await rpc("enregistrer_analyse_graph", {
+  // ⚠ ON GARDE L'IDENTIFIANT RENDU : c'est lui que la bannière portera, et
+  //   c'est par lui qu'on retrouvera le message si son identifiant Graph
+  //   change sous nos pieds au déplacement.
+  const analyseId = await rpc<string>("enregistrer_analyse_graph", {
     p_travail_id: travail.travail_id,
     p_expediteur_nom: message.from?.emailAddress?.name ?? null,
     p_expediteur_email: message.from?.emailAddress?.address ?? null,
@@ -607,7 +770,7 @@ async function traiter(
   // retrouver pour le défaire.
   let action: Action = { mode: modeAction() };
   try {
-    action = await agir(travail, message, verdict);
+    action = await agir(travail, message, verdict, analyseId);
 
     const categoriePosee =
       action.categorie?.etat === "posee" ? (action.categorie.nom ?? null) : null;
@@ -661,6 +824,38 @@ async function traiter(
       p_erreur: `[${etapeDe(erreur)}] ${detail}`.slice(0, 500),
       p_action_etat: "echec",
     }).catch(() => {});
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // LE DÉPLACEMENT — SANS LUI, PERSONNE NE VOIT LA BANNIÈRE SOUS OUTLOOK.
+  //
+  // Outlook pour Windows ne redemande jamais un corps qu'il a déjà
+  // téléchargé. La boîte restant ouverte toute la journée chez un client, il
+  // gagne la course contre le worker presque à chaque fois : la bannière est
+  // écrite, vérifiée, et invisible. Déplacer le message lui donne un nouvel
+  // identifiant, donc aucun corps en cache, donc un rechargement.
+  //
+  // ⚠ APRÈS LA POSE, JAMAIS AVANT. Déplacer d'abord rouvrirait la course : le
+  //   client téléchargerait le corps du message déplacé avant qu'on ne l'ait
+  //   modifié.
+  //
+  // ⚠ ET APRÈS LA DERNIÈRE ÉCRITURE EN BASE, jamais entre deux. Le
+  //   déplacement change l'identifiant du message ; tout ce qui s'écrit
+  //   ensuite en le désignant par cet identifiant — `marquer_action_graph` en
+  //   premier — ne trouverait plus sa ligne. La bannière serait posée sans que
+  //   la base le sache : le rattrapage la reposerait, et `/menaces` la
+  //   donnerait pour absente.
+  //
+  // ⚠ SON ÉCHEC N'ANNULE RIEN. Un avertissement posé et vu par la moitié des
+  //   clients vaut mieux qu'aucun avertissement. Le déplacement raté se
+  //   rattrape au balayage de la maintenance.
+  // ─────────────────────────────────────────────────────────────────────
+  if (action.banniere?.etat === "posee") {
+    await deplacerPourRafraichir(travail).catch((erreur) => {
+      console.error(
+        `[worker] déplacement impossible sur ${travail.message_id} : ${messageDe(erreur)}`,
+      );
+    });
   }
 
   return {
@@ -1358,6 +1553,59 @@ async function diagnostiquer(): Promise<Response> {
     );
   } catch (erreur) {
     ajouter("alertes dirigeant en attente", "échec", messageDe(erreur));
+  }
+
+  // 2 quinquies bis. LES MESSAGES RESTÉS EN TRANSIT.
+  //
+  // ⚠ CE CONTRÔLE EXISTE PARCE QU'ON A PROMIS QU'AUCUN MESSAGE NE RESTERAIT
+  //   COINCÉ. Le worker sort chaque message bannièrisé de la boîte de
+  //   réception pour l'y remettre aussitôt — sans quoi Outlook desktop ne
+  //   relit jamais le corps modifié. Si le retour échoue, le message dort
+  //   dans un sous-dossier visible de son destinataire, ce qui n'est pas un
+  //   état acceptable. La maintenance le ramène de nuit ; ce voyant dit s'il
+  //   y en a un qui attend.
+  try {
+    const [etat] = await rpc<
+      {
+        en_cours: number;
+        bloques: number;
+        plus_ancien: string | null;
+        multiples: number;
+      }[]
+    >("etat_deplacements", {});
+
+    const bloques = etat?.bloques ?? 0;
+    const multiples = etat?.multiples ?? 0;
+
+    ajouter(
+      "messages en transit",
+      bloques > 0 || multiples > 0 ? "échec" : "ok",
+      !etat
+        ? "aucun état : migration 20260923 non appliquée ?"
+        : bloques === 0 && multiples === 0
+          ? etat.en_cours > 0
+            ? `${etat.en_cours} déplacement(s) en cours — normal, ils durent une fraction de seconde`
+            : "aucun message en transit"
+          : [
+              bloques > 0
+                ? `${bloques} message(s) DANS LE DOSSIER DE SERVICE depuis ${etat.plus_ancien}. ` +
+                  `Ils sont visibles par leur destinataire mais hors de sa boîte de réception. ` +
+                  `POST /api/microsoft/maintenance les ramène immédiatement.`
+                : "",
+              // Un message déplacé plus de deux fois trahit un webhook rejoué
+              // que le rattachement n'a pas attrapé : c'est la boucle qu'on
+              // veut voir venir avant qu'elle ne double les alertes.
+              multiples > 0
+                ? `${multiples} message(s) déplacé(s) plus de deux fois — ` +
+                  `rattachement en défaut, vérifier : SELECT message_id, deplacements ` +
+                  `FROM graph_analyses WHERE deplacements > 2;`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" "),
+    );
+  } catch (erreur) {
+    ajouter("messages en transit", "échec", messageDe(erreur));
   }
 
   // 2 sexies. LE RAPPORT MENSUEL. Sa panne est la plus discrète du produit :

@@ -551,6 +551,123 @@ export async function remplacerCorps(
   );
 }
 
+/* --------------------------------------------------------------------------
+   Déplacement — ce qui force Outlook desktop à relire le corps
+   -------------------------------------------------------------------------- */
+
+/**
+ * Nom du sous-dossier de transit, visible dans la boîte de réception.
+ *
+ * ⚠ VISIBLE, ET C'EST UNE DÉCISION DE SÉCURITÉ. Si le retour en boîte de
+ *   réception échoue, le message doit être là où son destinataire peut le
+ *   voir et le remettre lui-même. Ni la corbeille, ni les indésirables, ni un
+ *   dossier masqué : on ne cache pas le courrier de quelqu'un.
+ */
+export const DOSSIER_SERVICE = "Safentreprise — en cours";
+
+type DossierGraph = { id?: string; displayName?: string };
+
+/**
+ * Crée le sous-dossier de transit s'il n'existe pas, et rend son identifiant.
+ *
+ * Idempotente : elle cherche d'abord, ne crée qu'à défaut. Appelée à chaque
+ * déplacement, mais l'identifiant est conservé en base — l'appel réseau n'a
+ * lieu qu'une fois par boîte.
+ */
+export async function assurerDossierService(
+  tenantId: string,
+  graphUserId: string,
+): Promise<string> {
+  const boite = encodeURIComponent(graphUserId);
+
+  const existants = await appelGraph<{ value?: DossierGraph[] }>(
+    tenantId,
+    "GET",
+    `/users/${boite}/mailFolders/inbox/childFolders?$select=id,displayName&$top=100`,
+  );
+
+  const trouve = (existants?.value ?? []).find(
+    (d) => d.displayName === DOSSIER_SERVICE,
+  );
+  if (trouve?.id) return trouve.id;
+
+  const cree = await appelGraph<DossierGraph>(
+    tenantId,
+    "POST",
+    `/users/${boite}/mailFolders/inbox/childFolders`,
+    { displayName: DOSSIER_SERVICE },
+  );
+
+  if (!cree?.id) {
+    throw new ErreurGraph(
+      "dossier de service créé sans identifiant",
+      500,
+      "DossierSansId",
+      false,
+    );
+  }
+  return cree.id;
+}
+
+/**
+ * Déplace un message, et rend SON NOUVEL IDENTIFIANT.
+ *
+ * ⚠ C'EST LE POINT DE TOUTE L'OPÉRATION. Un déplacement est, côté MAPI, une
+ *   suppression suivie d'une création : le message change d'identifiant, donc
+ *   le client n'a plus de corps en cache pour lui et le redescend — bannière
+ *   comprise. C'est la seule façon trouvée de faire voir un avertissement
+ *   dans Outlook pour Windows quand la boîte est restée ouverte.
+ *
+ * ⚠ GRAPH REND LE MESSAGE DÉPLACÉ DANS SA RÉPONSE. On n'a donc pas à le
+ *   chercher : le nouvel identifiant arrive de façon synchrone. C'est ce qui
+ *   rend la fenêtre de perte si courte — mais elle existe, et c'est le jeton
+ *   `data-ref` de la bannière qui la couvre.
+ */
+export async function deplacerMessage(
+  tenantId: string,
+  graphUserId: string,
+  messageId: string,
+  destinationId: string,
+): Promise<string> {
+  const deplace = await appelGraph<{ id?: string }>(
+    tenantId,
+    "POST",
+    `/users/${encodeURIComponent(graphUserId)}/messages/${encodeURIComponent(messageId)}/move`,
+    { destinationId },
+  );
+
+  if (!deplace?.id) {
+    throw new ErreurGraph(
+      "déplacement sans identifiant en retour",
+      500,
+      "DeplacementSansId",
+      true,
+    );
+  }
+  return deplace.id;
+}
+
+/**
+ * Liste ce qui se trouve dans le dossier de service.
+ *
+ * ⚠ ON NE DEMANDE QUE `id`. Le balayage n'a pas à lire le contenu de ces
+ *   messages : il les ramène, il ne les analyse pas. Un balayage qui lirait
+ *   les corps élargirait l'accès du produit pour une opération de ménage.
+ */
+export async function listerDossierService(
+  tenantId: string,
+  graphUserId: string,
+  dossierId: string,
+  limite = 50,
+): Promise<string[]> {
+  const reponse = await appelGraph<{ value?: { id?: string }[] }>(
+    tenantId,
+    "GET",
+    `/users/${encodeURIComponent(graphUserId)}/mailFolders/${encodeURIComponent(dossierId)}/messages?$select=id&$top=${limite}`,
+  );
+  return (reponse?.value ?? []).map((m) => m.id).filter((id): id is string => !!id);
+}
+
 /** Ce que le worker lit d'un message. Aucun autre champ n'est demandé. */
 export type MessageGraph = {
   id: string;
