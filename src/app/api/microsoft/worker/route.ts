@@ -497,20 +497,59 @@ const ESSAIS_DEPLACEMENT = 3;
 /**
  * Sort le message de la boîte de réception et l'y remet aussitôt.
  *
- * ⚠ L'INTENTION EST ÉCRITE AVANT L'ACTE. `marquer_deplacement_graph` pose un
- *   horodatage que seul le retour efface. Si le processus meurt entre les
- *   deux, la ligne dit « celui-ci était en route » : on sait lequel chercher,
- *   sans fouiller la boîte.
+ * ⚠ L'INTENTION EST ÉCRITE AVANT L'ACTE, ET AVANT TOUT APPEL À MICROSOFT.
+ *   `marquer_deplacement_graph` est le TOUT PREMIER geste de cette fonction.
+ *   Ce n'était pas le cas : il venait après la création du dossier de
+ *   service, si bien qu'un échec à cette étape ne laissait aucune trace —
+ *   « pas appelée » et « coupée en route » produisaient le même état en base,
+ *   et le diagnostic tournait en rond. Le marqueur répond maintenant à la
+ *   question tout seul :
+ *
+ *     marqueur absent → cette fonction n'a pas été appelée ;
+ *     marqueur seul   → elle a été entrée puis interrompue ;
+ *     marqueur + raison écrite → elle est allée jusqu'à l'échec, qui est nommé.
+ *
+ * ⚠ ET IL SE LÈVE SI LE MESSAGE N'EST PAS SORTI. Un marqueur laissé à tort
+ *   ferait rougir « messages en transit » et enverrait le balayage chercher
+ *   dans le dossier de service un message qui n'en a jamais bougé. Tant que
+ *   le premier déplacement n'a pas eu lieu, un échec libère le marqueur.
  *
  * ⚠ LE RETOUR EST RETENTÉ. C'est le seul des deux mouvements dont l'échec
  *   laisse le message hors de la boîte de réception. Trois essais couvrent
  *   l'incident réseau ordinaire ; au-delà, la ligne reste marquée et le
  *   balayage de la maintenance la ramène.
  */
-async function deplacerPourRafraichir(travail: Travail): Promise<void> {
-  const dossier = await etape("dossier de service", () =>
-    assurerDossierService(travail.tenant_id, travail.graph_user_id),
-  );
+async function deplacerPourRafraichir(
+  travail: Travail,
+  analyseId: string | null,
+): Promise<void> {
+  // ⚠ AVANT TOUT LE RESTE, Y COMPRIS AVANT LE PREMIER APPEL À MICROSOFT.
+  await rpc("marquer_deplacement_graph", {
+    p_company_id: travail.company_id,
+    p_message_id: travail.message_id,
+  });
+
+  /** Le message est-il sorti de la boîte de réception ? Pas encore. */
+  let sorti = false;
+  const libererSiPossible = async (raison: string) => {
+    if (analyseId) {
+      await rpc("marquer_echec_deplacement", {
+        p_analyse_id: analyseId,
+        p_erreur: raison,
+        p_sorti: sorti,
+      }).catch(() => {});
+    }
+  };
+
+  let dossier: string;
+  try {
+    dossier = await etape("dossier de service", () =>
+      assurerDossierService(travail.tenant_id, travail.graph_user_id),
+    );
+  } catch (erreur) {
+    await libererSiPossible(`dossier de service : ${messageDe(erreur)}`.slice(0, 300));
+    throw erreur;
+  }
 
   // Mémorisé pour que le balayage sache où regarder, même si tout le reste
   // échoue ensuite.
@@ -519,19 +558,25 @@ async function deplacerPourRafraichir(travail: Travail): Promise<void> {
     p_dossier_id: dossier,
   }).catch(() => {});
 
-  await rpc("marquer_deplacement_graph", {
-    p_company_id: travail.company_id,
-    p_message_id: travail.message_id,
-  });
+  let enTransit: string;
+  try {
+    enTransit = await etape("déplacement vers le dossier de service", () =>
+      deplacerMessage(
+        travail.tenant_id,
+        travail.graph_user_id,
+        travail.message_id,
+        dossier,
+      ),
+    );
+  } catch (erreur) {
+    // Le message n'a pas quitté sa boîte de réception : on libère le marqueur.
+    await libererSiPossible(`aller : ${messageDe(erreur)}`.slice(0, 300));
+    throw erreur;
+  }
 
-  const enTransit = await etape("déplacement vers le dossier de service", () =>
-    deplacerMessage(
-      travail.tenant_id,
-      travail.graph_user_id,
-      travail.message_id,
-      dossier,
-    ),
-  );
+  // À partir d'ici, le message EST hors de la boîte de réception. Le marqueur
+  // ne se lève plus : il est ce qui permet au balayage d'aller le rechercher.
+  sorti = true;
 
   let dernierEchec: unknown = null;
   for (let essai = 1; essai <= ESSAIS_DEPLACEMENT; essai += 1) {
@@ -869,8 +914,12 @@ async function traiter(
   //   bronche. La raison va sur la ligne — désignée par son identifiant, qui
   //   ne change pas, et non par celui du message, qui vient peut-être de
   //   changer — et dans la réponse.
+  // ⚠ LA BRANCHE NON PRISE SE DIT AUSSI. Un `if` silencieux ne se distingue
+  //   pas d'un appel qui échoue sans bruit — c'est ce qui a fait tourner le
+  //   diagnostic en rond pendant deux jours. Quand la condition n'est pas
+  //   remplie, la réponse le dit et nomme l'état de la bannière.
   if (action.banniere?.etat === "posee") {
-    const echec = await deplacerPourRafraichir(travail).then(
+    const echec = await deplacerPourRafraichir(travail, analyseId).then(
       () => null,
       (erreur: unknown) =>
         `[${etapeDe(erreur)}] ${messageDe(erreur)}`.slice(0, 400),
@@ -879,15 +928,12 @@ async function traiter(
     if (echec) {
       console.error(`[worker] déplacement impossible sur ${travail.message_id} : ${echec}`);
       action = { ...action, deplacement: echec };
-      if (analyseId) {
-        await rpc("marquer_echec_deplacement", {
-          p_analyse_id: analyseId,
-          p_erreur: echec,
-        }).catch((secondaire) => {
-          console.error(`[worker] échec de déplacement non consigné : ${messageDe(secondaire)}`);
-        });
-      }
     }
+  } else {
+    action = {
+      ...action,
+      deplacement: `non tenté — bannière « ${action.banniere?.etat ?? "absente"} »`,
+    };
   }
 
   return {

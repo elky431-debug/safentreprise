@@ -621,15 +621,32 @@ async function rafraichirApresPose(cible: {
   graph_user_id: string;
   message_id: string;
 }): Promise<string | null> {
+  /** Le message est-il sorti de la boîte de réception ? Pas encore. */
+  let sorti = false;
   const consigner = async (raison: string) => {
     await rpc("marquer_echec_deplacement", {
       p_analyse_id: cible.analyse_id,
       p_erreur: raison,
+      // Tant qu'il n'est pas sorti, on libère le marqueur : le laisser
+      // enverrait le balayage chercher dans le dossier de service un message
+      // qui n'en a jamais bougé.
+      p_sorti: sorti,
     }).catch((secondaire) => {
       console.error(`[maintenance] échec de déplacement non consigné : ${messageDe(secondaire)}`);
     });
     return raison;
   };
+
+  // ⚠ L'INTENTION AVANT TOUT APPEL À MICROSOFT, comme dans le worker. Posée
+  //   plus tard, elle ne dirait pas si la fonction a été entrée.
+  try {
+    await rpc("marquer_deplacement_graph", {
+      p_company_id: cible.company_id,
+      p_message_id: cible.message_id,
+    });
+  } catch (erreur) {
+    return consigner(`marquage : ${messageDe(erreur)}`.slice(0, 400));
+  }
 
   let dossier: string;
   try {
@@ -643,17 +660,6 @@ async function rafraichirApresPose(cible: {
     p_dossier_id: dossier,
   }).catch(() => {});
 
-  // L'intention avant l'acte : si le processus meurt après le premier
-  // déplacement, cette marque désigne le message à ramener.
-  try {
-    await rpc("marquer_deplacement_graph", {
-      p_company_id: cible.company_id,
-      p_message_id: cible.message_id,
-    });
-  } catch (erreur) {
-    return consigner(`marquage : ${messageDe(erreur)}`.slice(0, 400));
-  }
-
   let enTransit: string;
   try {
     enTransit = await deplacerMessage(
@@ -665,6 +671,10 @@ async function rafraichirApresPose(cible: {
   } catch (erreur) {
     return consigner(`aller : ${messageDe(erreur)}`.slice(0, 400));
   }
+
+  // À partir d'ici le message est hors de sa boîte : le marqueur reste, c'est
+  // lui qui permet au balayage d'aller le rechercher.
+  sorti = true;
 
   let dernier = "";
   for (let essai = 1; essai <= ESSAIS_DEPLACEMENT; essai += 1) {
