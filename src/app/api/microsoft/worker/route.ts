@@ -17,6 +17,7 @@
  */
 import { analyser } from "@/lib/detection";
 import {
+  DOSSIER_SERVICE,
   ErreurGraph,
   assurerCategorie,
   assurerDossierService,
@@ -239,6 +240,17 @@ type Action = {
    * défaire sur ce message.
    */
   enregistrement?: string;
+  /**
+   * Pourquoi le message n'a pas pu être déplacé, le cas échéant.
+   *
+   * ⚠ CE CHAMP EXISTE PARCE QUE SON ABSENCE A COÛTÉ UNE FONCTIONNALITÉ
+   *   ENTIÈRE. Le déplacement a été mis en service et n'a jamais marché une
+   *   seule fois : l'échec partait dans un `console.error` et nulle part
+   *   ailleurs, si bien qu'une bannière jamais déplacée laissait exactement la
+   *   même trace qu'une bannière déplacée. La raison remonte désormais ici,
+   *   dans la réponse du worker, ET sur la ligne d'analyse.
+   */
+  deplacement?: string;
 };
 
 /**
@@ -850,12 +862,32 @@ async function traiter(
   //   clients vaut mieux qu'aucun avertissement. Le déplacement raté se
   //   rattrape au balayage de la maintenance.
   // ─────────────────────────────────────────────────────────────────────
+  //
+  // ⚠ ET SON ÉCHEC S'ÉCRIT. Ne le consigner que dans les journaux de la
+  //   plateforme revenait à ne pas le consigner : c'est ce qui a laissé cette
+  //   étape ne jamais s'exécuter en production sans qu'aucun contrôle ne
+  //   bronche. La raison va sur la ligne — désignée par son identifiant, qui
+  //   ne change pas, et non par celui du message, qui vient peut-être de
+  //   changer — et dans la réponse.
   if (action.banniere?.etat === "posee") {
-    await deplacerPourRafraichir(travail).catch((erreur) => {
-      console.error(
-        `[worker] déplacement impossible sur ${travail.message_id} : ${messageDe(erreur)}`,
-      );
-    });
+    const echec = await deplacerPourRafraichir(travail).then(
+      () => null,
+      (erreur: unknown) =>
+        `[${etapeDe(erreur)}] ${messageDe(erreur)}`.slice(0, 400),
+    );
+
+    if (echec) {
+      console.error(`[worker] déplacement impossible sur ${travail.message_id} : ${echec}`);
+      action = { ...action, deplacement: echec };
+      if (analyseId) {
+        await rpc("marquer_echec_deplacement", {
+          p_analyse_id: analyseId,
+          p_erreur: echec,
+        }).catch((secondaire) => {
+          console.error(`[worker] échec de déplacement non consigné : ${messageDe(secondaire)}`);
+        });
+      }
+    }
   }
 
   return {
@@ -1608,6 +1640,58 @@ async function diagnostiquer(): Promise<Response> {
     ajouter("messages en transit", "échec", messageDe(erreur));
   }
 
+  // 2 quinquies bis. LE DÉPLACEMENT ABOUTIT-IL ?
+  //
+  // ⚠ LE CONTRÔLE QUI MANQUAIT, ET DONT L'ABSENCE A COÛTÉ LA FONCTIONNALITÉ.
+  //   « Messages en transit » ne regarde que les déplacements COMMENCÉS. Un
+  //   déplacement qui échoue avant même de commencer — création du dossier de
+  //   service refusée — n'en laisse aucun, et ce voyant restait obstinément
+  //   vert pendant que pas une bannière n'était déplacée.
+  //
+  //   La question posée ici est la seule qui compte : des bannières sont
+  //   posées, sont-elles déplacées ? Si la réponse est non, l'avertissement
+  //   reste invisible dans Outlook desktop — le défaut qu'on croyait corrigé.
+  try {
+    const [etat] = await rpc<
+      {
+        boites_actives: number;
+        avec_dossier: number;
+        bannieres_24h: number;
+        deplacees_24h: number;
+        derniere_erreur: string | null;
+      }[]
+    >("etat_dossiers_service", {});
+
+    if (!etat) {
+      ajouter("dossier de service", "échec", "aucun état : migration 20260924 non appliquée ?");
+    } else {
+      // Rien posé depuis 24 h : il n'y a rien à conclure, ni dans un sens ni
+      // dans l'autre. Un voyant qui rougirait faute d'alertes apprendrait à
+      // être ignoré.
+      const sansMatiere = etat.bannieres_24h === 0;
+      const aucunDeplacement = etat.bannieres_24h > 0 && etat.deplacees_24h === 0;
+
+      ajouter(
+        "dossier de service",
+        aucunDeplacement ? "échec" : "ok",
+        sansMatiere
+          ? `aucune bannière posée depuis 24 h — rien à conclure ` +
+            `(${etat.avec_dossier}/${etat.boites_actives} boîte(s) ont leur dossier)`
+          : aucunDeplacement
+            ? `${etat.bannieres_24h} bannière(s) posée(s) depuis 24 h et AUCUNE déplacée. ` +
+              `L'avertissement reste invisible dans Outlook desktop sur une boîte ouverte. ` +
+              `${etat.avec_dossier}/${etat.boites_actives} boîte(s) ont un dossier de service. ` +
+              (etat.derniere_erreur
+                ? `Dernière raison : ${etat.derniere_erreur}`
+                : `Aucune raison consignée — POST ?essai-deplacement=1 pour la provoquer.`)
+            : `${etat.deplacees_24h}/${etat.bannieres_24h} bannière(s) déplacée(s) sur 24 h, ` +
+              `${etat.avec_dossier}/${etat.boites_actives} boîte(s) ont leur dossier de service`,
+      );
+    }
+  } catch (erreur) {
+    ajouter("dossier de service", "échec", messageDe(erreur));
+  }
+
   // 2 sexies. LE RAPPORT MENSUEL. Sa panne est la plus discrète du produit :
   //           elle ne casse rien, ne produit aucune erreur visible, et ne se
   //           constate qu'en s'apercevant qu'un client n'a rien reçu depuis
@@ -1846,6 +1930,99 @@ async function essaiRapport(): Promise<Response> {
   );
 }
 
+/**
+ * Tente la création du dossier de service, et rend l'erreur Graph telle quelle.
+ *
+ * ⚠ IL NE TOUCHE À AUCUN MESSAGE. Ni lecture de corps, ni écriture, ni
+ *   déplacement : uniquement l'étape qui échoue aujourd'hui, la création du
+ *   sous-dossier. C'est ce qui permet de l'essayer autant qu'on veut, sur une
+ *   boîte réelle, sans fabriquer un message frauduleux à chaque fois et sans
+ *   rien modifier chez le client.
+ *
+ * ⚠ IL N'EST PAS EN BLANC, et c'est voulu. Créer le dossier est précisément
+ *   l'opération à valider ; la simuler ne prouverait rien. L'opération est
+ *   idempotente — le dossier existant est retrouvé, pas recréé — et le
+ *   dossier est de toute façon celui que le produit crée en fonctionnement
+ *   normal.
+ */
+async function essaiDeplacement(): Promise<Response> {
+  type Boite = {
+    boite_id: string;
+    company_id: string;
+    tenant_id: string;
+    graph_user_id: string;
+    upn: string;
+  };
+
+  const boites = await rpc<Boite[]>("boites_a_rattraper", {
+    p_interval_minutes: 1,
+    p_limite: 3,
+  }).catch((erreur) => {
+    console.error(`[worker] essai-deplacement : ${messageDe(erreur)}`);
+    return [] as Boite[];
+  });
+
+  if (!Array.isArray(boites) || boites.length === 0) {
+    return Response.json({
+      essai: "deplacement",
+      resultat: "aucune boîte à essayer",
+      indice:
+        "Aucune boîte active éligible à l'instant. Elles le redeviennent une " +
+        "minute après leur dernier rattrapage — réessayer dans une minute.",
+    });
+  }
+
+  const details: Record<string, unknown>[] = [];
+  let reussies = 0;
+
+  for (const boite of boites) {
+    try {
+      const dossier = await assurerDossierService(boite.tenant_id, boite.graph_user_id);
+
+      // On le mémorise : si l'essai passe, le worker n'aura pas à le retrouver.
+      const memorise = await rpc("enregistrer_dossier_service", {
+        p_boite_id: boite.boite_id,
+        p_dossier_id: dossier,
+      })
+        .then(() => "oui")
+        .catch((erreur) => `non (${messageDe(erreur)})`);
+
+      reussies += 1;
+      details.push({
+        boite: boite.upn,
+        dossier: `${DOSSIER_SERVICE} — ${dossier.slice(0, 24)}…`,
+        memorise,
+      });
+    } catch (erreur) {
+      // ⚠ L'ERREUR GRAPH EST RENDUE TELLE QUELLE, code et statut compris.
+      //   C'est tout l'objet de cet essai : jusqu'ici elle n'existait que
+      //   dans les journaux de la plateforme.
+      details.push({
+        boite: boite.upn,
+        echec: messageDe(erreur),
+        statut: erreur instanceof ErreurGraph ? erreur.statut : null,
+        code: erreur instanceof ErreurGraph ? erreur.code : null,
+        reessayable: erreur instanceof ErreurGraph ? erreur.reessayable : null,
+        etape: etapeDe(erreur),
+      });
+    }
+  }
+
+  return Response.json({
+    essai: "deplacement",
+    dossier: DOSSIER_SERVICE,
+    essayees: boites.length,
+    reussies,
+    details,
+    lecture:
+      reussies === boites.length
+        ? "Le dossier de service est créable. Si le déplacement échoue encore, " +
+          "la cause est plus loin : POST ?verifier=1, contrôle « dossier de service »."
+        : "La création du dossier est refusée. Le champ « code » nomme la " +
+          "raison côté Microsoft ; un 403 désigne le rôle Exchange, pas le code.",
+  });
+}
+
 /** Le secret partagé protège le déclenchement. */
 function autorise(request: Request): boolean {
   const attendu = process.env.WORKER_SECRET;
@@ -1879,6 +2056,12 @@ async function postInterne(request: Request) {
   // ?essai-rapport=1 — envoie le rapport mensuel, en blanc.
   if (parametres.has("essai-rapport")) {
     return essaiRapport();
+  }
+
+  // ?essai-deplacement=1 — tente la création du dossier de service, sans
+  // toucher à un seul message.
+  if (parametres.has("essai-deplacement")) {
+    return essaiDeplacement();
   }
 
   try {
