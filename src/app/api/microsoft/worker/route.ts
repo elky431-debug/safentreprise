@@ -886,6 +886,46 @@ async function diagnostiquer(): Promise<Response> {
     }
   }
 
+  // 2 quater. LE JOURNAL A-T-IL PERDU DES LIGNES ?
+  //
+  // ⚠ CE CONTRÔLE EXISTE PARCE QUE L'ÉCHEC EST DEVENU SILENCIEUX, ET C'EST
+  //   VOULU. Depuis la migration 20260918, un refus d'écriture du journal ne
+  //   fait plus échouer la lecture qui l'a déclenché — la détection garde ses
+  //   règles. Le revers est qu'il ne se voit plus nulle part. Il se voit ici,
+  //   et la veille en envoie un mail.
+  //
+  // ⚠ « recents » PLUTÔT QUE « total » POUR L'ÉTAT. Un incident réglé le mois
+  //   dernier ne doit pas maintenir le contrôle au rouge, mais son décompte
+  //   reste affiché : un journal qui a eu des trous, même anciens, est une
+  //   information à garder sous les yeux.
+  try {
+    const [echecs] = await rpc<
+      {
+        recents: number;
+        total: number;
+        dernier_at: string | null;
+        codes: string;
+      }[]
+    >("echecs_de_journalisation", {});
+
+    const recents = echecs?.recents ?? 0;
+    const total = echecs?.total ?? 0;
+
+    ajouter(
+      "journalisation des accès",
+      recents > 0 ? "échec" : "ok",
+      total === 0
+        ? "aucune écriture refusée"
+        : `${recents} refus dans les 24 h (${total} au total). ` +
+          `Code(s) SQL : ${echecs.codes || "inconnu"}. ` +
+          `Dernier : ${echecs.dernier_at}. ` +
+          `Les lectures concernées ont abouti — c'est leur TRACE qui manque. ` +
+          `Détail : SELECT * FROM journal_echecs ORDER BY at DESC;`,
+    );
+  } catch (erreur) {
+    ajouter("journalisation des accès", "échec", messageDe(erreur));
+  }
+
   // 2 bis. LE CONTRÔLE QUI COMPTE : une alerte sans bannière est un mail
   //        frauduleux qui n'a pas été signalé à son destinataire.
   try {
