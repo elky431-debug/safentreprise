@@ -201,9 +201,28 @@ const rendu = {
   eleve: construireBanniere({ niveau: "eleve", score: 90, signaux: SIGNAUX }),
 };
 
+// ⚠ CET ESSAI A CHANGÉ DE FORME, PAS D'INTENTION. Il vérifiait l'ABSENCE de
+//   fond et de liseré ; le niveau faible en a désormais, parce que sans eux
+//   il ne se voyait pas du tout dans Outlook pour Windows. Ce qu'il protège
+//   reste le même : le faible ne doit pas devenir un QUATRIÈME encadré. On
+//   vérifie donc ce qui l'en distingue vraiment — des gris, jamais une
+//   couleur d'alerte, et aucun des trois éléments de l'encadré (liste,
+//   conseil, titre en gras).
 verifier(
-  "faible : pas d'encadré (ni fond, ni liseré gauche)",
-  !rendu.faible.includes("border-left") && !rendu.faible.includes("background:#"),
+  "faible : des gris, aucune couleur d'alerte",
+  rendu.faible.includes("#f1f2f4") &&
+    !rendu.faible.includes("#c0392b") &&
+    !rendu.faible.includes("#d68910") &&
+    !rendu.faible.includes("#fdf2f2") &&
+    !rendu.faible.includes("#fef6ec"),
+);
+verifier(
+  "faible : pas de titre en gras",
+  !rendu.faible.includes("font-weight:600"),
+);
+verifier(
+  "faible : reste plus petit que l'encadré",
+  rendu.faible.includes("font-size:13px") && !rendu.faible.includes("font-size:15px"),
 );
 verifier(
   "faible : pas de liste à puces",

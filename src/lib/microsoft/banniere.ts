@@ -198,11 +198,21 @@ const APPARENCE: Record<
     encadre: true,
   },
   faible: {
-    // Pas de fond ni de liseré : ces deux valeurs ne servent qu'à la couleur
-    // du texte et du filet de séparation.
-    fond: "transparent",
-    bord: "#e5e7eb",
-    texte: "#6b7280",
+    // ⚠ UN FOND, DEPUIS QU'ON A VU LE RENDU DANS OUTLOOK POUR WINDOWS. La
+    //   version précédente ne posait qu'un filet inférieur d'un gris très
+    //   clair (#e5e7eb) sous un texte gris moyen, sans fond : dans le moteur
+    //   de rendu de Word, un `border-bottom` avec `padding` sur une `<div>`
+    //   est ce qui se perd le plus facilement, et il ne restait qu'une ligne
+    //   de texte gris pâle en tête de message — que l'œil saute.
+    //
+    //   Un aplat très clair, lui, est ce que Word rend le plus fidèlement.
+    //   Le niveau faible doit s'OUBLIER, pas DISPARAÎTRE : la nuance tient au
+    //   fait qu'on doit l'avoir vu avant de l'oublier.
+    fond: "#f1f2f4",
+    bord: "#b6bcc6",
+    // Assombri de #6b7280 à #4a5567 : sur un fond gris, l'ancien passait
+    // sous le seuil AA. Celui-ci tient 6,7:1.
+    texte: "#4a5567",
     titre: "Expéditeur inhabituel",
     picto: "ℹ",
     encadre: false,
@@ -282,9 +292,24 @@ export function construireBanniere(contenu: ContenuBanniere): string {
     const motif = resumerMotif(contenu.signaux[0]);
     const corps =
       ouverture(
-        `color:${apparence.texte};font-size:13px;${police}` +
-          `border-bottom:1px solid ${apparence.bord};` +
-          `padding:0 0 8px 0;margin:0 0 14px 0;`,
+        // ⚠ `background-color`, PAS LE RACCOURCI `background`. Le raccourci
+        //   fonctionne — l'encadré rouge s'affiche correctement dans Outlook
+        //   pour Windows, c'est constaté — mais la propriété explicite est
+        //   celle que le moteur de Word interprète le plus sûrement, et
+        //   c'est ici qu'on en a besoin : ce niveau n'a que son fond pour se
+        //   faire voir. L'encadré garde le raccourci parce qu'il marche et
+        //   qu'on ne retouche pas ce qui marche.
+        //
+        // ⚠ CE QUI FAIT QUE ÇA RESTE DISCRET, malgré le fond : pas de liste
+        //   à puces, pas de ligne de conseil, pas de titre en gras, 13 px, et
+        //   des gris — jamais une couleur d'alerte. Le liseré gauche est gris
+        //   moyen, pas rouge ni ambre. Ajouter l'un de ces éléments ferait
+        //   du niveau faible un quatrième encadré, et les trois niveaux
+        //   cesseraient de se distinguer.
+        `background-color:${apparence.fond};` +
+          `border-left:3px solid ${apparence.bord};` +
+          `color:${apparence.texte};font-size:13px;${police}` +
+          `padding:8px 12px;margin:0 0 14px 0;`,
       ) +
       `<p style="margin:0;">` +
       `${apparence.picto} Safentreprise — ${echapper(apparence.titre)}` +
