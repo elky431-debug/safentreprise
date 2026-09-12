@@ -1913,39 +1913,65 @@ async function diagnostiquer(): Promise<Response> {
   }
 
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const cle = process.env.SUPABASE_SECRET_KEY as string;
-    // ⚠ LECTURE DIRECTE, PAS `reclamer_notifications_alertes` : celle-ci
-    //   MARQUE ce qu'elle rend. Un diagnostic qui consomme la file enverrait
-    //   des alertes à chaque contrôle.
-    const r = await fetch(
-      `${url}/rest/v1/graph_analyses?select=company_id,analyse_at` +
-        `&alerte=is.true&niveau=eq.eleve&notifiee_at=is.null` +
-        `&banniere_posee_at=not.is.null&restauree_at=is.null` +
-        `&order=analyse_at.asc&limit=200`,
-      { headers: { apikey: cle, Authorization: `Bearer ${cle}` } },
-    );
-    const lignes = (await r.json()) as { analyse_at: string }[];
-    const attente = Array.isArray(lignes) ? lignes.length : 0;
+    // ⚠ LA FENÊTRE NE SE COMPTE PAS DEPUIS L'ALERTE, MAIS DEPUIS LE DERNIER
+    //   ENVOI. `reclamer_resumes_alertes` refuse de servir une société qui a
+    //   reçu quelque chose il y a moins d'une heure : tant qu'elle reçoit des
+    //   alertes, chaque envoi repousse l'échéance. Une alerte peut donc
+    //   légitimement attendre des heures.
+    //
+    //   La version précédente mesurait l'âge de la plus ancienne alerte et
+    //   annonçait « L'envoi ne passe pas » au-delà de soixante minutes. Elle a
+    //   fait chercher une panne d'expédition pendant que l'anti-rafale faisait
+    //   son travail — les douze alertes sont parties en un résumé dès la
+    //   fenêtre close. Le défaut était dans le critère, pas dans le libellé.
+    const [etat] = await rpc<
+      {
+        en_attente: number;
+        societes: number;
+        plus_ancienne: string | null;
+        prochaine_fenetre: string | null;
+        en_retard: number;
+      }[]
+    >("etat_alertes_dirigeant", { p_fenetre_minutes: fenetreAlerte() });
 
-    // Une alerte encore en attente une heure après son analyse n'attend plus
-    // la fenêtre : elle n'est pas partie.
-    const limite = Date.now() - fenetreAlerte() * 60_000;
-    const bloquees = (Array.isArray(lignes) ? lignes : []).filter(
-      (l) => new Date(l.analyse_at).getTime() < limite,
-    ).length;
-
-    ajouter(
-      "alertes dirigeant en attente",
-      bloquees > 0 ? "échec" : "ok",
-      attente === 0
-        ? "aucune"
-        : bloquees === 0
-          ? `${attente} en attente de la prochaine fenêtre (${fenetreAlerte()} min) — normal`
-          : `${bloquees} alerte(s) en attente depuis plus de ${fenetreAlerte()} min ` +
-            `sur ${attente}. L'envoi ne passe pas : vérifier la clé Resend et ` +
-            `l'adresse d'expédition. Essai en blanc : POST ?essai-alerte=1.`,
-    );
+    if (!etat) {
+      ajouter(
+        "alertes dirigeant en attente",
+        "échec",
+        "aucun état : migration 20261003 non appliquée ?",
+      );
+    } else if (etat.en_attente === 0) {
+      ajouter("alertes dirigeant en attente", "ok", "aucune");
+    } else if (etat.en_retard === 0) {
+      // Attendre est le fonctionnement normal. On dit jusqu'à quand.
+      const heure = etat.prochaine_fenetre
+        ? new Date(etat.prochaine_fenetre).toLocaleString("fr-FR", {
+            timeZone: "Europe/Paris",
+            dateStyle: "short",
+            timeStyle: "short",
+          })
+        : null;
+      ajouter(
+        "alertes dirigeant en attente",
+        "ok",
+        `${etat.en_attente} alerte(s) en attente sur ${etat.societes} société(s) — ` +
+          (heure
+            ? `envoi groupé à partir de ${heure} (fenêtre de ${fenetreAlerte()} min ` +
+              `depuis le dernier envoi). C'est l'anti-rafale, pas une panne.`
+            : `la fenêtre vient de s'ouvrir, l'envoi part au prochain passage du worker.`),
+      );
+    } else {
+      // ⚠ LE SEUL CAS QUI JUSTIFIE DE ROUGIR : la fenêtre est ouverte depuis
+      //   plusieurs minutes et rien n'est parti.
+      ajouter(
+        "alertes dirigeant en attente",
+        "échec",
+        `${etat.en_retard} alerte(s) dont la fenêtre est OUVERTE depuis plus de ` +
+          `cinq minutes et qui ne sont toujours pas parties, sur ${etat.en_attente} ` +
+          `en attente. L'envoi ne passe pas : vérifier la clé Resend, l'adresse ` +
+          `d'expédition et les destinataires. Essai en blanc : POST ?essai-alerte=1.`,
+      );
+    }
   } catch (erreur) {
     ajouter("alertes dirigeant en attente", "échec", messageDe(erreur));
   }
