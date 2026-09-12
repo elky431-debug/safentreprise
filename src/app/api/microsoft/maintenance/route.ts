@@ -456,6 +456,7 @@ type AlerteSansBanniere = {
   signaux: string[];
   action_etat: string | null;
   action_tentatives: number;
+  deplacement_etat: string | null;
 };
 
 /**
@@ -876,22 +877,31 @@ async function rattraperBannieres(): Promise<Record<string, unknown>> {
         });
         posees += 1;
 
-        // ⚠ LA BANNIÈRE ÉTAIT LÀ, MAIS RIEN NE DIT QU'ELLE A ÉTÉ VUE. C'est
-        //   la trace qui manquait, pas la pose — et c'est justement le cas où
-        //   le déplacement du worker a pu ne jamais avoir lieu. Sans lui,
-        //   l'avertissement reste invisible dans Outlook desktop.
-        const rafraichi = await rafraichirApresPose({
-          analyse_id: alerte.analyse_id,
-          company_id: alerte.company_id,
-          boite_id: alerte.boite_id,
-          tenant_id: alerte.tenant_id,
-          graph_user_id: alerte.graph_user_id,
-          message_id: alerte.message_id,
-        });
+        // ⚠ ON NE REDÉPLACE PAS UN MESSAGE DÉJÀ DÉPLACÉ. Corriger une trace
+        //   ne justifie pas de sortir et rentrer un message dont le
+        //   déplacement a réussi : ce serait une mutation inutile de la boîte
+        //   du client, et une occasion de plus pour le webhook d'être rejoué —
+        //   c'est-à-dire pour ce même défaut de comptabilité de se reproduire.
+        //
+        //   En revanche, si aucun déplacement n'a abouti, la bannière est
+        //   peut-être posée sans avoir jamais été VUE sous Outlook desktop :
+        //   là, le déplacement a tout son sens.
+        const dejaDeplace = alerte.deplacement_etat === "reussi";
+        const rafraichi = dejaDeplace
+          ? null
+          : await rafraichirApresPose({
+              analyse_id: alerte.analyse_id,
+              company_id: alerte.company_id,
+              boite_id: alerte.boite_id,
+              tenant_id: alerte.tenant_id,
+              graph_user_id: alerte.graph_user_id,
+              message_id: alerte.message_id,
+            });
 
         details.push({
           message: alerte.message_id.slice(0, 20),
           etat: "deja-la-trace-corrigee",
+          ...(dejaDeplace ? { deplacement: "déjà réussi, non refait" } : {}),
           ...(rafraichi ? { deplacement: rafraichi } : {}),
         });
         continue;
