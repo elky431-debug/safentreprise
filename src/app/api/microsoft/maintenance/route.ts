@@ -526,6 +526,34 @@ async function ramenerMessagesEnTransit(): Promise<Record<string, unknown>> {
 
   const details: Record<string, unknown>[] = [];
   let ramenes = 0;
+  let leves = 0;
+
+  /**
+   * Lève le marqueur d'une ligne dont le message n'est PAS dans le dossier.
+   *
+   * ⚠ UN VOYANT QUI ROUGIT À TORT EST AUSSI NUISIBLE QU'UN VOYANT MUET : on
+   *   apprend à l'ignorer, et le jour où il dit vrai, personne ne regarde.
+   *   Quand le dossier de service est vide, le message est forcément dans sa
+   *   boîte de réception : le marqueur ne décrit plus rien et doit tomber.
+   *
+   * ⚠ ON NE TOUCHE PAS AU message_id. Il est peut-être périmé — c'est le cas
+   *   quand le renommage a échoué — mais seul Graph connaît le nouveau. Le
+   *   rattachement par jeton s'en chargera ; ici on ne corrige que le voyant.
+   */
+  const leverMarqueur = async (ligne: EnTransit, raison: string) => {
+    await rpc("tracer_deplacement", {
+      p_analyse_id: ligne.analyse_id,
+      p_etat: "echec",
+      p_note: `marqueur levé : ${raison}`,
+      p_sorti: false,
+    })
+      .then(() => {
+        leves += 1;
+      })
+      .catch((erreur) => {
+        console.error(`[maintenance] marqueur non levé : ${messageDe(erreur)}`);
+      });
+  };
 
   for (const [graphUserId, lignes] of boites) {
     const ref = lignes[0];
@@ -553,6 +581,23 @@ async function ramenerMessagesEnTransit(): Promise<Record<string, unknown>> {
       //   se contente de tout ramener en boîte de réception : le retour
       //   déclenche une notification, et le jeton `data-ref` de la bannière
       //   rattache chaque message à sa ligne, exactement.
+      // ⚠ DOSSIER VIDE : IL N'Y A RIEN À RAMENER, ET C'EST UNE INFORMATION.
+      //   Le message est dans sa boîte de réception. Sans cette branche, le
+      //   balayage rendait « examinees 1, ramenes 0 » indéfiniment pendant que
+      //   le contrôle rougissait — c'est ce qui s'est produit douze heures
+      //   durant, sur un message qui n'avait jamais quitté sa boîte.
+      if (dansLeDossier.length === 0) {
+        for (const ligne of lignes) {
+          await leverMarqueur(ligne, "dossier de service vide, message en boîte de réception");
+        }
+        details.push({
+          boite: graphUserId,
+          dossier: "vide",
+          marqueurs_leves: lignes.length,
+        });
+        continue;
+      }
+
       const certain = lignes.length === 1 && dansLeDossier.length === 1;
 
       for (const enTransit of dansLeDossier) {
@@ -586,6 +631,14 @@ async function ramenerMessagesEnTransit(): Promise<Record<string, unknown>> {
 
         details.push({ boite: graphUserId, ramene: revenu.slice(0, 18) + "…" });
       }
+
+      // Le dossier a été vidé : toute ligne encore marquée décrit un message
+      // qui n'y était pas. Son marqueur n'a plus d'objet.
+      if (lignes.length > dansLeDossier.length) {
+        for (const ligne of lignes.slice(dansLeDossier.length)) {
+          await leverMarqueur(ligne, "dossier de service vidé, message introuvable dedans");
+        }
+      }
     } catch (erreur) {
       const detail = messageDe(erreur);
       details.push({ boite: graphUserId, erreur: detail });
@@ -593,7 +646,7 @@ async function ramenerMessagesEnTransit(): Promise<Record<string, unknown>> {
     }
   }
 
-  return { examinees: boites.size, ramenes, details };
+  return { examinees: boites.size, ramenes, marqueurs_leves: leves, details };
 }
 
 /** Au-delà, on laisse le balayage finir le travail. Même seuil que le worker. */

@@ -1597,6 +1597,42 @@ async function diagnostiquer(): Promise<Response> {
     ajouter("planification", "échec", messageDe(erreur));
   }
 
+  // 0 bis. L'ADRESSE OÙ MICROSOFT ENVOIE SES NOTIFICATIONS.
+  //
+  // ⚠ LE MÊME PIÈGE QUE `base_url`, À UN AUTRE ENDROIT, ET ON S'EST FAIT
+  //   AVOIR DEUX FOIS. `GRAPH_NOTIFICATION_URL` est figée dans l'abonnement au
+  //   moment de sa CRÉATION : le renouvellement ne fait que repousser la date
+  //   d'expiration, il ne change jamais l'adresse. Un permalien de déploiement
+  //   ici, et Microsoft notifie indéfiniment du code figé — sans qu'aucun
+  //   symptôme ne le distingue d'un fonctionnement normal.
+  //
+  //   Changer la variable ne suffit donc pas : l'abonnement doit être recréé.
+  //   Le contrôle le dit, parce que c'est exactement ce qu'on a failli oublier.
+  {
+    const brute = (process.env.GRAPH_NOTIFICATION_URL ?? "").trim().replace(/\/$/, "");
+    const attendu = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
+    const permalien = /^https:\/\/[^.]*--/i.test(brute);
+    const horsDomaine =
+      brute !== "" && attendu !== "" && !brute.toLowerCase().startsWith(attendu.toLowerCase());
+
+    ajouter(
+      "adresse de notification",
+      permalien || horsDomaine ? "échec" : "ok",
+      !brute
+        ? `GRAPH_NOTIFICATION_URL non définie — l'adresse est déduite du déploiement ` +
+          `en cours, ce qui fonctionne mais n'est pas une décision explicite.`
+        : permalien
+          ? `${brute} — C'EST UN PERMALIEN DE DÉPLOIEMENT : Microsoft notifie du code FIGÉ. ` +
+            `Corriger la variable NE SUFFIT PAS : l'adresse est gravée dans l'abonnement à sa ` +
+            `création, et le renouvellement ne la change jamais. Il faut recréer l'abonnement ` +
+            `(UPDATE graph_abonnements SET statut = 'perdu' WHERE statut = 'actif'; puis ` +
+            `POST /api/microsoft/maintenance).`
+          : horsDomaine
+            ? `${brute} ne commence pas par ${attendu} — vérifier que c'est voulu.`
+            : `${brute}`,
+    );
+  }
+
   // 1. Environnement. On ne révèle JAMAIS les valeurs, seulement la présence.
   const requises = [
     "NEXT_PUBLIC_SUPABASE_URL",
