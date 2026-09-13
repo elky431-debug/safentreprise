@@ -80,12 +80,11 @@ export function LandingHero() {
           ))}
         </ul>
 
-        {/* ⚠ VARIANTE B — L'EMPLACEMENT DEMANDÉ. Le bloc vient sous les
-            réassurances, et l'action principale du hero reste au-dessus : la
-            page présente donc DEUX FOIS « Demander une démo » à moins de
-            300 px d'écart, plus une troisième fois dans la barre du haut.
-            Voir la variante A, où le bloc absorbe l'action au lieu de la
-            répéter. */}
+        {/* ⚠ L'EMPLACEMENT DEMANDÉ : sous les réassurances, dans le hero.
+            Le bouton principal reste AU-DESSUS, là où il tombe au-dessus de
+            la ligne de flottaison sur téléphone. C'est le bloc qui a renoncé
+            à son propre bouton pour ne pas répéter l'action — voir
+            `EquipeHero`. */}
         <EquipeHero className="rise rise-3 mt-14" />
       </div>
     </section>

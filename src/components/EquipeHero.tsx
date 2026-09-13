@@ -1,48 +1,49 @@
 import Link from "next/link";
-import { buttonPrimaryLg } from "@/components/ui";
-import { IconArrowRight } from "@/components/icons";
 
 /**
  * Le bloc « Notre équipe ».
  *
- * Trois visages qui se chevauchent, un titre, l'action principale, et le lien
- * vers le diagnostic. L'intention est de mettre un visage humain en face d'un
- * produit qui parle de fraude — quelqu'un répond, ce n'est pas un automate.
+ * Trois visages qui se chevauchent, un titre, et le lien vers le diagnostic.
+ * L'intention est de mettre un visage humain en face d'un produit qui parle de
+ * fraude — quelqu'un répond, ce n'est pas un automate.
  *
  * ─────────────────────────────────────────────────────────────────────────
+ * ⚠ CE BLOC NE PORTE PAS DE BOUTON « DEMANDER UNE DÉMO », ET C'EST VOULU.
+ *
+ *   Le hero en affiche déjà un 150 px plus haut, et la barre du haut un
+ *   troisième. Trois fois la même action dans un seul écran ne convertit pas
+ *   mieux : elle dit au visiteur qu'on insiste. Le bloc garde son rôle —
+ *   rassurer sur le fait qu'un humain répond — et laisse l'action au bouton
+ *   qui la porte déjà. Le lien vers le diagnostic reste : c'est une AUTRE
+ *   proposition, pas la même répétée.
+ *
  * ⚠ LES PHOTOS SONT DÉCORATIVES, ET C'EST DÉLIBÉRÉ.
  *
  *   `aria-hidden` sur le groupe : un lecteur d'écran annoncerait sinon trois
  *   images sans information, juste avant le texte qui dit tout. Le sens est
  *   porté par « Notre équipe répond à toutes vos questions », qui est du
- *   texte.
+ *   texte. Aucun nom n'est affiché — donc aucun nom n'est inventé nulle part
+ *   dans ce fichier.
  *
  * ⚠ LE CERCLE « + » N'EST PAS UN BOUTON.
  *   Chez Mailinblack il n'ouvre rien non plus. C'est une convention visuelle
  *   qui dit « et d'autres » — lui donner l'apparence d'un bouton sans action
  *   serait un piège à clic. D'où un `span`, pas un `button`.
- *
- * ⚠ EN ATTENDANT LES VRAIES PHOTOS, on affiche des pastilles à initiale, dans
- *   les teintes de la charte. Pas de silhouette générique ni d'avatar
- *   d'emprunt : un visage d'inconnu sur une page qui promet de la confiance
- *   coûterait plus qu'il ne rapporte. Voir `EQUIPE` ci-dessous pour brancher
- *   les fichiers.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
 /**
- * Les membres présentés.
+ * Les portraits, découpés par `outils/equipe.mjs`.
  *
- * ⚠ POUR BRANCHER LES VRAIES PHOTOS : déposer les fichiers dans
- *   `public/marque/equipe/` en 320×320, carrés, cadrage serré sur le visage,
- *   puis renseigner `photo` ici — par exemple `photo: "/marque/equipe/yacine.jpg"`.
- *   Le composant bascule seul : tant que `photo` est absent, la pastille à
- *   initiale reste.
+ * ⚠ `fond` SERT ENCORE, même avec les photos en place : c'est la couleur du
+ *   cercle tant que l'image n'est pas arrivée, et celle qui reste si elle
+ *   n'arrive jamais. Sans elle, un blanc sur blanc ferait disparaître le
+ *   groupe le temps du chargement.
  */
-const EQUIPE: { initiale: string; nom: string; photo?: string; fond: string }[] = [
-  { initiale: "Y", nom: "Yacine", fond: "var(--marine)" },
-  { initiale: "L", nom: "Léa", fond: "#2f4f7f" },
-  { initiale: "M", nom: "Marc", fond: "#4a6591" },
+const EQUIPE: { cle: string; fichier: string; fond: string }[] = [
+  { cle: "membre-1", fichier: "/marque/equipe/membre-1", fond: "var(--marine)" },
+  { cle: "membre-2", fichier: "/marque/equipe/membre-2", fond: "#2f4f7f" },
+  { cle: "membre-3", fichier: "/marque/equipe/membre-3", fond: "#4a6591" },
 ];
 
 export function EquipeHero({ className = "" }: { className?: string }) {
@@ -54,24 +55,36 @@ export function EquipeHero({ className = "" }: { className?: string }) {
       <div className="flex items-center" aria-hidden>
         {EQUIPE.map((membre, i) => (
           <span
-            key={membre.nom}
-            className={`inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-background text-[15px] font-semibold text-white sm:h-14 sm:w-14 sm:text-[17px] ${
+            key={membre.cle}
+            className={`inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-background sm:h-14 sm:w-14 ${
               i > 0 ? "-ml-3 sm:-ml-4" : ""
             }`}
-            style={membre.photo ? undefined : { background: membre.fond }}
+            style={{ background: membre.fond }}
           >
-            {membre.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
+            {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 56 px et
+                les fichiers 180 px — il n'y a rien à redimensionner à la
+                volée. Le navigateur prend l'AVIF s'il sait le lire (3,3 Ko),
+                le WebP sinon (3,1 Ko), le JPEG en dernier (4,7 Ko). Une seule
+                des trois part sur le réseau. */}
+            <picture>
+              <source srcSet={`${membre.fichier}.avif`} type="image/avif" />
+              <source srcSet={`${membre.fichier}.webp`} type="image/webp" />
               <img
-                src={membre.photo}
+                src={`${membre.fichier}.jpg`}
                 alt=""
                 width={56}
                 height={56}
-                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+                /* ⚠ LE `scale-[1.04]` N'EST PAS DÉCORATIF. Le cercle est
+                   découpé par `overflow-hidden` : son bord est lissé, et
+                   l'image lissée au même endroit laissait passer un liseré
+                   d'un pixel de la couleur de repli — un anneau bleu bien
+                   visible autour de chaque visage. Déborder de 4 % met le bord
+                   de l'image hors du bord du cercle, et l'anneau disparaît. */
+                className="h-full w-full scale-[1.04] object-cover"
               />
-            ) : (
-              membre.initiale
-            )}
+            </picture>
           </span>
         ))}
 
@@ -90,14 +103,9 @@ export function EquipeHero({ className = "" }: { className?: string }) {
         répond à toutes vos questions.
       </p>
 
-      <Link href="/demo" className={`${buttonPrimaryLg} mt-6`}>
-        Demander une démo
-        <IconArrowRight />
-      </Link>
-
       <Link
         href="/diagnostic"
-        className="mt-4 text-[13.5px] text-muted underline underline-offset-4 transition-colors hover:text-foreground"
+        className="mt-5 text-[13.5px] text-muted underline underline-offset-4 transition-colors hover:text-foreground"
       >
         Réaliser votre diagnostic gratuit
       </Link>
