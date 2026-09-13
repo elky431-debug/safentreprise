@@ -659,3 +659,92 @@ h3 {
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   Le logo, et sa bascule selon le fond
+   ========================================================================== */
+
+/* ⚠ LE BOUCLIER A UN CÔTÉ NOIR, ET LE MARINE DE LA CHARTE EST SOMBRE.
+     Mesuré sur le dessin : ce côté vaut #141922, soit 1,14 : 1 de contraste
+     sur #0f2444. En dessous de 1,5 : 1 l'œil ne distingue plus rien, et cette
+     masse fait 43 % du bouclier — près de la moitié du logo disparaît sur une
+     bande marine. D'où la variante monochrome blanche.
+
+   ⚠ EN IMAGE DE FOND, PAS EN `<img>`. Deux `<img>` superposés dont un en
+     `display:none` fonctionnent, mais le navigateur télécharge LES DEUX :
+     3 234 octets par page, contre 1 080 pour l'ancien logo unique. On aurait
+     alourdi la page en croyant l'alléger. Un fond CSS sur une règle non
+     retenue n'est jamais demandé : une seule variante part sur le réseau.
+
+   ⚠ LA LIGNE `url()` SIMPLE EST LE REPLI, ELLE N'EST PAS REDONDANTE.
+     `image-set()` avec `type()` demande Chrome 113, Safari 17, Firefox 113.
+     Sans cette première déclaration, un navigateur plus ancien n'afficherait
+     AUCUN logo — l'échec le plus silencieux qui soit. */
+.logo-marque {
+  display: inline-block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+/* ⚠ DEUX ÉCHELLES, PARCE QU'UN FOND CSS NE CHOISIT PAS SA SOURCE COMME
+     `srcset`. Sous 48 px d'affichage, le fichier 64 suffit — 2,3× la taille,
+     net jusqu'aux écrans à densité double. Servir le 256 partout coûterait
+     6 Ko là où 1,7 suffit. */
+.logo-marque--petit {
+  background-image: url("/marque/icone-64.png");
+  background-image: image-set(
+    url("/marque/icone-64.avif") type("image/avif"),
+    url("/marque/icone-64.webp") type("image/webp"),
+    url("/marque/icone-64.png") type("image/png")
+  );
+}
+
+.logo-marque--grand {
+  background-image: url("/marque/icone-256.png");
+  background-image: image-set(
+    url("/marque/icone-256.avif") type("image/avif"),
+    url("/marque/icone-256.webp") type("image/webp"),
+    url("/marque/icone-256.png") type("image/png")
+  );
+}
+
+.sur-marine .logo-marque--petit {
+  background-image: url("/marque/icone-blanc-64.png");
+  background-image: image-set(
+    url("/marque/icone-blanc-64.avif") type("image/avif"),
+    url("/marque/icone-blanc-64.webp") type("image/webp"),
+    url("/marque/icone-blanc-64.png") type("image/png")
+  );
+}
+
+.sur-marine .logo-marque--grand {
+  background-image: url("/marque/icone-blanc-256.png");
+  background-image: image-set(
+    url("/marque/icone-blanc-256.avif") type("image/avif"),
+    url("/marque/icone-blanc-256.webp") type("image/webp"),
+    url("/marque/icone-blanc-256.png") type("image/png")
+  );
+}
+
+/* ⚠ L'ÎLOT CLAIR DANS UNE BANDE MARINE REVIENT AU LOGO COULEUR. `.theme-clair`
+     sert exactement à ça — l'aperçu de messagerie et le comparateur
+     avant/après s'en servent. Sans cette exception, le logo blanc s'y
+     afficherait sur fond blanc, donc pas du tout. */
+.sur-marine .theme-clair .logo-marque--petit {
+  background-image: url("/marque/icone-64.png");
+  background-image: image-set(
+    url("/marque/icone-64.avif") type("image/avif"),
+    url("/marque/icone-64.webp") type("image/webp"),
+    url("/marque/icone-64.png") type("image/png")
+  );
+}
+
+.sur-marine .theme-clair .logo-marque--grand {
+  background-image: url("/marque/icone-256.png");
+  background-image: image-set(
+    url("/marque/icone-256.avif") type("image/avif"),
+    url("/marque/icone-256.webp") type("image/webp"),
+    url("/marque/icone-256.png") type("image/png")
+  );
+}
