@@ -1,19 +1,24 @@
 /**
- * Grille tarifaire — source unique de la page /tarifs.
+ * Grille tarifaire — source unique des montants, pour /tarifs ET /diagnostic.
  *
- * La grille n'est pas encore validée par une vente réelle : les montants ne
- * sont donc pas publiés. La page est construite pour les afficher plus tard
- * sans être réécrite :
+ * ─────────────────────────────────────────────────────────────────────────
+ * ⚠ LES MONTANTS SONT DÉSORMAIS PUBLICS, ET `AFFICHER_LES_PRIX` NE LES CACHE
+ *   PLUS PARTOUT.
  *
- *   1. renseigner `prix` sur chacune des offres ci-dessous ;
- *   2. passer AFFICHER_LES_PRIX à `true`.
+ *   La page de résultat du diagnostic affiche le prix correspondant à
+ *   l'effectif déclaré : c'est ce qui donne sa conclusion au parcours. Les
+ *   chiffres partent donc dans le bundle, quel que soit l'état du drapeau —
+ *   la promesse d'origine (« aucun montant n'est envoyé au navigateur ») n'est
+ *   plus tenue, et il vaut mieux l'écrire que la laisser croire.
  *
- * Tant que le drapeau est à `false`, la page affiche « Sur devis » et aucun
- * montant n'est envoyé au navigateur — les chiffres ne fuient pas dans le
- * bundle avant d'être assumés publiquement.
+ *   Le drapeau ne commande plus que /tarifs. Tant qu'il vaut `false`, cette
+ *   page annonce « Sur devis » pendant que /diagnostic annonce 59 €/mois :
+ *   un visiteur qui fait les deux verra la contradiction. LE PASSER À `true`
+ *   EST UNE LIGNE, et c'est une décision commerciale, pas technique.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
-/** Interrupteur unique. `false` = « Sur devis » partout. */
+/** Interrupteur de la page /tarifs uniquement. `false` = « Sur devis ». */
 export const AFFICHER_LES_PRIX = false;
 
 /** Montants d'une offre, en euros hors taxes. */
@@ -44,7 +49,7 @@ export const OFFRES: Offre[] = [
     effectif: "Jusqu’à 25 collaborateurs",
     argument:
       "Pour une structure où la validation des paiements repose sur une ou deux personnes.",
-    prix: null,
+    prix: { auditInitial: 290, abonnementMensuel: 59 },
     miseEnAvant: false,
   },
   {
@@ -53,7 +58,7 @@ export const OFFRES: Offre[] = [
     effectif: "De 26 à 75 collaborateurs",
     argument:
       "Pour une PME dotée d’un service comptable et de circuits de validation formalisés.",
-    prix: null,
+    prix: { auditInitial: 490, abonnementMensuel: 149 },
     miseEnAvant: true,
   },
   {
@@ -62,7 +67,7 @@ export const OFFRES: Offre[] = [
     effectif: "De 76 à 200 collaborateurs",
     argument:
       "Pour une organisation multi-sites, avec plusieurs équipes exposées aux demandes de virement.",
-    prix: null,
+    prix: { auditInitial: 890, abonnementMensuel: 299 },
     miseEnAvant: false,
   },
 ];

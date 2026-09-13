@@ -5,10 +5,10 @@ raccordées, et annotation de ceux qui présentent les caractéristiques d'une f
 
 | | |
 |---|---|
-| Version | 1.2 |
-| Date | 8 septembre 2026 |
+| Version | 1.3 |
+| Date | 13 septembre 2026 |
 | Auteur | El Fahim Yacine — Safentreprise |
-| État du code analysé | branche `claude/graph-webhook`, commit `28ab07b` |
+| État du code analysé | branche `claude/graph-webhook`, commit `28ab07b`, **sauf** le point 1.4 « `diagnostics_exposition` », ajouté le 13 septembre 2026 et analysé sur `claude/lance-le-local-7dt5ri` |
 | Format | Structure du logiciel PIA de la CNIL (contexte / principes / risques / validation) |
 
 ---
@@ -205,7 +205,41 @@ risques d'accès : `menaces_detectees` (produit d'extension abandonné, purge
 12 mois), `activations_extension` (adresse professionnelle + identifiant de
 poste, **aucune purge**), `demandes_demo` (nom, entreprise, e-mail, téléphone,
 message libre, **aucune purge**), `score_history` (scores par entreprise, sans
-donnée personnelle).
+donnée personnelle), `diagnostics_exposition` (voir ci-dessous).
+
+#### `diagnostics_exposition` — questionnaire public /diagnostic
+
+Ajouté le 13 septembre 2026. Un visiteur de la vitrine répond à huit questions
+sur l'organisation de ses paiements ; les réponses sont enregistrées pour
+mesurer ce que déclarent les prospects.
+
+| Catégorie | Données précises | Durée | Fondement (code) |
+|---|---|---|---|
+| **Réponses** | Sept choix dans des **listes fermées** (effectif, messagerie, circuit de validation, vérification d'un changement de RIB, exposition des dirigeants, protection du domaine, antécédent de tentative) | Sans limite — **anonymes** une fois l'e-mail effacé | `20261004_diagnostic_exposition.sql:41-70` |
+| **Entreprise** | Domaine de l'entreprise, **facultatif**. Donnée d'entreprise, pas de personne | idem | `20261004:59` |
+| **Verdict** | Score 0-100, recalculé côté serveur | idem | `api/diagnostic/route.ts:125` |
+| **Identifiant** | Adresse e-mail, **uniquement si le répondant la donne** pour recevoir son résultat | **12 mois**, puis mise à NULL | `20261004:64`, purge `:170-186` |
+
+**C'est la seule donnée personnelle de la table, et elle est facultative** : le
+score s'affiche entièrement sans elle (`DiagnosticResultat.tsx` — le champ
+apparaît **après** le résultat, jamais avant). Aucun nom, aucun téléphone,
+aucune adresse IP, aucun champ de commentaire libre.
+
+**Aucune valeur libre n'entre dans les sept colonnes de réponse** : la route
+les vérifie contre les listes du questionnaire et écarte tout le reste
+(`route.ts:58-78`). La table ne peut donc pas devenir un champ de saisie
+déguisé.
+
+**La purge efface l'adresse, pas la ligne** (`anonymiser_diagnostics()`, tâche
+`purge-diagnostics` à 04:05 UTC). Une ligne sans adresse ne se rattache plus à
+personne : la minimisation est atteinte sans détruire la statistique
+commerciale, qui est la finalité du traitement.
+
+**Aucune politique RLS n'est créée sur cette table** — RLS activé, zéro
+politique. Les rôles `anon` et `authenticated` ne peuvent ni la lire ni y
+écrire par aucun chemin ; le seul écrivain est `enregistrer_diagnostic()`,
+appelée avec la clé de service depuis `/api/diagnostic`. C'est plus strict que
+`demandes_demo`, qui porte une politique d'INSERT publique.
 
 ## 1.5 Destinataires
 
@@ -424,7 +458,7 @@ restauration du message et la suppression de la ligne, faite à la main.
 
 **Traité depuis la migration `20260906`.** Voir le tableau du point 1.4.
 
-Cinq purges automatiques existent :
+Six purges automatiques existent :
 
 | Tâche | Cible | Heure (UTC) | Fichier |
 |---|---|---|---|
@@ -433,6 +467,7 @@ Cinq purges automatiques existent :
 | `purge-analyses` | Alertes 12 mois, analyses 30 j | 03:45 | `20260906:322-323` |
 | `purge-file-graph` | File d'attente | 03:50 | `20260906:324-325` |
 | `purge-reponses-http` | Journaux HTTP, 7 j | 03:55 | `20260906:326-327` |
+| `purge-diagnostics` | E-mails du questionnaire public, 12 mois | 04:05 | `20261004:190-206` |
 
 **Une exception volontaire** : la ligne d'un message qui porte encore un
 avertissement non retiré n'est jamais purgée (`20260906:203-210`). Sans elle,
@@ -440,7 +475,9 @@ plus rien n'indiquerait qu'un message a été modifié, ni ne permettrait de le
 défaire. C'est un arbitrage assumé entre minimisation et réversibilité.
 
 **Trois tables restent sans purge** : `annuaire_personnes` (par ancienneté),
-`activations_extension`, `demandes_demo`.
+`activations_extension`, `demandes_demo`. `diagnostics_exposition` n'en fait
+pas partie : sa seule donnée personnelle — l'e-mail facultatif — est effacée à
+12 mois, et les réponses qui restent ne se rattachent plus à personne.
 
 ## 2.2 Droits des personnes
 
