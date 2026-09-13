@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonPrimaryLg } from "@/components/ui";
 import { IconArrowRight, IconCheck } from "@/components/icons";
+import { EquipeHero } from "@/components/EquipeHero";
 
 /**
  * Les trois réassurances sous les boutons. Chacune doit être vraie.
@@ -78,6 +79,14 @@ export function LandingHero() {
             </li>
           ))}
         </ul>
+
+        {/* ⚠ VARIANTE B — L'EMPLACEMENT DEMANDÉ. Le bloc vient sous les
+            réassurances, et l'action principale du hero reste au-dessus : la
+            page présente donc DEUX FOIS « Demander une démo » à moins de
+            300 px d'écart, plus une troisième fois dans la barre du haut.
+            Voir la variante A, où le bloc absorbe l'action au lieu de la
+            répéter. */}
+        <EquipeHero className="rise rise-3 mt-14" />
       </div>
     </section>
   );
