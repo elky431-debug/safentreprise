@@ -11,8 +11,12 @@
  *
  * ⚠ LE CADRAGE EST ÉCRIT ICI, PAS DEVINÉ. Sans détection de visage, un
  *   recadrage automatique centre sur l'image et coupe les fronts. Les carrés
- *   ci-dessous ont été relevés à la main sur chaque source : le visage occupe
- *   environ 60 % de la largeur, ce qui remplit le cercle sans rogner le menton.
+ *   ci-dessous ont été relevés à la main sur chaque source.
+ *
+ * ⚠ ON CADRE DU BUSTE À LA TÊTE, PAS SUR LE VISAGE. Un gros plan serré donne
+ *   trois visages qui vous fixent — c'est une photo d'identité, pas une équipe.
+ *   Le carré vaut donc environ trois largeurs de tête : les épaules entrent,
+ *   et le cercle rogne les coins, ce qui resserre l'ensemble tout seul.
  *
  * ⚠ LES SOURCES SONT HORS DE `public/`, ET IL FAUT QU'ELLES Y RESTENT. Tout
  *   ce qui est dans `public/` est servi tel quel à qui en devine l'adresse :
@@ -34,9 +38,9 @@ const COTE = 180;
 
 /** Carré retenu sur la source, en pixels de la source. */
 const PORTRAITS = [
-  { source: "outils/sources/portrait-1.jfif", nom: "membre-1", left: 215, top: 70, taille: 260 },
-  { source: "outils/sources/portrait-2.jfif", nom: "membre-2", left: 198, top: 75, taille: 340 },
-  { source: "outils/sources/portrait-3.jfif", nom: "membre-3", left: 168, top: 142, taille: 248 },
+  { source: "outils/sources/portrait-1.jfif", nom: "membre-1", left: 130, top: 59, taille: 430 },
+  { source: "outils/sources/portrait-2.jfif", nom: "membre-2", left: 153, top: 55, taille: 430 },
+  { source: "outils/sources/portrait-3.jfif", nom: "membre-3", left: 98, top: 100, taille: 380 },
 ];
 
 await mkdir(SORTIE, { recursive: true });
