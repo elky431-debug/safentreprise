@@ -3,14 +3,20 @@
  *
  *   node outils/photo-hero.mjs [source]
  *
- * Source par défaut : `outils/sources/hero-bureau.jpg`.
+ * Source par défaut : `public/bureaux-pme.jpg`, la photo déjà présente dans le
+ * dépôt et qui sert aussi de fond à la section « Ce que Safentreprise repère ».
  * Sortie : `public/marque/hero/bureau-{640,1280}.{avif,webp,jpg}`.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ⚠ LA SOURCE RESTE HORS DE `public/`. Tout ce qui est dans `public/` est servi
- *   tel quel à qui en devine l'adresse : un original de plusieurs méga-octets
- *   partirait sur le réseau sans qu'aucune page ne le demande. Même règle que
- *   pour les portraits de l'équipe.
+ * ⚠ UNE NOUVELLE SOURCE SE DÉPOSE DANS `outils/sources/`, PAS DANS `public/`.
+ *   Tout ce qui est dans `public/` est servi tel quel à qui en devine
+ *   l'adresse : un original de plusieurs méga-octets partirait sur le réseau
+ *   sans qu'aucune page ne le demande. Même règle que pour les portraits de
+ *   l'équipe.
+ *
+ *   `bureaux-pme.jpg` fait exception parce qu'elle était déjà servie avant, en
+ *   fond de la section « Ce que Safentreprise repère ». La déplacer casserait
+ *   cette section pour rien.
  *
  * ⚠ DEUX LARGEURS, PAS UNE. La colonne de droite fait au plus ~600 px : 640
  *   suffit en densité simple, 1280 couvre la densité double. Servir du 2400
@@ -29,7 +35,7 @@
 import sharp from "sharp";
 import { mkdir } from "node:fs/promises";
 
-const SOURCE = process.argv[2] ?? "outils/sources/hero-bureau.jpg";
+const SOURCE = process.argv[2] ?? "public/bureaux-pme.jpg";
 const SORTIE = "public/marque/hero";
 const NOM = "bureau";
 

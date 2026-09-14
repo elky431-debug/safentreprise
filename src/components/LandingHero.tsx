@@ -40,8 +40,19 @@ const REASSURANCES = [
  *
  * ⚠ L'ORDRE DE LECTURE EST UN Z : haut-gauche, haut-droite, bas-droite,
  *   bas-gauche. Il suit l'ordre réel du produit — on repère, on avertit dans
- *   le message, on prévient le dirigeant — et la dernière étiquette porte la
- *   réassurance.
+ *   le message, on prévient le dirigeant, et le message reste où il était.
+ *
+ * ⚠ LES ÉTIQUETTES NE DOIVENT PAS REDIRE LES TROIS ARGUMENTS. Les arguments
+ *   sous le bouton répondent à des OBJECTIONS (« il faut installer quelque
+ *   chose ? », « vous lisez tout ? », « c'est hébergé où ? ») ; les étiquettes
+ *   montrent ce que le PRODUIT FAIT. La quatrième a d'abord porté « Aucune
+ *   extension à installer », qui figurait déjà à gauche : les deux se voyaient
+ *   d'un seul coup d'œil à 1440 px.
+ *
+ *   « Le message reste dans la boîte » dit autre chose, et dit vrai : le
+ *   message est déplacé puis ramené dans sa boîte de réception — jamais mis en
+ *   quarantaine, jamais supprimé. C'est la différence avec un filtre, et c'est
+ *   exactement ce que garantit le mécanisme de déplacement.
  * ─────────────────────────────────────────────────────────────────────────
  */
 const ETIQUETTES = [
@@ -64,7 +75,7 @@ const ETIQUETTES = [
     point: { x: 64, y: 60 },
   },
   {
-    texte: "Aucune extension à installer",
+    texte: "Le message reste dans la boîte",
     boite: { left: "-4%", bottom: "25%" },
     depart: { x: 34, y: 67 },
     point: { x: 34, y: 81 },
