@@ -26,7 +26,8 @@
     "rapport:test": "node --experimental-strip-types --test src/lib/microsoft/rapport-mensuel.test.ts",
     "correspondants:test": "node --experimental-strip-types --test src/lib/correspondants.test.ts",
     "alerte:test": "node --experimental-strip-types --test src/lib/microsoft/alerte-dirigeant.test.ts",
-    "diagnostic:test": "node --experimental-strip-types --test src/lib/diagnostic.test.ts"
+    "diagnostic:test": "node --experimental-strip-types --test src/lib/diagnostic.test.ts",
+    "diagnostic:test-email": "node --experimental-strip-types --import ./outils/alias-ts.mjs --test src/lib/diagnostic-email.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
