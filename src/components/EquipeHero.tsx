@@ -1,39 +1,36 @@
 import Link from "next/link";
-import { buttonSecondaryLg } from "@/components/ui";
-import { IconArrowRight } from "@/components/icons";
 
 /**
- * Le bloc « Notre équipe », en carte, sous les deux colonnes du hero.
+ * Le bloc « Notre équipe », en petite carte, sous les deux colonnes du hero.
  *
- * Trois visages qui se chevauchent, une phrase, une porte de sortie douce.
- * L'intention est de mettre un visage humain en face d'un produit qui parle de
- * fraude — quelqu'un répond, ce n'est pas un automate.
+ * Trois visages qui se chevauchent, une phrase, un lien. L'intention est de
+ * mettre un visage humain en face d'un produit qui parle de fraude — quelqu'un
+ * répond, ce n'est pas un automate.
  *
  * ─────────────────────────────────────────────────────────────────────────
+ * ⚠ IL DOIT RESTER PETIT. Il a d'abord été une carte pleine largeur de
+ *   1200 × 438 px : elle prenait la place d'une section alors qu'elle n'en est
+ *   pas une, et elle écrasait le hero qu'elle était censée fermer. Ramené à
+ *   380 px de large, il se lit comme ce qu'il est — une signature en bas de
+ *   hero, pas un argument de plus.
+ *
+ *   Les choix qui le tiennent petit se tiennent ENSEMBLE : pastilles à 44 px et
+ *   pas 64 ; une seule phrase et pas un titre suivi d'une ligne de contexte ;
+ *   un lien souligné et pas un bouton ; un rembourrage vertical de 28 px et pas
+ *   de 56. Rajouter l'un rouvre la porte aux autres.
+ *
  * ⚠ IL FERME LE HERO, IL NE LE DÉSÉQUILIBRE PLUS. Il a vécu dans la colonne de
- *   gauche, qui devenait bien plus longue que la droite : la page penchait. En
- *   pleine largeur sous les deux colonnes, il sert de point final — et l'ancien
- *   mode d'alignement à gauche a disparu avec cet usage plutôt que de rester en
- *   code mort.
+ *   gauche, qui devenait bien plus longue que la droite : la page penchait.
  *
- * ⚠ LE CONTENU EST BORNÉ À 560 px DANS UNE CARTE DE 1200. Laisser le texte
- *   s'étaler sur toute la largeur donnerait une ligne de 140 caractères,
- *   illisible, et un bloc qui paraît vide parce qu'il est plat. Une colonne
- *   étroite au centre d'une carte large, c'est ce qui fait respirer.
- *
- * ⚠ L'ANNEAU DES PASTILLES SUIT LE FOND DE LA CARTE, PAS LA PAGE. Il était en
- *   `border-background` (blanc), calé sur le fond de la vitrine ; sur la carte
- *   teintée il dessinerait un liseré blanc autour de chaque visage. Changer le
- *   fond de la carte oblige à repasser ici.
- *
- * ⚠ LA COULEUR DE L'ANNEAU EST UN STYLE EN LIGNE, ET AUCUNE UTILITAIRE
- *   TAILWIND NE PEUT LA POSER. `globals.css` porte une règle `border-color`
- *   sur `*` qui n'est dans AUCUNE couche : elle bat toutes les utilitaires de
- *   couleur de bordure, quelle que soit leur spécificité. C'est écrit à côté de
- *   cette règle, et la bande de motifs de la vitrine a dû faire le même détour.
+ * ⚠ LA COULEUR DE L'ANNEAU DES PASTILLES EST UN STYLE EN LIGNE, ET AUCUNE
+ *   UTILITAIRE TAILWIND NE PEUT LA POSER. `globals.css` porte une règle
+ *   `border-color` sur `*` qui n'est dans AUCUNE couche : elle bat toutes les
+ *   utilitaires de couleur de bordure, quelle que soit leur spécificité. C'est
+ *   écrit à côté de cette règle, et la bande de motifs de la vitrine a dû faire
+ *   le même détour.
  *
  *   Le symptôme est muet : la bordure prend la valeur de `--border`,
- *   rgba(16, 20, 26, 0.1). Sur le blanc de la page elle passait pour un liseré
+ *   rgba(16, 20, 26, 0.1). Sur le blanc de la page elle passe pour un liseré
  *   clair ; sur la carte teintée elle devient un cerne sombre autour de chaque
  *   visage. Rien dans la console ne le signale.
  *
@@ -44,9 +41,8 @@ import { IconArrowRight } from "@/components/icons";
  *   se décrivent en mots, ils ne s'écrivent pas.
  *
  * ⚠ CE BLOC NE PORTE PAS DE « DEMANDER UNE DÉMO ». Le hero en affiche déjà un,
- *   et la barre du haut un troisième. Le diagnostic, lui, est une AUTRE
- *   proposition — d'où un bouton secondaire, qui termine la carte sans répéter
- *   l'action principale.
+ *   et la barre du haut un troisième. Le lien vers le diagnostic reste : c'est
+ *   une AUTRE proposition, pas la même répétée.
  *
  * ⚠ LES PHOTOS SONT DÉCORATIVES. `aria-hidden` sur le groupe : un lecteur
  *   d'écran annoncerait sinon trois images sans information, juste avant le
@@ -73,21 +69,13 @@ const EQUIPE: { cle: string; fichier: string; fond: string }[] = [
   { cle: "membre-3", fichier: "/marque/equipe/membre-3", fond: "#4a6591" },
 ];
 
+/** Couleur de l'anneau : celle du fond de la carte. Voir l'en-tête. */
+const ANNEAU = { borderColor: "var(--surface-2)" };
+
 export function EquipeHero({ className = "" }: { className?: string }) {
   return (
-    <section
-      className={`relative overflow-hidden rounded-3xl border border-border bg-surface-2 px-6 py-11 shadow-[0_18px_44px_-30px_rgba(16,20,26,0.28)] sm:py-14 ${className}`}
-    >
-      {/* ⚠ UN VOILE, PAS UNE COULEUR. Un dégradé très pâle du marine vers rien,
-          posé derrière les visages : il donne un centre à une carte large sans
-          introduire de teinte vive. À 6 % d'opacité, il se devine et ne se voit
-          pas — c'est exactement ce qu'on veut d'un fond. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(15,36,68,0.06),transparent_70%)]"
-      />
-
-      <div className="relative mx-auto flex max-w-[560px] flex-col items-center text-center">
+    <div className={`flex justify-center ${className}`}>
+      <section className="flex w-full max-w-[380px] flex-col items-center rounded-2xl border border-border bg-surface-2 px-6 py-7 text-center shadow-[0_10px_28px_-22px_rgba(16,20,26,0.3)]">
         {/* ⚠ LE CHEVAUCHEMENT PASSE PAR UNE MARGE NÉGATIVE, PAS PAR `position`.
             Le groupe reste ainsi un flux normal : il se centre tout seul et sa
             largeur suit le nombre de membres, sans calcul. */}
@@ -95,12 +83,12 @@ export function EquipeHero({ className = "" }: { className?: string }) {
           {EQUIPE.map((membre, i) => (
             <span
               key={membre.cle}
-              className={`inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-[3px] shadow-[0_4px_12px_-6px_rgba(16,20,26,0.35)] sm:h-16 sm:w-16 ${
-                i > 0 ? "-ml-4 sm:-ml-5" : ""
+              className={`inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-2 ${
+                i > 0 ? "-ml-3" : ""
               }`}
-              style={{ background: membre.fond, borderColor: "var(--surface-2)" }}
+              style={{ background: membre.fond, ...ANNEAU }}
             >
-              {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 64 px et
+              {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 44 px et
                   les fichiers 180 px — il n'y a rien à redimensionner à la
                   volée. Une seule des trois déclinaisons part sur le réseau. */}
               <picture>
@@ -109,8 +97,8 @@ export function EquipeHero({ className = "" }: { className?: string }) {
                 <img
                   src={`${membre.fichier}.jpg`}
                   alt=""
-                  width={64}
-                  height={64}
+                  width={44}
+                  height={44}
                   loading="lazy"
                   decoding="async"
                   /* ⚠ LE `scale-[1.04]` N'EST PAS DÉCORATIF. Le cercle est
@@ -126,31 +114,26 @@ export function EquipeHero({ className = "" }: { className?: string }) {
           ))}
 
           <span
-            style={{ borderColor: "var(--surface-2)" }}
-            className="-ml-4 inline-flex h-14 w-14 items-center justify-center rounded-full border-[3px] bg-foreground text-[19px] leading-none text-background shadow-[0_4px_12px_-6px_rgba(16,20,26,0.35)] sm:-ml-5 sm:h-16 sm:w-16"
+            style={ANNEAU}
+            className="-ml-3 inline-flex h-11 w-11 items-center justify-center rounded-full border-2 bg-foreground text-[16px] leading-none text-background"
           >
             +
           </span>
         </div>
 
-        <p className="eyebrow mt-7">Notre équipe</p>
-
-        {/* La serif de la charte, réservée aux titres. Elle donne à la carte le
-            poids d'une section plutôt que d'un encart. */}
-        <h2 className="titre-page mt-3 text-[clamp(1.25rem,2.2vw,1.65rem)] leading-snug text-balance text-foreground">
-          Une question sur votre exposition&nbsp;? Nous y répondons.
-        </h2>
-
-        <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-muted">
-          Vous pouvez aussi commencer seul&nbsp;: huit questions, un résultat
-          immédiat, sans inscription.
+        {/* La serif de la charte, réservée aux titres. Une seule phrase : c'est
+            ce qui garde la carte basse. */}
+        <p className="titre-page mt-4 text-[17px] leading-snug text-balance text-foreground">
+          Notre équipe répond à toutes vos questions.
         </p>
 
-        <Link href="/diagnostic" className={`${buttonSecondaryLg} mt-7`}>
+        <Link
+          href="/diagnostic"
+          className="mt-3 text-[13px] text-muted underline underline-offset-4 transition-colors hover:text-foreground"
+        >
           Réaliser votre diagnostic gratuit
-          <IconArrowRight />
         </Link>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

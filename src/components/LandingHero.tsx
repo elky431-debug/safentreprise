@@ -169,7 +169,7 @@ export function LandingHero() {
             colonne de gauche, qui devenait bien plus longue que la droite : la
             page penchait. Ici il sert de point final aux deux colonnes, et sa
             carte marque la fin de la section avant la bande marine. */}
-        <EquipeHero className="rise rise-3 mt-14 lg:mt-16" />
+        <EquipeHero className="rise rise-3 mt-12" />
       </div>
     </section>
   );
