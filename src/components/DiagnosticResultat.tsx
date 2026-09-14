@@ -28,23 +28,36 @@ import { IconArrowRight, IconAlertTriangle, IconCheck } from "@/components/icons
  * La page de résultat.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ⚠ LE SCORE S'AFFICHE SANS ATTENDRE LE SERVEUR. `calculerScore` tourne dans
- *   le navigateur ; l'enregistrement part en parallèle et son échec ne se voit
- *   nulle part. Le répondant a donné huit réponses : lui montrer une erreur
- *   d'écriture à la place de son résultat serait le punir d'une panne qui ne
- *   le regarde pas.
+ * ⚠ CE QUI EST DONNÉ, ET CE QUI EST DEMANDÉ.
+ *
+ *   Le score, le palier, la phrase de synthèse et l'accès à la démonstration
+ *   sont rendus sans rien demander : le visiteur a répondu à huit questions, il
+ *   repart avec une réponse même s'il ne laisse rien.
+ *
+ *   L'analyse détaillée — ce que chaque réponse implique, ce qu'on fait dessus,
+ *   et le prix — demande quatre champs. C'est un arbitrage assumé, et il tient
+ *   parce que la partie utile au visiteur seul (son niveau d'exposition) reste
+ *   gratuite. Une version antérieure de ce fichier soutenait qu'aucun résultat
+ *   ne devait être retenu ; la règle est maintenue sur le SCORE, levée sur le
+ *   détail.
+ *
+ * ⚠ LE BLOC VERROUILLÉ EST `inert`, PAS SEULEMENT FLOUTÉ. Un flou CSS ne cache
+ *   rien : le texte reste sélectionnable, lisible par un lecteur d'écran, et
+ *   accessible à la tabulation. `inert` retire l'ensemble du parcours clavier
+ *   et de l'arbre d'accessibilité d'un coup — sinon la page promettrait une
+ *   chose à l'œil et en livrerait une autre au clavier.
  *
  * ⚠ L'ANNEAU EST EN MARINE, PAS EN ROUGE, QUEL QUE SOIT LE SCORE. Le rouge de
  *   la charte est réservé aux alertes réelles du produit. Un anneau rouge sur
  *   une page commerciale, c'est du théâtre — et ça décrédibilise le rouge des
  *   vraies alertes. Le palier est porté par une pastille de texte, qui suit
- *   elle la convention de la charte (élevé rouge, significatif ambre, modéré
- *   gris).
+ *   elle la convention de la charte.
  *
- * ⚠ L'EMAIL EST FACULTATIF ET LE RESTE. Le score est déjà affiché quand le
- *   champ apparaît : rien n'est retenu en otage. Un formulaire qui masque le
- *   résultat tant qu'on n'a pas donné son adresse est un piège, et il se paie
- *   en confiance sur un produit qui vend la confiance.
+ * ⚠ LE SCORE S'AFFICHE SANS ATTENDRE LE SERVEUR. `calculerScore` tourne dans
+ *   le navigateur ; l'enregistrement part en parallèle et son échec ne se voit
+ *   nulle part. Le répondant a donné huit réponses : lui montrer une erreur
+ *   d'écriture à la place de son résultat serait le punir d'une panne qui ne
+ *   le regarde pas.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -74,6 +87,14 @@ export function DiagnosticResultat({
 
   const affiche = useCompteurAnime(score, 1100);
 
+  /* `null` = verrouillé. Une fois dévoilé, la valeur dit si l'analyse est
+     VRAIMENT partie par email — la page l'a promis, elle doit pouvoir se
+     corriger si Resend n'a pas suivi. */
+  const [envoiAnalyse, setEnvoiAnalyse] = useState<null | {
+    ok: boolean;
+    email: string;
+  }>(null);
+
   /* ⚠ L'ARC PART DE ZÉRO À LA PREMIÈRE IMAGE, PUIS SEULEMENT ON POSE LA CIBLE.
      Sans ce passage en deux temps, la transition CSS n'a pas d'état de départ
      et l'anneau apparaît déjà rempli. */
@@ -83,6 +104,29 @@ export function DiagnosticResultat({
     return () => cancelAnimationFrame(image);
   }, [score]);
 
+  /* L'identifiant de la ligne écrite au premier appel. Le formulaire le
+     renvoie pour compléter CETTE ligne plutôt que d'en créer une seconde. */
+  const identifiant = useRef<string | null>(null);
+  const envoye = useRef(false);
+
+  useEffect(() => {
+    if (envoye.current) return;
+    envoye.current = true;
+
+    fetch("/api/diagnostic", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reponses, score }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { id?: string } | null) => {
+        if (data?.id) identifiant.current = data.id;
+      })
+      // Un échec d'enregistrement ne doit rien changer à ce que voit le
+      // répondant : il n'y a donc rien à faire ici.
+      .catch(() => {});
+  }, [reponses, score]);
+
   return (
     <div className="mx-auto w-full max-w-[760px] px-6 py-12 sm:py-16">
       <Anneau score={score} affiche={affiche} arc={arc} palier={palier} />
@@ -91,53 +135,34 @@ export function DiagnosticResultat({
         {SYNTHESES[palier]}
       </p>
 
+      {/* ⚠ L'ACTION PRINCIPALE EST AU-DESSUS DU VERROU. Quelqu'un de convaincu
+          par son seul score doit pouvoir demander une démonstration sans
+          passer par le formulaire : l'obliger à donner ses coordonnées deux
+          fois pour la même intention, c'est perdre celui qui était déjà prêt. */}
+      <div className="rise rise-2 mt-9 flex justify-center">
+        <Link href="/demo" className={buttonPrimaryLg}>
+          Demander une démo
+          <IconArrowRight />
+        </Link>
+      </div>
+
       {horsCouverture && messagerie && (
         <HorsPerimetre messagerie={messagerie.libelle} />
       )}
 
-      {/* ---- Le détail --------------------------------------------------- */}
-      <section className="mt-14">
-        <h2 className="titre-page text-[21px] text-foreground">
-          Ce qui pèse dans votre score
-        </h2>
-        <p className="mt-2 text-[14px] leading-relaxed text-muted">
-          Vos cinq réponses, de la plus lourde à la plus légère.
-        </p>
-
-        <ol className="mt-7 flex flex-col gap-3">
-          {lignes.map((ligne) => (
-            <li
-              key={ligne.cle}
-              className="rounded-2xl border border-border bg-surface p-5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <h3 className="text-[15px] font-semibold text-foreground">
-                  {ligne.constat}
-                </h3>
-                <span
-                  className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-[11.5px] tabular-nums text-faint"
-                  aria-label={`${ligne.poids} points sur votre score`}
-                >
-                  +{ligne.poids}
-                </span>
-              </div>
-
-              <p className="mt-2.5 text-[14px] leading-relaxed text-muted">
-                {ligne.implication}
-              </p>
-
-              <p className="mt-3 flex items-start gap-2 text-[14px] leading-relaxed text-foreground">
-                <IconCheck className="mt-1 h-3.5 w-3.5 shrink-0 text-accent-text" />
-                <span>{ligne.reponse}</span>
-              </p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {offre && <CarteOffre offre={offre} />}
-
-      <RecevoirParEmail reponses={reponses} score={score} />
+      <ZoneVerrouillee
+        envoiAnalyse={envoiAnalyse}
+        lignes={lignes}
+        offre={offre}
+        formulaire={
+          <Formulaire
+            reponses={reponses}
+            score={score}
+            identifiant={identifiant}
+            onDevoile={setEnvoiAnalyse}
+          />
+        }
+      />
 
       <div className="mt-10 text-center">
         <button type="button" onClick={onRecommencer} className={buttonGhost}>
@@ -246,11 +271,138 @@ function HorsPerimetre({ messagerie }: { messagerie: string }) {
         sur Microsoft&nbsp;365 uniquement, et nous préférons vous le dire
         maintenant plutôt qu’en fin de rendez-vous.
       </p>
-      <p className="mt-2.5 text-[14px] leading-relaxed text-foreground">
-        Laissez votre adresse plus bas&nbsp;: nous vous prévenons quand votre
-        messagerie est couverte, et pour rien d’autre.
-      </p>
     </section>
+  );
+}
+
+/* ==========================================================================
+   La zone verrouillée
+   ========================================================================== */
+
+/**
+ * Le détail et l'offre, sous un voile tant que le formulaire n'est pas rempli.
+ *
+ * ⚠ ON MONTRE LE VRAI CONTENU, FLOUTÉ ET TRONQUÉ — PAS UN LEURRE. Un bloc gris
+ *   générique ne dit pas ce qu'on gagne à remplir ; le vrai texte, dont on
+ *   devine la structure, le dit. Et il n'y a rien à cacher : ce sont les
+ *   réponses du visiteur.
+ *
+ * ⚠ LA HAUTEUR EST BORNÉE, PAS SEULEMENT LE FLOU. Sans `max-height`, la page
+ *   ferait quatre écrans de contenu illisible avant d'arriver au formulaire —
+ *   la moitié des visiteurs ne le verraient jamais.
+ */
+function ZoneVerrouillee({
+  envoiAnalyse,
+  lignes,
+  offre,
+  formulaire,
+}: {
+  envoiAnalyse: null | { ok: boolean; email: string };
+  lignes: ReturnType<typeof detailler>;
+  offre: ReturnType<typeof offrePourEffectif>;
+  formulaire: React.ReactNode;
+}) {
+  const devoile = envoiAnalyse !== null;
+
+  return (
+    <>
+      {envoiAnalyse && <AccuseEnvoi envoi={envoiAnalyse} />}
+
+      <section className="mt-14">
+        <h2 className="titre-page text-[21px] text-foreground">
+          Ce qui pèse dans votre score
+        </h2>
+        <p className="mt-2 text-[14px] leading-relaxed text-muted">
+          {devoile
+            ? "Vos cinq réponses, de la plus lourde à la plus légère."
+            : "Vos cinq réponses, ce que chacune implique, et ce que nous faisons dessus."}
+        </p>
+
+        <div className={devoile ? "" : "relative"}>
+          <div
+            /* `inert` retire tout le bloc du clavier et des lecteurs d'écran.
+               Sans lui, le flou ne serait qu'un effet visuel. */
+            inert={!devoile}
+            className={
+              devoile
+                ? ""
+                : "max-h-[300px] overflow-hidden blur-[5px] select-none [mask-image:linear-gradient(to_bottom,#000_40%,transparent_100%)]"
+            }
+          >
+            <ol className="mt-7 flex flex-col gap-3">
+              {lignes.map((ligne) => (
+                <li
+                  key={ligne.cle}
+                  className="rounded-2xl border border-border bg-surface p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="text-[15px] font-semibold text-foreground">
+                      {ligne.constat}
+                    </h3>
+                    <span
+                      className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-[11.5px] tabular-nums text-faint"
+                      aria-label={`${ligne.poids} points sur votre score`}
+                    >
+                      +{ligne.poids}
+                    </span>
+                  </div>
+
+                  <p className="mt-2.5 text-[14px] leading-relaxed text-muted">
+                    {ligne.implication}
+                  </p>
+
+                  <p className="mt-3 flex items-start gap-2 text-[14px] leading-relaxed text-foreground">
+                    <IconCheck className="mt-1 h-3.5 w-3.5 shrink-0 text-accent-text" />
+                    <span>{ligne.reponse}</span>
+                  </p>
+                </li>
+              ))}
+            </ol>
+
+            {offre && <CarteOffre offre={offre} />}
+          </div>
+        </div>
+      </section>
+
+      {!devoile && formulaire}
+    </>
+  );
+}
+
+/* ==========================================================================
+   L'accusé d'envoi
+   ========================================================================== */
+
+/**
+ * ⚠ ON NE DIT « ENVOYÉ » QUE SI ÇA L'EST. Le formulaire a promis une copie par
+ *   email ; annoncer l'envoi sans le vérifier laisserait quelqu'un attendre un
+ *   message qui n'arrivera jamais, et fermer la page en pensant l'avoir. La
+ *   route rend le sort réel de l'envoi, et les deux cas ont leur phrase.
+ */
+function AccuseEnvoi({ envoi }: { envoi: { ok: boolean; email: string } }) {
+  if (envoi.ok) {
+    return (
+      <p
+        role="status"
+        className="mt-10 flex items-start gap-2 rounded-2xl border border-success/25 bg-success-soft p-4 text-[14px] leading-relaxed text-success"
+      >
+        <IconCheck className="mt-1 h-3.5 w-3.5 shrink-0" />
+        <span>
+          Votre analyse est ci-dessous, et une copie part vers{" "}
+          <strong className="font-semibold">{envoi.email}</strong>.
+        </span>
+      </p>
+    );
+  }
+
+  return (
+    <p
+      role="status"
+      className="mt-10 rounded-2xl border border-border bg-surface-2 p-4 text-[14px] leading-relaxed text-muted"
+    >
+      Votre analyse est ci-dessous. L’envoi par email n’a pas abouti&nbsp;:
+      inutile de l’attendre, tout est sur cette page.
+    </p>
   );
 }
 
@@ -309,58 +461,69 @@ function CarteOffre({
 }
 
 /* ==========================================================================
-   Recevoir le résultat par email
+   Le formulaire
    ========================================================================== */
 
-type EtatEnvoi = "repos" | "envoi" | "ok" | "erreur";
+type EtatEnvoi = "repos" | "envoi" | "erreur";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const CHAMPS = [
+  { cle: "prenom", label: "Prénom", type: "text", autoComplete: "given-name" },
+  { cle: "nom", label: "Nom", type: "text", autoComplete: "family-name" },
+  {
+    cle: "email",
+    label: "Email professionnel",
+    type: "email",
+    autoComplete: "email",
+  },
+  {
+    cle: "entreprise",
+    label: "Entreprise",
+    type: "text",
+    autoComplete: "organization",
+  },
+] as const;
 
-function RecevoirParEmail({
+type CleChamp = (typeof CHAMPS)[number]["cle"];
+
+/**
+ * ⚠ PAS DE TÉLÉPHONE. C'est le champ qui fait le plus abandonner un
+ *   formulaire, et il n'apporte rien qu'un échange par email ne permette
+ *   d'obtenir ensuite. L'ajouter coûterait plus de prospects qu'il n'en
+ *   qualifierait.
+ *
+ * ⚠ PAS DE CASE À COCHER, PRÉ-COCHÉE OU NON. Le traitement repose sur
+ *   l'exécution de la demande du visiteur — il demande son analyse, on la lui
+ *   envoie. Une case de consentement suggérerait un traitement supplémentaire
+ *   qui n'existe pas ; une case pré-cochée serait en plus sans valeur.
+ *
+ * ⚠ AUCUN PIXEL, AUCUN TRACEUR. La seule requête émise est celle de
+ *   l'enregistrement.
+ */
+function Formulaire({
   reponses,
   score,
+  identifiant,
+  onDevoile,
 }: {
   reponses: Reponses;
   score: number;
+  identifiant: React.RefObject<string | null>;
+  onDevoile: (envoi: { ok: boolean; email: string }) => void;
 }) {
-  const [email, setEmail] = useState("");
+  const [valeurs, setValeurs] = useState<Record<CleChamp, string>>({
+    prenom: "",
+    nom: "",
+    email: "",
+    entreprise: "",
+  });
   const [etat, setEtat] = useState<EtatEnvoi>("repos");
-
-  /* ⚠ L'ENREGISTREMENT PART UNE SEULE FOIS, SANS EMAIL, DÈS L'AFFICHAGE. C'est
-     lui qui fait remonter ce que répondent les prospects, et il ne doit pas
-     dépendre du fait qu'on laisse une adresse. `envoye` empêche le double
-     envoi que provoquerait un remontage (mode strict de React en
-     développement). */
-  const envoye = useRef(false);
-  const identifiant = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (envoye.current) return;
-    envoye.current = true;
-
-    fetch("/api/diagnostic", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ reponses, score }),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { id?: string } | null) => {
-        if (data?.id) identifiant.current = data.id;
-      })
-      // Un échec d'enregistrement ne doit rien changer à ce que voit le
-      // répondant : il n'y a donc rien à faire ici.
-      .catch(() => {});
-  }, [reponses, score]);
+  const [message, setMessage] = useState("");
 
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
-    const adresse = email.trim().toLowerCase();
-    if (!EMAIL_REGEX.test(adresse)) {
-      setEtat("erreur");
-      return;
-    }
-
     setEtat("envoi");
+    setMessage("");
+
     try {
       const reponse = await fetch("/api/diagnostic", {
         method: "POST",
@@ -368,69 +531,103 @@ function RecevoirParEmail({
         body: JSON.stringify({
           reponses,
           score,
-          email: adresse,
           id: identifiant.current,
+          ...valeurs,
         }),
       });
-      setEtat(reponse.ok ? "ok" : "erreur");
+
+      /* ⚠ UNE ERREUR 400 SE CORRIGE, LE RESTE NE SE CORRIGE PAS PAR LE
+         VISITEUR. Un email mal formé doit être signalé ; une panne de base ou
+         de Resend ne doit pas retenir en otage une analyse qu'il vient de
+         payer de ses coordonnées. Dans ce cas on dévoile quand même : il a
+         rempli sa part, la nôtre ne le regarde pas. */
+      if (reponse.status === 400) {
+        const corps = (await reponse.json().catch(() => null)) as
+          | { erreur?: string }
+          | null;
+        setEtat("erreur");
+        setMessage(corps?.erreur ?? "Vérifiez les champs et réessayez.");
+        return;
+      }
+
+      const corps = (await reponse.json().catch(() => null)) as
+        | { analyseEnvoyee?: boolean }
+        | null;
+
+      onDevoile({ ok: corps?.analyseEnvoyee === true, email: valeurs.email });
     } catch {
-      setEtat("erreur");
+      // Réseau coupé : on dévoile aussi. Les coordonnées sont perdues, pas
+      // l'analyse — et c'est le bon sens de l'arbitrage.
+      onDevoile({ ok: false, email: valeurs.email });
     }
   }
 
-  if (etat === "ok") {
-    return (
-      <section className="mt-10 rounded-2xl border border-success/25 bg-success-soft p-5">
-        <p className="flex items-start gap-2 text-[14.5px] leading-relaxed text-success">
-          <IconCheck className="mt-1 h-3.5 w-3.5 shrink-0" />
-          <span>
-            C’est noté. Nous vous envoyons ce résultat, et rien d’autre&nbsp;:
-            votre adresse ne part sur aucune liste.
-          </span>
-        </p>
-      </section>
-    );
-  }
-
   return (
-    <section className="mt-10 rounded-2xl border border-border bg-surface p-5 sm:p-6">
-      <h2 className="text-[15px] font-semibold text-foreground">
-        Recevoir ce résultat par email
+    <section
+      id="analyse-detaillee"
+      className="mt-8 rounded-2xl border border-border-strong bg-surface p-6 sm:p-7"
+    >
+      <h2 className="titre-page text-[21px] text-foreground">
+        Recevez votre analyse détaillée
       </h2>
-      <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
-        Facultatif. Votre score est déjà affiché, il ne dépend pas de cette
-        case.
+      <p className="mt-2 max-w-[52ch] text-[14px] leading-relaxed text-muted">
+        Le détail de vos cinq réponses, ce que chacune implique concrètement, et
+        l’offre correspondant à votre effectif. Affichée ici, et envoyée par
+        email.
       </p>
 
-      <form onSubmit={soumettre} className="mt-4 flex flex-wrap gap-2.5">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            if (etat === "erreur") setEtat("repos");
-          }}
-          placeholder="vous@entreprise.fr"
-          autoComplete="email"
-          aria-label="Votre adresse email"
-          aria-invalid={etat === "erreur"}
-          className={`${inputClass} h-11 min-w-[200px] flex-1 text-[14px]`}
-        />
-        <button
-          type="submit"
-          disabled={etat === "envoi"}
-          className={buttonPrimaryLg}
-        >
-          {etat === "envoi" ? "Envoi…" : "Recevoir"}
-        </button>
-      </form>
+      <form onSubmit={soumettre} className="mt-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {CHAMPS.map((champ) => (
+            <label key={champ.cle} className="block">
+              <span className="mb-1.5 block text-[12.5px] font-medium text-muted">
+                {champ.label}
+              </span>
+              <input
+                type={champ.type}
+                required
+                value={valeurs[champ.cle]}
+                onChange={(e) => {
+                  setValeurs((v) => ({ ...v, [champ.cle]: e.target.value }));
+                  if (etat === "erreur") setEtat("repos");
+                }}
+                autoComplete={champ.autoComplete}
+                className={`${inputClass} h-11 text-[14.5px]`}
+              />
+            </label>
+          ))}
+        </div>
 
-      {etat === "erreur" && (
-        <p role="alert" className="mt-2.5 text-[13px] text-danger">
-          Cette adresse ne semble pas valide, ou l’envoi n’a pas abouti.
-          Réessayez.
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            disabled={etat === "envoi"}
+            className={buttonPrimaryLg}
+          >
+            {etat === "envoi" ? "Un instant…" : "Voir mon analyse"}
+            {etat === "envoi" ? null : <IconArrowRight />}
+          </button>
+        </div>
+
+        {etat === "erreur" && message && (
+          <p role="alert" className="mt-3 text-[13px] text-danger">
+            {message}
+          </p>
+        )}
+
+        <p className="mt-5 max-w-[64ch] text-[12.5px] leading-relaxed text-faint">
+          Ces informations sont traitées par Safentreprise pour répondre à votre
+          demande et vous envoyer cette analyse. Elles ne sont ni cédées ni
+          revendues, et sont effacées au bout de douze mois.{" "}
+          <Link
+            href="/politique-de-confidentialite"
+            className="underline underline-offset-2 transition-colors hover:text-foreground"
+          >
+            Politique de confidentialité
+          </Link>
+          .
         </p>
-      )}
+      </form>
     </section>
   );
 }

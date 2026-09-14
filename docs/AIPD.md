@@ -5,10 +5,10 @@ raccordées, et annotation de ceux qui présentent les caractéristiques d'une f
 
 | | |
 |---|---|
-| Version | 1.3 |
-| Date | 13 septembre 2026 |
+| Version | 1.4 |
+| Date | 14 septembre 2026 |
 | Auteur | El Fahim Yacine — Safentreprise |
-| État du code analysé | branche `claude/graph-webhook`, commit `28ab07b`, **sauf** le point 1.4 « `diagnostics_exposition` », ajouté le 13 septembre 2026 et analysé sur `claude/lance-le-local-7dt5ri` |
+| État du code analysé | branche `claude/graph-webhook`, commit `28ab07b`, **sauf** le point 1.4 « `diagnostics_exposition` », ajouté les 13 et 14 septembre 2026 et analysé sur `claude/lance-le-local-7dt5ri` |
 | Format | Structure du logiciel PIA de la CNIL (contexte / principes / risques / validation) |
 
 ---
@@ -209,31 +209,63 @@ donnée personnelle), `diagnostics_exposition` (voir ci-dessous).
 
 #### `diagnostics_exposition` — questionnaire public /diagnostic
 
-Ajouté le 13 septembre 2026. Un visiteur de la vitrine répond à huit questions
-sur l'organisation de ses paiements ; les réponses sont enregistrées pour
-mesurer ce que déclarent les prospects.
+Ajouté le 13 septembre 2026, **étendu le 14 septembre 2026**. Un visiteur de la
+vitrine répond à huit questions sur l'organisation de ses paiements ; les
+réponses sont enregistrées pour mesurer ce que déclarent les prospects.
+
+**⚠ CE TRAITEMENT A CHANGÉ DE NATURE LE 14 SEPTEMBRE 2026.** Il portait au plus
+une adresse e-mail facultative. Il porte maintenant une **identité nominative de
+contact professionnel** — prénom, nom, adresse, société — demandée **en
+contrepartie de l'accès à l'analyse détaillée**. Ce n'est plus la même donnée,
+ni la même base légale, ni le même enjeu pour la personne.
 
 | Catégorie | Données précises | Durée | Fondement (code) |
 |---|---|---|---|
-| **Réponses** | Sept choix dans des **listes fermées** (effectif, messagerie, circuit de validation, vérification d'un changement de RIB, exposition des dirigeants, protection du domaine, antécédent de tentative) | Sans limite — **anonymes** une fois l'e-mail effacé | `20261004_diagnostic_exposition.sql:41-70` |
+| **Réponses** | Sept choix dans des **listes fermées** (effectif, messagerie, circuit de validation, vérification d'un changement de RIB, exposition des dirigeants, protection du domaine, antécédent de tentative) | Sans limite — **anonymes** une fois l'identité effacée | `20261004_diagnostic_exposition.sql:41-70` |
 | **Entreprise** | Domaine de l'entreprise, **facultatif**. Donnée d'entreprise, pas de personne | idem | `20261004:59` |
-| **Verdict** | Score 0-100, recalculé côté serveur | idem | `api/diagnostic/route.ts:125` |
-| **Identifiant** | Adresse e-mail, **uniquement si le répondant la donne** pour recevoir son résultat | **12 mois**, puis mise à NULL | `20261004:64`, purge `:170-186` |
+| **Verdict** | Score 0-100, recalculé côté serveur | idem | `api/diagnostic/route.ts` |
+| **Identité** | **Prénom, nom, adresse e-mail professionnelle, société.** Les quatre ensemble, ou aucun | **12 mois**, puis mise à NULL | `20261005_diagnostic_coordonnees.sql:33-35`, purge `:153-175` |
 
-**C'est la seule donnée personnelle de la table, et elle est facultative** : le
-score s'affiche entièrement sans elle (`DiagnosticResultat.tsx` — le champ
-apparaît **après** le résultat, jamais avant). Aucun nom, aucun téléphone,
-aucune adresse IP, aucun champ de commentaire libre.
+**Ce que le visiteur obtient sans rien donner** : son score, son palier, la
+phrase de synthèse, et le lien vers la démonstration. Le formulaire n'apparaît
+qu'**après** ce résultat et ne le masque jamais
+(`DiagnosticResultat.tsx` — `ZoneVerrouillee`).
+
+**Ce qui est conditionné** : le détail de ses réponses et l'offre chiffrée.
+
+Aucun téléphone — délibérément. Aucune adresse IP. Aucun champ de commentaire
+libre. Aucun traceur, aucun pixel : la seule requête émise par la page est
+l'enregistrement lui-même.
+
+**Base légale.** Article 6.1.b — exécution de mesures précontractuelles prises
+**à la demande de la personne** : elle demande son analyse, on la lui envoie, et
+l'e-mail ne contient rien d'autre que cette analyse
+(`diagnostic-email.ts` : « l'email au prospect ne vend pas »). Toute
+réutilisation ultérieure de ces adresses à des fins de prospection relèverait
+d'un **autre** traitement, sous intérêt légitime et avec droit d'opposition —
+elle n'est pas couverte ici et n'est pas mise en œuvre à ce jour.
+
+**Information.** Mention affichée sous le formulaire, avant toute saisie, avec
+lien vers la politique de confidentialité. **Pas de case à cocher** : il n'y a
+pas de traitement facultatif à accepter, et une case pré-cochée serait en plus
+sans valeur.
+
+**Écriture une seule fois.** Les quatre champs ne peuvent être posés qu'une
+fois et ne se remplacent jamais (`20261005:94-110`). L'identifiant de ligne
+circule jusqu'au navigateur ; quelqu'un qui le connaîtrait ne peut ni relire la
+ligne, ni y substituer une autre identité.
 
 **Aucune valeur libre n'entre dans les sept colonnes de réponse** : la route
 les vérifie contre les listes du questionnaire et écarte tout le reste
 (`route.ts:58-78`). La table ne peut donc pas devenir un champ de saisie
 déguisé.
 
-**La purge efface l'adresse, pas la ligne** (`anonymiser_diagnostics()`, tâche
-`purge-diagnostics` à 04:05 UTC). Une ligne sans adresse ne se rattache plus à
-personne : la minimisation est atteinte sans détruire la statistique
-commerciale, qui est la finalité du traitement.
+**La purge efface les quatre champs, pas la ligne** (`anonymiser_diagnostics()`,
+tâche `purge-diagnostics` à 04:05 UTC). Effacer l'adresse en laissant
+« Dupont / Acme » ne protégerait personne : c'est le rapprochement qui
+identifie. Une ligne sans identité ne se rattache plus à quiconque : la
+minimisation est atteinte sans détruire la statistique commerciale, qui est la
+finalité du traitement.
 
 **Aucune politique RLS n'est créée sur cette table** — RLS activé, zéro
 politique. Les rôles `anon` et `authenticated` ne peuvent ni la lire ni y
@@ -248,7 +280,7 @@ appelée avec la clé de service depuis `/api/diagnostic`. C'est plus strict que
 | **Supabase** (AWS) | La totalité des données enregistrées | **France**, région AWS eu-west-3 (Paris) |
 | **Netlify** | Tout ce qui transite pendant une requête, **corps des messages compris**, en mémoire seulement | **Allemagne**, région AWS eu-central-1 (Francfort) |
 | **Microsoft** | Source des données. Le service y écrit les modifications | Locataire du client |
-| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** ; **alertes de fraude au dirigeant** et **rapports mensuels** (voir ci-dessous) | États-Unis |
+| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** ; **alertes de fraude au dirigeant**, **rapports mensuels** et **analyses de diagnostic** (voir ci-dessous) | États-Unis |
 | **SMS Partner** | Numéros de téléphone, si le canal SMS est utilisé | France |
 | **Stripe** | Données de facturation, le cas échéant | États-Unis / UE |
 
@@ -263,7 +295,9 @@ sensible présente en base ne s'y retrouve.
 ### 1.5 bis L'alerte de fraude au dirigeant
 
 **C'est le seul flux du produit qui fasse sortir de l'Union européenne des
-données nominatives de client.** Il a été ajouté le 11 septembre 2026
+données nominatives de CLIENT.** (Depuis le 14 septembre 2026, un second flux
+fait sortir des données nominatives de **prospect** : voir 1.5 quater.) Il a été
+ajouté le 11 septembre 2026
 (`20260920_alerte_dirigeant.sql`, `src/lib/microsoft/alerte-dirigeant.ts`) et
 mérite d'être décrit à part, parce qu'il ne se réduit pas à des compteurs.
 
@@ -364,6 +398,60 @@ rapport de sa fonction : un client qui doit se connecter pour constater qu'il
 ne s'est rien passé ne se connecte pas, et c'est précisément lui qu'il s'agit
 de rassurer. Là encore, la réponse au risque est de changer de prestataire
 d'envoi, pas d'appauvrir le contenu.
+
+### 1.5 quater L'analyse de diagnostic et sa fiche interne
+
+Ajouté le 14 septembre 2026 (`src/lib/diagnostic-notification.ts`,
+`src/lib/diagnostic-email.ts`).
+
+**⚠ C'EST LE SECOND FLUX QUI FAIT SORTIR DE L'UNION EUROPÉENNE DES DONNÉES
+NOMINATIVES, ET LE PREMIER QUI CONCERNE DES PROSPECTS.** Jusqu'ici, la seule
+sortie nominative était l'alerte au dirigeant d'un client. Resend est établi aux
+États-Unis : le prénom, le nom, l'adresse professionnelle et la société d'un
+visiteur de la vitrine y transitent désormais à chaque analyse demandée.
+
+Ce point mérite d'être posé clairement plutôt que dilué : la contrainte
+« aucun contenu client vers les États-Unis » est tenue — il n'y a ici **aucune
+donnée de client**, ni message, ni boîte, ni collaborateur. Mais la phrase
+« Safentreprise ne fait sortir aucune donnée nominative » ne serait plus exacte,
+et c'est pourquoi elle est corrigée en 1.5 bis.
+
+**Deux messages, deux destinataires.**
+
+| Message | Vers | Contenu |
+|---|---|---|
+| **L'analyse** | Le prospect, à l'adresse qu'il a donnée | Son score, son palier, le détail de ses cinq réponses notées, l'offre correspondant à son effectif. **Rien d'autre** — aucun argumentaire commercial ajouté |
+| **La fiche interne** | Une adresse posée par variable d'environnement (`DIAGNOSTIC_NOTIFICATION_EMAIL`) | Le score, le palier, les huit réponses, le domaine déclaré et, s'il les a laissées, les coordonnées |
+
+**Ce qui ne transite pas.** Aucune donnée d'un client Safentreprise : ni
+message, ni objet, ni adresse de boîte surveillée, ni nom de collaborateur. Ces
+deux messages ne touchent pas au périmètre du traitement principal ; ils portent
+ce qu'un visiteur a tapé lui-même dans un formulaire public.
+
+**Ce qui est échappé.** Le prénom, le nom, la société et le domaine viennent
+d'un champ libre ouvert à tout internaute. Ils sont échappés avant insertion
+dans le HTML, et un test le vérifie sur une saisie hostile
+(`diagnostic-email.test.ts` — « le HTML échappe tout ce qui vient du
+formulaire »).
+
+**Ce qu'un échec d'envoi produit.** Rien de silencieux : la page dit au visiteur
+si la copie est réellement partie, et lui dit de ne pas l'attendre sinon
+(`DiagnosticResultat.tsx` — `AccuseEnvoi`). L'enregistrement, lui, a déjà eu
+lieu : l'ordre enregistrer-puis-notifier est imposé dans la route.
+
+**Ce qu'il reste à faire, et où ça se règle.** Attention à ne pas se tromper de
+document : le DPA (`docs/DPA-A-VALIDER.md`) lie Safentreprise à **ses clients**
+et couvre les données que Safentreprise traite **pour leur compte**. Les
+coordonnées d'un prospect n'en font pas partie — sur elles, Safentreprise est
+**responsable de traitement pour son propre compte**, et Resend est **son**
+sous-traitant.
+
+Ce qui reste donc à régler est le contrat Safentreprise–Resend lui-même, et
+d'abord la **base du transfert vers les États-Unis** — clauses contractuelles
+types, analyse d'impact, certification éventuelle. Ce point était déjà ouvert
+(`DPA-A-VALIDER.md`, section 7 : « Non vérifié »). Il ne change pas de nature,
+mais il porte maintenant sur une catégorie de plus, et sur des personnes qui ne
+sont liées à Safentreprise par aucun contrat.
 
 ## 1.6 Supports
 
@@ -467,7 +555,7 @@ Six purges automatiques existent :
 | `purge-analyses` | Alertes 12 mois, analyses 30 j | 03:45 | `20260906:322-323` |
 | `purge-file-graph` | File d'attente | 03:50 | `20260906:324-325` |
 | `purge-reponses-http` | Journaux HTTP, 7 j | 03:55 | `20260906:326-327` |
-| `purge-diagnostics` | E-mails du questionnaire public, 12 mois | 04:05 | `20261004:190-206` |
+| `purge-diagnostics` | Identité des répondants au questionnaire public (prénom, nom, e-mail, société), 12 mois | 04:05 | `20261005:179-190` |
 
 **Une exception volontaire** : la ligne d'un message qui porte encore un
 avertissement non retiré n'est jamais purgée (`20260906:203-210`). Sans elle,
@@ -476,8 +564,8 @@ défaire. C'est un arbitrage assumé entre minimisation et réversibilité.
 
 **Trois tables restent sans purge** : `annuaire_personnes` (par ancienneté),
 `activations_extension`, `demandes_demo`. `diagnostics_exposition` n'en fait
-pas partie : sa seule donnée personnelle — l'e-mail facultatif — est effacée à
-12 mois, et les réponses qui restent ne se rattachent plus à personne.
+pas partie : l'identité du répondant y est effacée à 12 mois, et les réponses
+qui restent ne se rattachent plus à personne.
 
 ## 2.2 Droits des personnes
 
