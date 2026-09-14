@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {
+  Bricolage_Grotesque,
   Instrument_Serif,
   Inter,
   JetBrains_Mono,
@@ -33,6 +34,24 @@ const instrumentSerif = Instrument_Serif({
   variable: "--font-instrument",
   subsets: ["latin"],
   weight: "400",
+  display: "swap",
+});
+
+// Titre du hero, et lui seul. Voir `h1.titre-hero` dans `globals.css`.
+//
+// ⚠ PAS DE `weight`, ET C'EST VOULU. Sans cette clé, `next/font` sert le
+//   fichier VARIABLE : un seul téléchargement couvre 200 à 800, et le 600 que
+//   demande le titre est un vrai dessin de la fonte, pas un gras synthétique.
+//   Fixer `weight: "600"` servirait un statique et interdirait tout autre
+//   poids sans un second fichier.
+//
+// ⚠ LES AXES `opsz` ET `wdth` NE SONT PAS DEMANDÉS. Cette fonte en porte
+//   trois ; `next/font` n'embarque que `wght` par défaut et fige les autres à
+//   leur valeur par défaut. Les réclamer alourdirait le fichier pour des axes
+//   que rien ne pilote ici.
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin"],
   display: "swap",
 });
 
@@ -79,7 +98,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${jakarta.variable} ${inter.variable} ${sourceSerif.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
+      className={`${jakarta.variable} ${inter.variable} ${sourceSerif.variable} ${instrumentSerif.variable} ${bricolage.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         {children}

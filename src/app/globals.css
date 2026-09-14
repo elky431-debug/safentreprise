@@ -178,21 +178,26 @@
      l'ordre d'écriture qui trancherait, ce qui casse au premier déplacement de
      bloc. `h1.titre-hero` ajoute une classe et gagne franchement.
 
-   ⚠ INSTRUMENT SERIF N'EXISTE QU'EN 400. Poser `font-semibold` dessus ferait
-     produire un gras SYNTHÉTIQUE par le navigateur — des contours épaissis
-     mécaniquement, qui écrasent le contraste très marqué de cette police. Le
-     poids du titre vient donc de sa TAILLE, pas de sa graisse, et c'est pour ça
-     que la classe fixe `font-weight: 400`.
+   ⚠ C'EST UNE SANS DANS UNE CHARTE SERIF, ET C'EST UN CHOIX ASSUMÉ. Bricolage
+     Grotesque a été retenue sur planche comparative, contre quatre serifs. Le
+     titre du hero est donc le seul endroit de la vitrine qui ne suit pas la
+     règle « titres en serif » — ne pas la « corriger » en croyant à un oubli.
 
    ⚠ LE RESTE DE LA VITRINE NE CHANGE PAS. Source Serif reste sur tous les
-     autres h1 et h2 : un serif d'affiche sur des titres de section denses les
-     rendrait moins lisibles, pas plus. */
+     autres h1 et h2, et `--font-instrument` continue de servir `.font-display`
+     dans l'espace connecté : cette règle ne touche qu'un seul titre.
+
+   ⚠ LES TROIS VALEURS ONT ÉTÉ CHOISIES ENSEMBLE, SUR LA PLANCHE. Le 600 donne
+     la présence que la taille seule ne donne pas à une grotesque ; l'approche
+     serrée à -0.03em resserre un dessin naturellement large, sans quoi le
+     titre gagne une ligne et le hero repasse sous le pli. Changer l'une sans
+     revérifier la hauteur du hero défait le réglage du pli. */
 h1.titre-hero,
 .theme-clair h1.titre-hero,
 .sur-marine h1.titre-hero {
-  font-family: var(--font-instrument), Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-family: var(--font-bricolage), system-ui, "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 /* ⚠ IL NE SERT PLUS QU'À REVENIR AU CLAIR DANS UNE BANDE MARINE. Depuis que
