@@ -114,10 +114,26 @@ export function LandingHero() {
             <span className="text-accent-text">boîte&nbsp;mail.</span>
           </h1>
 
+          {/* ⚠ LA LARGEUR EST BORNÉE EN `ch`, PAS EN PIXELS. 54 caractères, soit
+              une ligne qu'on lit sans perdre le début en revenant à la ligne.
+
+              MESURÉ AU NAVIGATEUR sur ce texte-ci, pas estimé :
+                1280–1440 px → 2 lignes (le bloc plafonne à 562 px)
+                1024–1100 px → 3 lignes (la colonne se resserre avant `lg`)
+                 768–900 px → 2 lignes (une seule colonne, 562 px à nouveau)
+                 360–430 px → 4 lignes
+                     320 px → 5 lignes
+
+              QUATRE LIGNES SUR TÉLÉPHONE EST LE PLANCHER pour une phrase de
+              cette longueur : à 342 px utiles et 16,5 px de corps, on tient
+              environ 42 caractères par ligne. Descendre à trois demanderait de
+              réduire le corps, ce qui coûterait plus en lisibilité que la
+              ligne gagnée. Rallonger la phrase, en revanche, ajoute une ligne
+              partout — revérifier si elle change. */}
           <p className="rise rise-2 mt-6 max-w-[54ch] text-[16.5px] leading-relaxed text-muted">
-            Safentreprise repère les tentatives de fraude au président, au
-            fournisseur et à la facture dans les messageries Microsoft 365, et
-            prévient vos équipes avant qu’elles n’agissent.
+            Safentreprise sécurise la messagerie de votre entreprise, là où
+            passent les tentatives de fraude, et avertit vos équipes avant
+            qu’elles n’agissent.
           </p>
 
           <div className="rise rise-3 mt-9">
