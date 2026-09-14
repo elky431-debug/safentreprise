@@ -85,9 +85,24 @@ const ETIQUETTES = [
 /**
  * Hero de la vitrine : deux colonnes sur grand écran, une seule sous 1024 px.
  *
- * ⚠ IL NE DOIT PAS REMPLIR L'ÉCRAN. Le début de la bande marine doit dépasser
- *   sous la ligne de flottaison — c'est elle qui donne envie de faire défiler.
- *   D'où un rembourrage bas mesuré plutôt qu'une hauteur d'écran.
+ * ⚠ IL NE DOIT PAS REMPLIR L'ÉCRAN, ET C'EST UNE CONTRAINTE CHIFFRÉE. Le début
+ *   de la bande marine doit dépasser sous la ligne de flottaison : c'est elle
+ *   qui donne envie de faire défiler. La règle était écrite depuis longtemps et
+ *   n'était plus tenue — le hero avait atteint 850 px, la bande commençait à
+ *   907, et sur un écran de 800 on ne voyait rien de la suite.
+ *
+ *   Ramené à 687 px. MESURÉ AU NAVIGATEUR, hauteur de bande marine visible :
+ *     1920×1080 → 335 px      1440×800  →  56 px
+ *     1440×900  → 156 px      1366×768  →  37 px
+ *
+ *   En dessous d'environ 780 px de fenêtre, il n'y a plus rien à gagner sans
+ *   retirer la carte équipe (149 px) ou la liste des étiquettes. C'est la
+ *   limite assumée.
+ *
+ *   CE QUI COMPOSE LES 687 px : 40 de rembourrage haut, 443 de grille (la
+ *   colonne de gauche, 443, commande — la photo fait 429), 24 avant la carte,
+ *   149 de carte, 32 de rembourrage bas. Tout ajout à la colonne de gauche se
+ *   paie directement sur ce qu'on voit de la suite.
  *
  * ⚠ LE POINT DE BASCULE EST `lg` (1024 px), PAS `md`. À 768 px, deux colonnes
  *   laisseraient au texte 340 px utiles : le titre y passerait sur cinq lignes
@@ -96,9 +111,9 @@ const ETIQUETTES = [
  */
 export function LandingHero() {
   return (
-    <section className="px-6 pt-14 pb-14 md:pt-20 md:pb-20 lg:px-8">
+    <section className="px-6 pt-9 pb-8 md:pt-10 md:pb-8 lg:px-8">
       <div className="mx-auto max-w-[1200px]">
-        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-14">
+        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
           {/* ================= Colonne gauche ================= */}
           <div className="text-left">
             <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-muted">
@@ -110,7 +125,7 @@ export function LandingHero() {
                 colonne pleine largeur ; dans une demi-colonne il produisait une
                 ligne courte suivie d'une ligne longue. `text-balance` répartit
                 mieux, et l'espace insécable garde « boîte mail. » ensemble. */}
-            <h1 className="rise rise-1 mt-7 text-[clamp(1.9rem,3.4vw,3.1rem)] font-semibold leading-[1.12] tracking-[-0.02em] text-balance text-foreground">
+            <h1 className="rise rise-1 mt-5 text-[clamp(1.85rem,3.1vw,2.8rem)] font-semibold leading-[1.12] tracking-[-0.02em] text-balance text-foreground">
               La sécurité d’une entreprise se joue dans sa{" "}
               <span className="text-accent-text">boîte&nbsp;mail.</span>
             </h1>
@@ -131,13 +146,13 @@ export function LandingHero() {
                 réduire le corps, ce qui coûterait plus en lisibilité que la
                 ligne gagnée. Rallonger la phrase, en revanche, ajoute une ligne
                 partout — revérifier si elle change. */}
-            <p className="rise rise-2 mt-6 max-w-[54ch] text-[16.5px] leading-relaxed text-muted">
+            <p className="rise rise-2 mt-5 max-w-[54ch] text-[16.5px] leading-relaxed text-muted">
               Safentreprise sécurise la messagerie de votre entreprise, là où
               passent les tentatives de fraude, et avertit vos équipes avant
               qu’elles n’agissent.
             </p>
 
-            <div className="rise rise-3 mt-9">
+            <div className="rise rise-3 mt-7">
               <Link href="/demo" className={buttonPrimaryLg}>
                 Demander une démo
                 <IconArrowRight />
@@ -148,7 +163,7 @@ export function LandingHero() {
                 arguments alignés horizontalement se replieraient n'importe
                 comment ; empilés, ils se lisent et forment un bloc calme sous le
                 bouton. */}
-            <ul className="rise rise-3 mt-8 flex flex-col gap-2.5">
+            <ul className="rise rise-3 mt-6 flex flex-col gap-1.5">
               {REASSURANCES.map((texte) => (
                 <li
                   key={texte}
@@ -169,7 +184,7 @@ export function LandingHero() {
             colonne de gauche, qui devenait bien plus longue que la droite : la
             page penchait. Ici il sert de point final aux deux colonnes, et sa
             carte marque la fin de la section avant la bande marine. */}
-        <EquipeHero className="rise rise-3 mt-12" />
+        <EquipeHero className="rise rise-3 mt-6" />
       </div>
     </section>
   );
