@@ -97,77 +97,79 @@ const ETIQUETTES = [
 export function LandingHero() {
   return (
     <section className="px-6 pt-14 pb-14 md:pt-20 md:pb-20 lg:px-8">
-      <div className="mx-auto grid max-w-[1200px] items-center gap-12 lg:grid-cols-2 lg:gap-14">
-        {/* ================= Colonne gauche ================= */}
-        <div className="text-left">
-          <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-muted">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent-text" />
-            Protection anti-fraude pour Microsoft 365
-          </p>
+      <div className="mx-auto max-w-[1200px]">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-14">
+          {/* ================= Colonne gauche ================= */}
+          <div className="text-left">
+            <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-muted">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent-text" />
+              Protection anti-fraude pour Microsoft 365
+            </p>
 
-          {/* ⚠ PLUS DE COUPE FORCÉE. Le `<br>` d'avant était calé sur une
-              colonne pleine largeur ; dans une demi-colonne il produisait une
-              ligne courte suivie d'une ligne longue. `text-balance` répartit
-              mieux, et l'espace insécable garde « boîte mail. » ensemble. */}
-          <h1 className="rise rise-1 mt-7 text-[clamp(1.9rem,3.4vw,3.1rem)] font-semibold leading-[1.12] tracking-[-0.02em] text-balance text-foreground">
-            La sécurité d’une entreprise se joue dans sa{" "}
-            <span className="text-accent-text">boîte&nbsp;mail.</span>
-          </h1>
+            {/* ⚠ PLUS DE COUPE FORCÉE. Le `<br>` d'avant était calé sur une
+                colonne pleine largeur ; dans une demi-colonne il produisait une
+                ligne courte suivie d'une ligne longue. `text-balance` répartit
+                mieux, et l'espace insécable garde « boîte mail. » ensemble. */}
+            <h1 className="rise rise-1 mt-7 text-[clamp(1.9rem,3.4vw,3.1rem)] font-semibold leading-[1.12] tracking-[-0.02em] text-balance text-foreground">
+              La sécurité d’une entreprise se joue dans sa{" "}
+              <span className="text-accent-text">boîte&nbsp;mail.</span>
+            </h1>
 
-          {/* ⚠ LA LARGEUR EST BORNÉE EN `ch`, PAS EN PIXELS. 54 caractères, soit
-              une ligne qu'on lit sans perdre le début en revenant à la ligne.
+            {/* ⚠ LA LARGEUR EST BORNÉE EN `ch`, PAS EN PIXELS. 54 caractères, soit
+                une ligne qu'on lit sans perdre le début en revenant à la ligne.
 
-              MESURÉ AU NAVIGATEUR sur ce texte-ci, pas estimé :
-                1280–1440 px → 2 lignes (le bloc plafonne à 562 px)
-                1024–1100 px → 3 lignes (la colonne se resserre avant `lg`)
-                 768–900 px → 2 lignes (une seule colonne, 562 px à nouveau)
-                 360–430 px → 4 lignes
-                     320 px → 5 lignes
+                MESURÉ AU NAVIGATEUR sur ce texte-ci, pas estimé :
+                  1280–1440 px → 2 lignes (le bloc plafonne à 562 px)
+                  1024–1100 px → 3 lignes (la colonne se resserre avant `lg`)
+                   768–900 px → 2 lignes (une seule colonne, 562 px à nouveau)
+                   360–430 px → 4 lignes
+                       320 px → 5 lignes
 
-              QUATRE LIGNES SUR TÉLÉPHONE EST LE PLANCHER pour une phrase de
-              cette longueur : à 342 px utiles et 16,5 px de corps, on tient
-              environ 42 caractères par ligne. Descendre à trois demanderait de
-              réduire le corps, ce qui coûterait plus en lisibilité que la
-              ligne gagnée. Rallonger la phrase, en revanche, ajoute une ligne
-              partout — revérifier si elle change. */}
-          <p className="rise rise-2 mt-6 max-w-[54ch] text-[16.5px] leading-relaxed text-muted">
-            Safentreprise sécurise la messagerie de votre entreprise, là où
-            passent les tentatives de fraude, et avertit vos équipes avant
-            qu’elles n’agissent.
-          </p>
+                QUATRE LIGNES SUR TÉLÉPHONE EST LE PLANCHER pour une phrase de
+                cette longueur : à 342 px utiles et 16,5 px de corps, on tient
+                environ 42 caractères par ligne. Descendre à trois demanderait de
+                réduire le corps, ce qui coûterait plus en lisibilité que la
+                ligne gagnée. Rallonger la phrase, en revanche, ajoute une ligne
+                partout — revérifier si elle change. */}
+            <p className="rise rise-2 mt-6 max-w-[54ch] text-[16.5px] leading-relaxed text-muted">
+              Safentreprise sécurise la messagerie de votre entreprise, là où
+              passent les tentatives de fraude, et avertit vos équipes avant
+              qu’elles n’agissent.
+            </p>
 
-          <div className="rise rise-3 mt-9">
-            <Link href="/demo" className={buttonPrimaryLg}>
-              Demander une démo
-              <IconArrowRight />
-            </Link>
+            <div className="rise rise-3 mt-9">
+              <Link href="/demo" className={buttonPrimaryLg}>
+                Demander une démo
+                <IconArrowRight />
+              </Link>
+            </div>
+
+            {/* ⚠ EN COLONNE, PAS EN LIGNE. Sur une demi-largeur, les trois
+                arguments alignés horizontalement se replieraient n'importe
+                comment ; empilés, ils se lisent et forment un bloc calme sous le
+                bouton. */}
+            <ul className="rise rise-3 mt-8 flex flex-col gap-2.5">
+              {REASSURANCES.map((texte) => (
+                <li
+                  key={texte}
+                  className="inline-flex items-center gap-2 text-[13px] text-muted"
+                >
+                  <IconCheck className="h-3 w-3 shrink-0 text-accent-text" />
+                  {texte}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* ⚠ EN COLONNE, PAS EN LIGNE. Sur une demi-largeur, les trois
-              arguments alignés horizontalement se replieraient n'importe
-              comment ; empilés, ils se lisent et forment un bloc calme sous le
-              bouton. */}
-          <ul className="rise rise-3 mt-8 flex flex-col gap-2.5">
-            {REASSURANCES.map((texte) => (
-              <li
-                key={texte}
-                className="inline-flex items-center gap-2 text-[13px] text-muted"
-              >
-                <IconCheck className="h-3 w-3 shrink-0 text-accent-text" />
-                {texte}
-              </li>
-            ))}
-          </ul>
-
-          {/* ⚠ LE BLOC ÉQUIPE RESTE DANS LA COLONNE DE GAUCHE, sous les
-              arguments. Sous le hero, il flotterait entre deux sections sans
-              appartenir à aucune ; ici il termine la colonne et équilibre la
-              hauteur de la photo, qui est plus haute que le texte. */}
-          <EquipeHero aligne="gauche" className="rise rise-3 mt-11" />
+          {/* ================= Colonne droite ================= */}
+          <PhotoBureau />
         </div>
 
-        {/* ================= Colonne droite ================= */}
-        <PhotoBureau />
+        {/* ⚠ LE BLOC ÉQUIPE FERME LE HERO, EN PLEINE LARGEUR. Il a vécu dans la
+            colonne de gauche, qui devenait bien plus longue que la droite : la
+            page penchait. Ici il sert de point final aux deux colonnes, et sa
+            carte marque la fin de la section avant la bande marine. */}
+        <EquipeHero className="rise rise-3 mt-14 lg:mt-16" />
       </div>
     </section>
   );

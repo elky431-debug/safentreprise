@@ -1,34 +1,61 @@
 import Link from "next/link";
+import { buttonSecondaryLg } from "@/components/ui";
+import { IconArrowRight } from "@/components/icons";
 
 /**
- * Le bloc « Notre équipe ».
+ * Le bloc « Notre équipe », en carte, sous les deux colonnes du hero.
  *
- * Trois visages qui se chevauchent, un titre, et le lien vers le diagnostic.
+ * Trois visages qui se chevauchent, une phrase, une porte de sortie douce.
  * L'intention est de mettre un visage humain en face d'un produit qui parle de
  * fraude — quelqu'un répond, ce n'est pas un automate.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ⚠ CE BLOC NE PORTE PAS DE BOUTON « DEMANDER UNE DÉMO », ET C'EST VOULU.
+ * ⚠ IL FERME LE HERO, IL NE LE DÉSÉQUILIBRE PLUS. Il a vécu dans la colonne de
+ *   gauche, qui devenait bien plus longue que la droite : la page penchait. En
+ *   pleine largeur sous les deux colonnes, il sert de point final — et l'ancien
+ *   mode d'alignement à gauche a disparu avec cet usage plutôt que de rester en
+ *   code mort.
  *
- *   Le hero en affiche déjà un 150 px plus haut, et la barre du haut un
- *   troisième. Trois fois la même action dans un seul écran ne convertit pas
- *   mieux : elle dit au visiteur qu'on insiste. Le bloc garde son rôle —
- *   rassurer sur le fait qu'un humain répond — et laisse l'action au bouton
- *   qui la porte déjà. Le lien vers le diagnostic reste : c'est une AUTRE
- *   proposition, pas la même répétée.
+ * ⚠ LE CONTENU EST BORNÉ À 560 px DANS UNE CARTE DE 1200. Laisser le texte
+ *   s'étaler sur toute la largeur donnerait une ligne de 140 caractères,
+ *   illisible, et un bloc qui paraît vide parce qu'il est plat. Une colonne
+ *   étroite au centre d'une carte large, c'est ce qui fait respirer.
  *
- * ⚠ LES PHOTOS SONT DÉCORATIVES, ET C'EST DÉLIBÉRÉ.
+ * ⚠ L'ANNEAU DES PASTILLES SUIT LE FOND DE LA CARTE, PAS LA PAGE. Il était en
+ *   `border-background` (blanc), calé sur le fond de la vitrine ; sur la carte
+ *   teintée il dessinerait un liseré blanc autour de chaque visage. Changer le
+ *   fond de la carte oblige à repasser ici.
  *
- *   `aria-hidden` sur le groupe : un lecteur d'écran annoncerait sinon trois
- *   images sans information, juste avant le texte qui dit tout. Le sens est
- *   porté par « Notre équipe répond à toutes vos questions », qui est du
- *   texte. Aucun nom n'est affiché — donc aucun nom n'est inventé nulle part
- *   dans ce fichier.
+ * ⚠ LA COULEUR DE L'ANNEAU EST UN STYLE EN LIGNE, ET AUCUNE UTILITAIRE
+ *   TAILWIND NE PEUT LA POSER. `globals.css` porte une règle `border-color`
+ *   sur `*` qui n'est dans AUCUNE couche : elle bat toutes les utilitaires de
+ *   couleur de bordure, quelle que soit leur spécificité. C'est écrit à côté de
+ *   cette règle, et la bande de motifs de la vitrine a dû faire le même détour.
  *
- * ⚠ LE CERCLE « + » N'EST PAS UN BOUTON.
- *   Chez Mailinblack il n'ouvre rien non plus. C'est une convention visuelle
- *   qui dit « et d'autres » — lui donner l'apparence d'un bouton sans action
- *   serait un piège à clic. D'où un `span`, pas un `button`.
+ *   Le symptôme est muet : la bordure prend la valeur de `--border`,
+ *   rgba(16, 20, 26, 0.1). Sur le blanc de la page elle passait pour un liseré
+ *   clair ; sur la carte teintée elle devient un cerne sombre autour de chaque
+ *   visage. Rien dans la console ne le signale.
+ *
+ * ⚠ ET NE PAS ÉCRIRE DE CLASSE D'EXEMPLE DANS CE COMMENTAIRE. Tailwind scanne
+ *   le FICHIER, commentaires compris : une pseudo-classe illustrative avec des
+ *   points de suspension entre crochets lui a fait produire une déclaration
+ *   invalide, et la feuille de style entière a cessé de compiler. Les exemples
+ *   se décrivent en mots, ils ne s'écrivent pas.
+ *
+ * ⚠ CE BLOC NE PORTE PAS DE « DEMANDER UNE DÉMO ». Le hero en affiche déjà un,
+ *   et la barre du haut un troisième. Le diagnostic, lui, est une AUTRE
+ *   proposition — d'où un bouton secondaire, qui termine la carte sans répéter
+ *   l'action principale.
+ *
+ * ⚠ LES PHOTOS SONT DÉCORATIVES. `aria-hidden` sur le groupe : un lecteur
+ *   d'écran annoncerait sinon trois images sans information, juste avant le
+ *   texte qui dit tout. Aucun nom n'est affiché — donc aucun nom n'est inventé
+ *   nulle part dans ce fichier.
+ *
+ * ⚠ LE CERCLE « + » N'EST PAS UN BOUTON. C'est une convention visuelle qui dit
+ *   « et d'autres » ; lui donner l'apparence d'un bouton sans action serait un
+ *   piège à clic. D'où un `span`.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -46,94 +73,84 @@ const EQUIPE: { cle: string; fichier: string; fond: string }[] = [
   { cle: "membre-3", fichier: "/marque/equipe/membre-3", fond: "#4a6591" },
 ];
 
-/**
- * ⚠ DEUX ALIGNEMENTS, UNE SEULE MISE EN PAGE. Le bloc vivait centré sous un
- *   hero pleine largeur ; il vit maintenant dans la colonne de gauche d'un hero
- *   en deux colonnes, où tout le reste est aligné à gauche. Un bloc centré au
- *   milieu d'une colonne alignée à gauche se voit immédiatement.
- */
-export function EquipeHero({
-  className = "",
-  aligne = "centre",
-}: {
-  className?: string;
-  aligne?: "centre" | "gauche";
-}) {
-  const gauche = aligne === "gauche";
-
+export function EquipeHero({ className = "" }: { className?: string }) {
   return (
-    <div
-      className={`flex flex-col ${gauche ? "items-start text-left" : "items-center"} ${className}`}
+    <section
+      className={`relative overflow-hidden rounded-3xl border border-border bg-surface-2 px-6 py-11 shadow-[0_18px_44px_-30px_rgba(16,20,26,0.28)] sm:py-14 ${className}`}
     >
-      {/* ⚠ LE CHEVAUCHEMENT PASSE PAR UNE MARGE NÉGATIVE, PAS PAR `position`.
-          Le groupe reste ainsi un flux normal : il se centre tout seul et sa
-          largeur suit le nombre de membres, sans calcul. */}
-      <div className="flex items-center" aria-hidden>
-        {EQUIPE.map((membre, i) => (
+      {/* ⚠ UN VOILE, PAS UNE COULEUR. Un dégradé très pâle du marine vers rien,
+          posé derrière les visages : il donne un centre à une carte large sans
+          introduire de teinte vive. À 6 % d'opacité, il se devine et ne se voit
+          pas — c'est exactement ce qu'on veut d'un fond. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(15,36,68,0.06),transparent_70%)]"
+      />
+
+      <div className="relative mx-auto flex max-w-[560px] flex-col items-center text-center">
+        {/* ⚠ LE CHEVAUCHEMENT PASSE PAR UNE MARGE NÉGATIVE, PAS PAR `position`.
+            Le groupe reste ainsi un flux normal : il se centre tout seul et sa
+            largeur suit le nombre de membres, sans calcul. */}
+        <div className="flex items-center" aria-hidden>
+          {EQUIPE.map((membre, i) => (
+            <span
+              key={membre.cle}
+              className={`inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-[3px] shadow-[0_4px_12px_-6px_rgba(16,20,26,0.35)] sm:h-16 sm:w-16 ${
+                i > 0 ? "-ml-4 sm:-ml-5" : ""
+              }`}
+              style={{ background: membre.fond, borderColor: "var(--surface-2)" }}
+            >
+              {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 64 px et
+                  les fichiers 180 px — il n'y a rien à redimensionner à la
+                  volée. Une seule des trois déclinaisons part sur le réseau. */}
+              <picture>
+                <source srcSet={`${membre.fichier}.avif`} type="image/avif" />
+                <source srcSet={`${membre.fichier}.webp`} type="image/webp" />
+                <img
+                  src={`${membre.fichier}.jpg`}
+                  alt=""
+                  width={64}
+                  height={64}
+                  loading="lazy"
+                  decoding="async"
+                  /* ⚠ LE `scale-[1.04]` N'EST PAS DÉCORATIF. Le cercle est
+                     découpé par `overflow-hidden` : son bord est lissé, et
+                     l'image lissée au même endroit laissait passer un liseré
+                     d'un pixel de la couleur de repli — un anneau bleu bien
+                     visible autour de chaque visage. Déborder de 4 % met le bord
+                     de l'image hors du bord du cercle, et l'anneau disparaît. */
+                  className="h-full w-full scale-[1.04] object-cover"
+                />
+              </picture>
+            </span>
+          ))}
+
           <span
-            key={membre.cle}
-            className={`inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-background sm:h-14 sm:w-14 ${
-              i > 0 ? "-ml-3 sm:-ml-4" : ""
-            }`}
-            style={{ background: membre.fond }}
+            style={{ borderColor: "var(--surface-2)" }}
+            className="-ml-4 inline-flex h-14 w-14 items-center justify-center rounded-full border-[3px] bg-foreground text-[19px] leading-none text-background shadow-[0_4px_12px_-6px_rgba(16,20,26,0.35)] sm:-ml-5 sm:h-16 sm:w-16"
           >
-            {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 56 px et
-                les fichiers 180 px — il n'y a rien à redimensionner à la
-                volée. Le navigateur prend l'AVIF s'il sait le lire (3,3 Ko),
-                le WebP sinon (3,1 Ko), le JPEG en dernier (4,7 Ko). Une seule
-                des trois part sur le réseau. */}
-            <picture>
-              <source srcSet={`${membre.fichier}.avif`} type="image/avif" />
-              <source srcSet={`${membre.fichier}.webp`} type="image/webp" />
-              <img
-                src={`${membre.fichier}.jpg`}
-                alt=""
-                width={56}
-                height={56}
-                loading="lazy"
-                decoding="async"
-                /* ⚠ LE `scale-[1.04]` N'EST PAS DÉCORATIF. Le cercle est
-                   découpé par `overflow-hidden` : son bord est lissé, et
-                   l'image lissée au même endroit laissait passer un liseré
-                   d'un pixel de la couleur de repli — un anneau bleu bien
-                   visible autour de chaque visage. Déborder de 4 % met le bord
-                   de l'image hors du bord du cercle, et l'anneau disparaît. */
-                className="h-full w-full scale-[1.04] object-cover"
-              />
-            </picture>
+            +
           </span>
-        ))}
+        </div>
 
-        <span className="-ml-3 inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-background bg-foreground text-[18px] leading-none text-background sm:-ml-4 sm:h-14 sm:w-14">
-          +
-        </span>
-      </div>
+        <p className="eyebrow mt-7">Notre équipe</p>
 
-      {/* ⚠ DEUX LIGNES QUAND LE BLOC EST CENTRÉ, UNE SEULE QUAND IL EST À
-          GAUCHE. Centré, la coupure équilibre les deux lignes ; aligné à
-          gauche dans une colonne étroite, elle produit un ressaut inutile. */}
-      {gauche ? (
-        <p className="mt-4 text-[17px] leading-snug text-foreground">
-          <span className="font-semibold">Notre équipe</span> répond à toutes vos
-          questions.
+        {/* La serif de la charte, réservée aux titres. Elle donne à la carte le
+            poids d'une section plutôt que d'un encart. */}
+        <h2 className="titre-page mt-3 text-[clamp(1.25rem,2.2vw,1.65rem)] leading-snug text-balance text-foreground">
+          Une question sur votre exposition&nbsp;? Nous y répondons.
+        </h2>
+
+        <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-muted">
+          Vous pouvez aussi commencer seul&nbsp;: huit questions, un résultat
+          immédiat, sans inscription.
         </p>
-      ) : (
-        <>
-          <p className="mt-5 text-[19px] font-semibold leading-snug tracking-[-0.01em] text-foreground sm:text-[21px]">
-            Notre équipe
-          </p>
-          <p className="mt-1 text-[16px] leading-snug text-muted sm:text-[17px]">
-            répond à toutes vos questions.
-          </p>
-        </>
-      )}
 
-      <Link
-        href="/diagnostic"
-        className={`${gauche ? "mt-3" : "mt-5"} text-[13.5px] text-muted underline underline-offset-4 transition-colors hover:text-foreground`}
-      >
-        Réaliser votre diagnostic gratuit
-      </Link>
-    </div>
+        <Link href="/diagnostic" className={`${buttonSecondaryLg} mt-7`}>
+          Réaliser votre diagnostic gratuit
+          <IconArrowRight />
+        </Link>
+      </div>
+    </section>
   );
 }
