@@ -46,9 +46,25 @@ const EQUIPE: { cle: string; fichier: string; fond: string }[] = [
   { cle: "membre-3", fichier: "/marque/equipe/membre-3", fond: "#4a6591" },
 ];
 
-export function EquipeHero({ className = "" }: { className?: string }) {
+/**
+ * ⚠ DEUX ALIGNEMENTS, UNE SEULE MISE EN PAGE. Le bloc vivait centré sous un
+ *   hero pleine largeur ; il vit maintenant dans la colonne de gauche d'un hero
+ *   en deux colonnes, où tout le reste est aligné à gauche. Un bloc centré au
+ *   milieu d'une colonne alignée à gauche se voit immédiatement.
+ */
+export function EquipeHero({
+  className = "",
+  aligne = "centre",
+}: {
+  className?: string;
+  aligne?: "centre" | "gauche";
+}) {
+  const gauche = aligne === "gauche";
+
   return (
-    <div className={`flex flex-col items-center ${className}`}>
+    <div
+      className={`flex flex-col ${gauche ? "items-start text-left" : "items-center"} ${className}`}
+    >
       {/* ⚠ LE CHEVAUCHEMENT PASSE PAR UNE MARGE NÉGATIVE, PAS PAR `position`.
           Le groupe reste ainsi un flux normal : il se centre tout seul et sa
           largeur suit le nombre de membres, sans calcul. */}
@@ -93,19 +109,28 @@ export function EquipeHero({ className = "" }: { className?: string }) {
         </span>
       </div>
 
-      {/* ⚠ DEUX LIGNES, PAS UNE. « Notre équipe » porte le poids, la seconde
-          ligne l'allège. Sur téléphone elles restent lisibles parce que
-          chacune est courte — c'est ce découpage qui évite le repli. */}
-      <p className="mt-5 text-[19px] font-semibold leading-snug tracking-[-0.01em] text-foreground sm:text-[21px]">
-        Notre équipe
-      </p>
-      <p className="mt-1 text-[16px] leading-snug text-muted sm:text-[17px]">
-        répond à toutes vos questions.
-      </p>
+      {/* ⚠ DEUX LIGNES QUAND LE BLOC EST CENTRÉ, UNE SEULE QUAND IL EST À
+          GAUCHE. Centré, la coupure équilibre les deux lignes ; aligné à
+          gauche dans une colonne étroite, elle produit un ressaut inutile. */}
+      {gauche ? (
+        <p className="mt-4 text-[17px] leading-snug text-foreground">
+          <span className="font-semibold">Notre équipe</span> répond à toutes vos
+          questions.
+        </p>
+      ) : (
+        <>
+          <p className="mt-5 text-[19px] font-semibold leading-snug tracking-[-0.01em] text-foreground sm:text-[21px]">
+            Notre équipe
+          </p>
+          <p className="mt-1 text-[16px] leading-snug text-muted sm:text-[17px]">
+            répond à toutes vos questions.
+          </p>
+        </>
+      )}
 
       <Link
         href="/diagnostic"
-        className="mt-5 text-[13.5px] text-muted underline underline-offset-4 transition-colors hover:text-foreground"
+        className={`${gauche ? "mt-3" : "mt-5"} text-[13.5px] text-muted underline underline-offset-4 transition-colors hover:text-foreground`}
       >
         Réaliser votre diagnostic gratuit
       </Link>
