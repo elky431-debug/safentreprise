@@ -107,7 +107,11 @@ type AppShellProps = {
  */
 export function AppShell({ companyName, userEmail, children }: AppShellProps) {
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    /* ⚠ `canevas-releve` TEINTE TOUT L'ESPACE CONNECTÉ, ET LUI SEUL. La classe
+         redéfinit `--background`, `--surface` et les traits sur ce sous-arbre ;
+         la vitrine, qui ne la porte pas, garde son blanc franc. Voir le bloc
+         « canevas relevé » de `globals.css` pour le pourquoi du papier chaud. */
+    <div className="canevas-releve flex h-dvh overflow-hidden bg-background">
       <Sidebar companyName={companyName} userEmail={userEmail} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">

@@ -10,7 +10,40 @@ export type PointJour = {
   /** Libellé long, pour l'infobulle et la table accessible */
   labelLong: string;
   valeur: number;
+  /**
+   * Ventilation du jour par niveau de risque.
+   *
+   * ⚠ C'EST CE QUI REND LA COURBE LISIBLE. Un pic sans ventilation ne dit pas
+   *   si la journée a été mauvaise ou simplement bavarde : vingt alertes
+   *   faibles et vingt alertes élevées dessinent exactement le même sommet.
+   */
+  parNiveau: { eleve: number; modere: number; faible: number };
 };
+
+/**
+ * Les trois niveaux, dans l'ordre de gravité, avec leur teinte.
+ *
+ * ⚠ C'EST LE SEUL ENDROIT DE CE FICHIER OÙ LA COULEUR EST PERMISE. Elle y
+ *   qualifie un niveau de risque, ce qui est sa seule raison d'être dans
+ *   l'espace connecté.
+ */
+const NIVEAUX_INFOBULLE = [
+  { cle: "eleve", label: "Élevé", point: "bg-danger", texte: "text-danger" },
+  { cle: "modere", label: "Modéré", point: "bg-warning", texte: "text-warning" },
+  { cle: "faible", label: "Faible", point: "bg-muted", texte: "text-muted" },
+] as const;
+
+/**
+ * Ordonnée de l'infobulle.
+ *
+ * ⚠ ELLE BASCULE SOUS LE POINT PLUTÔT QUE DE LE RECOUVRIR. Posée au-dessus et
+ *   simplement bornée à zéro, elle masquait le point actif sur les pics les
+ *   plus hauts — c'est-à-dire exactement sur les journées qu'on vient regarder.
+ */
+function tooltipHaut(y: number, valeur: number): number {
+  const hauteur = valeur > 0 ? 96 : 56;
+  return y - hauteur < 0 ? y + 16 : y - hauteur;
+}
 
 /* --------------------------------------------------------------------------
    Géométrie
@@ -172,10 +205,16 @@ export function CourbeMenaces({ points }: Props) {
         role="img"
         aria-label={`Nombre d'alertes par jour, ${points.length} jours, maximum ${geometrie.maxBrut}`}
       >
+        {/* ⚠ LA COURBE EST EN ENCRE, PLUS EN BLEU DE MARQUE. Dans l'espace
+            connecté, la couleur est réservée au NIVEAU DE RISQUE : rouge pour
+            élevé, ambre pour modéré, gris pour faible. Un tracé bleu ne
+            désignait rien — il décorait, et il faisait de l'écran un tableau de
+            bord de croissance de plus. Le seul endroit où la couleur reparaît
+            ici, c'est l'infobulle, où elle qualifie bien un niveau. */}
         <defs>
           <linearGradient id="courbe-menaces-aire" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent-text)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--accent-text)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -213,8 +252,8 @@ export function CourbeMenaces({ points }: Props) {
         <path
           d={geometrie.ligne}
           fill="none"
-          stroke="var(--accent-text)"
-          strokeWidth="2"
+          stroke="var(--foreground)"
+          strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -235,8 +274,8 @@ export function CourbeMenaces({ points }: Props) {
             <circle
               cx={coordActive.x}
               cy={coordActive.y}
-              r="5"
-              fill="var(--accent-text)"
+              r="4.5"
+              fill="var(--foreground)"
               stroke="var(--surface)"
               strokeWidth="2.5"
             />
@@ -272,28 +311,61 @@ export function CourbeMenaces({ points }: Props) {
         />
       </svg>
 
-      {/* Infobulle */}
+      {/* Infobulle — le jour, le total, puis la ventilation par niveau.
+          ⚠ LES NIVEAUX À ZÉRO NE SONT PAS AFFICHÉS. Une journée à trois alertes
+            faibles ne doit pas faire lire deux lignes vides avant de le dire. */}
       {actif && coordActive && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-border-strong bg-surface-3 px-2.5 py-1.5 shadow-lg"
-          style={{ left: tooltipGauche, top: Math.max(0, coordActive.y - 52) }}
+          className="pointer-events-none absolute z-10 -translate-x-1/2 border border-border-strong bg-surface px-3 py-2"
+          style={{
+            left: tooltipGauche,
+            top: tooltipHaut(coordActive.y, actif.valeur),
+            borderRadius: 4,
+            boxShadow: "0 8px 24px -14px rgba(16, 20, 26, 0.4)",
+          }}
         >
           <p className="whitespace-nowrap text-[11px] text-muted">
             {actif.labelLong}
           </p>
-          <p className="tabular whitespace-nowrap text-[13px] font-semibold text-foreground">
-            {actif.valeur} {actif.valeur > 1 ? "alertes" : "alerte"}
+          <p className="tabular whitespace-nowrap text-[13.5px] font-semibold text-foreground">
+            {actif.valeur}{" "}
+            {actif.valeur > 1 ? "tentatives" : "tentative"}
           </p>
+
+          {actif.valeur > 0 && (
+            <ul className="mt-1.5 space-y-0.5">
+              {NIVEAUX_INFOBULLE.map(({ cle, label, point, texte }) =>
+                actif.parNiveau[cle] > 0 ? (
+                  <li
+                    key={cle}
+                    className="flex items-center gap-1.5 whitespace-nowrap text-[11.5px]"
+                  >
+                    <span
+                      aria-hidden
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${point}`}
+                    />
+                    <span className={texte}>{label}</span>
+                    <span className="tabular ml-auto pl-3 font-medium text-foreground">
+                      {actif.parNiveau[cle]}
+                    </span>
+                  </li>
+                ) : null,
+              )}
+            </ul>
+          )}
         </div>
       )}
 
       {/* Même donnée, lisible par les technologies d'assistance */}
       <table className="sr-only">
-        <caption>Nombre d&apos;alertes détectées par jour</caption>
+        <caption>Tentatives détectées par jour, réparties par niveau</caption>
         <thead>
           <tr>
             <th scope="col">Jour</th>
-            <th scope="col">Alertes</th>
+            <th scope="col">Total</th>
+            <th scope="col">Élevé</th>
+            <th scope="col">Modéré</th>
+            <th scope="col">Faible</th>
           </tr>
         </thead>
         <tbody>
@@ -301,6 +373,9 @@ export function CourbeMenaces({ points }: Props) {
             <tr key={p.jour}>
               <th scope="row">{p.labelLong}</th>
               <td>{p.valeur}</td>
+              <td>{p.parNiveau.eleve}</td>
+              <td>{p.parNiveau.modere}</td>
+              <td>{p.parNiveau.faible}</td>
             </tr>
           ))}
         </tbody>

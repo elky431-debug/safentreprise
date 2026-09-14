@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Panel, PanelHeader } from "@/components/ui";
 import { IconShieldCheck } from "@/components/icons";
+import { resumerSignal, type TonSignal } from "@/lib/signaux";
 import type { AlerteGraph, NiveauRisqueMenace } from "@/lib/types";
 
 /* --------------------------------------------------------------------------
@@ -66,15 +67,12 @@ export function NiveauBadge({
    -------------------------------------------------------------------------- */
 
 /**
- * Le moteur de détection produit des phrases explicatives entières. Affichées
- * telles quelles, elles écrasaient le tableau sur plusieurs lignes. On les réduit
- * ici à une étiquette de quelques mots ; la phrase complète reste lisible
- * dans le détail dépliable de la ligne.
+ * ⚠ LA TABLE DE CORRESPONDANCE A DÉMÉNAGÉ DANS `@/lib/signaux`. Elle vivait
+ *   ici, dans un composant client, et le tableau de bord ne pouvait donc que
+ *   la recopier pour afficher le même motif. Seule la TEINTE reste ici : elle
+ *   relève de l'affichage, et chaque écran peut la rendre à sa façon.
  */
-/** Familles de signaux, chacune avec sa teinte de fond. */
-type TonSignal = "identite" | "canal" | "action";
-
-const TONS_SIGNAL: Record<TonSignal, string> = {
+export const TONS_SIGNAL: Record<TonSignal, string> = {
   // Incohérence d'identité — teinte de la marque
   identite: "border-accent-line/40 bg-accent-soft text-accent-text",
   // Canal d'envoi douteux — ambre
@@ -82,40 +80,6 @@ const TONS_SIGNAL: Record<TonSignal, string> = {
   // Passage à l'acte (argent, urgence) — rouge
   action: "border-danger/20 bg-danger-soft text-danger",
 };
-
-const RESUMES_SIGNAUX: { motif: RegExp; label: string; ton: TonSignal }[] = [
-  // ⚠ L'ANNUAIRE AVANT LA RÈGLE GÉNÉRALE. Les deux phrases commencent par
-  //   « se présente au nom » : sans cette entrée placée d'abord, l'usurpation
-  //   d'annuaire s'afficherait sous le libellé plus faible « Nom ↔ adresse ».
-  //   Le moteur ne produit plus les deux à la fois (voir `remplace` dans
-  //   detection-rules.js), mais l'ordre reste ce qui rend chaque motif juste.
-  { motif: /figure à l'annuaire/i, label: "Identité de l'annuaire", ton: "identite" },
-  { motif: /aucune forme de ce nom|se présente au nom/i, label: "Nom ↔ adresse", ton: "identite" },
-  { motif: /ne correspond pas au nom affich/i, label: "Adresse ↔ nom affiché", ton: "identite" },
-  { motif: /sign(é|e) «/i, label: "Signature usurpée", ton: "identite" },
-  { motif: /messagerie grand public/i, label: "Messagerie perso", ton: "canal" },
-  { motif: /typosquatting|ressemble fortement/i, label: "Domaine sosie", ton: "canal" },
-  { motif: /action sensible/i, label: "Demande sensible", ton: "action" },
-  { motif: /urgence|secret|indisponibilit/i, label: "Urgence · secret", ton: "action" },
-];
-
-function resumerSignal(signal: string): { label: string; ton: TonSignal | null } {
-  const connu = RESUMES_SIGNAUX.find((r) => r.motif.test(signal));
-  if (connu) return { label: connu.label, ton: connu.ton };
-
-  // Repli — anciens formats techniques (« incoherence_nom_adresse ») ou
-  // libellés inconnus : on nettoie, on tronque, et on reste en neutre.
-  const nettoye = signal.replace(/[_-]+/g, " ").trim();
-  if (!nettoye) return { label: "Signal", ton: null };
-  const capitalise = nettoye.charAt(0).toUpperCase() + nettoye.slice(1);
-  return {
-    label:
-      capitalise.length <= 26
-        ? capitalise
-        : `${capitalise.slice(0, 25).trimEnd()}…`,
-    ton: null,
-  };
-}
 
 /** Pastille d'un signal — fond teinté selon la famille. */
 function SignalBadge({ signal }: { signal: string }) {
@@ -187,12 +151,45 @@ const FILTRES: { cle: Filtre; label: string; actif: string }[] = [
 
 type Props = {
   alertes: AlerteGraph[];
+  /** Niveau imposé par l'URL (`?niveau=eleve`), pour arriver filtré. */
+  niveauInitial?: Filtre;
+  /** Alerte à ouvrir d'emblée (`?alerte=<id>`), venue du tableau de bord. */
+  alerteInitiale?: string | null;
 };
 
-/** Tableau filtrable des tentatives détectées, triées par date décroissante. */
-export function MenacesTable({ alertes: menaces }: Props) {
-  const [filtre, setFiltre] = useState<Filtre>("tous");
-  const [ouverte, setOuverte] = useState<string | null>(null);
+/**
+ * Tableau filtrable des tentatives détectées, triées par date décroissante.
+ *
+ * ⚠ L'ÉTAT D'ARRIVÉE VIENT DE L'URL, PAS D'UN HOOK CLIENT. La page serveur lit
+ *   `searchParams` et le passe en props : c'est ce qui permet au tableau de
+ *   bord de pointer vers une liste déjà filtrée, ou déjà ouverte sur une
+ *   alerte, sans que ce composant ait à monter `useSearchParams` — lequel
+ *   imposerait une frontière Suspense pour rien.
+ *
+ * ⚠ ENSUITE L'URL NE COMMANDE PLUS. Les props ne servent qu'à l'initialisation :
+ *   une fois arrivé, l'utilisateur filtre avec les boutons, et on ne réécrit
+ *   pas l'adresse sous ses pieds.
+ */
+export function MenacesTable({
+  alertes: menaces,
+  niveauInitial,
+  alerteInitiale = null,
+}: Props) {
+  // ⚠ UNE ALERTE VISÉE L'EMPORTE SUR LE FILTRE. Arriver sur `?alerte=<id>` avec
+  //   un filtre qui exclut cette alerte afficherait une liste où la ligne
+  //   demandée est absente — le lien aurait l'air cassé.
+  const [filtre, setFiltre] = useState<Filtre>(
+    alerteInitiale ? "tous" : (niveauInitial ?? "tous"),
+  );
+  const [ouverte, setOuverte] = useState<string | null>(alerteInitiale);
+
+  // La ligne visée est amenée sous les yeux : elle peut être à trois écrans
+  // plus bas, et une liste qui s'ouvre hors champ passe pour un lien mort.
+  const ligneVisee = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    if (!alerteInitiale || !ligneVisee.current) return;
+    ligneVisee.current.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [alerteInitiale]);
 
   const compteurs = useMemo(
     () =>
@@ -274,7 +271,7 @@ export function MenacesTable({ alertes: menaces }: Props) {
             <thead>
               <tr className="border-b border-border bg-surface-2/40">
                 <Th className="w-[92px] pl-6">Date</Th>
-                <Th className="w-[210px]">Boîte concernée</Th>
+                <Th className="w-[320px]">Message</Th>
                 <Th className="w-[250px]">Expéditeur</Th>
                 <Th className="w-[120px]">Niveau</Th>
                 <Th>Motifs</Th>
@@ -292,6 +289,9 @@ export function MenacesTable({ alertes: menaces }: Props) {
                 return (
                   <Fragment key={menace.id}>
                     <tr
+                      ref={
+                        menace.id === alerteInitiale ? ligneVisee : undefined
+                      }
                       className={`menace-row group border-b border-border align-top transition-colors duration-200 last:border-0 ${
                         estOuverte ? "bg-surface-2/60" : "hover:bg-surface-2/60"
                       }`}
@@ -308,16 +308,34 @@ export function MenacesTable({ alertes: menaces }: Props) {
                         </p>
                       </td>
 
-                      {/* Boîte concernée — celle que le client a choisi de
-                          faire surveiller. ⚠ ANCIENNEMENT L'OBJET DU MESSAGE :
-                          il est sorti de la liste, le dirigeant n'a pas à voir
-                          le sujet du courrier de ses collaborateurs. */}
-                      <td className="max-w-[210px] px-3 py-[18px]">
+                      {/* Message — l'objet en tête, la boîte visée en appui.
+                          ⚠ L'OBJET EST REVENU EN LISTE, ET LA RÈGLE A CHANGÉ.
+                            Elle disait « jamais l'objet en liste » ; elle dit
+                            maintenant : JAMAIS SUR UNE LISTE D'ANALYSES, OUI
+                            SUR UNE LISTE D'ALERTES. Les deux ne se valent pas.
+                            Une liste de tous les messages analysés livrerait au
+                            dirigeant le courrier de ses salariés. Celle-ci est
+                            filtrée sur `alerte = true` : ce sont des messages
+                            que le moteur désigne comme tentatives de fraude, et
+                            cacher au dirigeant ce que l'attaquant a écrit lui
+                            retire ce dont il a besoin pour juger.
+                          ⚠ LE CORPS, LUI, RESTE HORS DE PORTÉE. Il n'est ni
+                            affiché, ni chargé, ni même sélectionné par la
+                            requête — voir `COLONNES` dans `@/lib/alertes`. */}
+                      <td className="max-w-[320px] px-3 py-[18px]">
                         <p
-                          className="truncate font-mono text-[12px] text-foreground"
+                          className="truncate text-[13px] text-foreground"
+                          title={menace.objet ?? undefined}
+                        >
+                          {menace.objet || (
+                            <span className="text-faint">sans objet</span>
+                          )}
+                        </p>
+                        <p
+                          className="mt-1 truncate font-mono text-[11.5px] text-muted"
                           title={menace.boite ?? undefined}
                         >
-                          {menace.boite || <span className="text-faint">—</span>}
+                          {menace.boite || "—"}
                         </p>
                         {menace.employe_email &&
                           menace.employe_email !== menace.boite && (
@@ -475,11 +493,14 @@ function Chevron({ ouvert }: { ouvert: boolean }) {
 /**
  * Détail d'une tentative : phrases complètes des signaux et contexte.
  *
- * ⚠ C'EST LE SEUL ENDROIT OÙ L'OBJET DU MESSAGE APPARAÎT. Il a été retiré de
- *   la liste : le dirigeant doit voir les tentatives qui visent son entreprise,
- *   pas le sujet des messages que reçoivent ses collaborateurs. Ici, il faut
- *   ouvrir une alerte précise pour le lire. Le corps, lui, n'est affiché nulle
- *   part et n'est pas même chargé.
+ * ⚠ L'OBJET N'EST PLUS RÉSERVÉ À CE DÉTAIL. Il figure aussi en tête de la
+ *   colonne « Message » de la liste, et sur le tableau de bord. La règle qui
+ *   l'en excluait ne distinguait pas une liste d'ANALYSES d'une liste
+ *   d'ALERTES ; c'est cette distinction qui la remplace. Voir le commentaire
+ *   de la colonne « Message » ci-dessus.
+ *
+ * ⚠ LE CORPS DU MESSAGE, LUI, N'APPARAÎT NULLE PART ET N'EST PAS CHARGÉ. Cette
+ *   garantie-là ne bouge pas, et elle est écrite dans l'AIPD comme dans le DPA.
  */
 function DetailMenace({ menace }: { menace: AlerteGraph }) {
   return (

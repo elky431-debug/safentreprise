@@ -29,7 +29,25 @@ function debutDuMoisIso(): string {
  *   extension. Les anciennes lignes ne sont plus affichées du tout : elles
  *   s'éteindront avec leur purge à douze mois.
  */
-export default async function MenacesPage() {
+/** Niveaux acceptés dans `?niveau=` — tout le reste est ignoré. */
+const NIVEAUX_URL = ["eleve", "modere", "faible"] as const;
+
+type NiveauUrl = (typeof NIVEAUX_URL)[number];
+
+function niveauDepuisUrl(valeur: string | string[] | undefined): NiveauUrl | undefined {
+  return typeof valeur === "string" && (NIVEAUX_URL as readonly string[]).includes(valeur)
+    ? (valeur as NiveauUrl)
+    : undefined;
+}
+
+export default async function MenacesPage({
+  searchParams,
+}: PageProps<"/menaces">) {
+  const params = await searchParams;
+  const niveauInitial = niveauDepuisUrl(params.niveau);
+  const alerteInitiale =
+    typeof params.alerte === "string" ? params.alerte : null;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -59,9 +77,17 @@ export default async function MenacesPage() {
 
   return (
     <div className="w-full">
+      {/* ⚠ CETTE PHRASE A ÉTÉ CORRIGÉE PARCE QU'ELLE ÉTAIT FAUSSE. Elle
+          annonçait « Aucun contenu de message n'est conservé », alors que
+          `graph_analyses.objet` conserve bel et bien l'objet — 12 mois sur une
+          alerte, 30 jours sinon, et l'AIPD le documente noir sur blanc
+          (tableau des données, ligne « Contenu de message »). Une promesse de
+          conservation fausse dans l'interface ne se défend pas en audit.
+          La garantie exacte, et elle tient : c'est le CORPS qui n'est jamais
+          conservé. */}
       <PageHeader
         title="Menaces"
-        description="Les tentatives repérées sur les boîtes que vous avez choisi de faire surveiller. Aucun contenu de message n'est conservé."
+        description="Les tentatives repérées sur les boîtes que vous avez choisi de faire surveiller. Le corps des messages n'est jamais conservé ; l'objet l'est pour une durée limitée."
       />
 
       {alertes.length === 0 ? (
@@ -76,7 +102,11 @@ export default async function MenacesPage() {
           />
 
           <div className="mt-5">
-            <MenacesTable alertes={alertes} />
+            <MenacesTable
+              alertes={alertes}
+              niveauInitial={niveauInitial}
+              alerteInitiale={alerteInitiale}
+            />
           </div>
 
           {alertes.length >= LIMITE && (

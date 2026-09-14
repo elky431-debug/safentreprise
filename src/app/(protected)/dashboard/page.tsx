@@ -1,44 +1,38 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { buttonPrimary, buttonSecondary } from "@/components/ui";
-import {
-  ActiviteProtection,
-  type MenacePourGraphique,
-} from "@/components/dashboard/ActiviteProtection";
-import { NiveauBadge } from "@/components/menaces/MenacesTable";
+import { type MenacePourGraphique } from "@/components/dashboard/ActiviteProtection";
+import { Releve, type CampagneListe } from "@/components/dashboard/Releve";
 import { BandeauRaccordement } from "@/components/microsoft/BandeauRaccordement";
-import {
-  IconArrowRight,
-  IconCampaign,
-  IconPlus,
-  IconShieldCheck,
-  IconUsers,
-} from "@/components/icons";
-import {
-  RISK_CATEGORY_HINTS,
-  RISK_CATEGORY_LABELS,
-  RISK_CATEGORY_ORDER,
-  RISK_LEVEL_LABELS,
-  riskLevel,
-} from "@/lib/risk";
 import { chargerScoreDynamique } from "@/lib/risk-dynamique";
 import { appliquerSurveillanceAuScore } from "@/lib/risk-surveillance";
 import { estSurveillee } from "@/lib/microsoft/etat";
 import { lireRaccordement } from "@/lib/microsoft/parcours";
 import { chargerAlertesGraph } from "@/lib/alertes";
-import type { Campaign, Company } from "@/lib/types";
-import { STATUT_LABELS } from "@/lib/campaigns";
+import type { Company } from "@/lib/types";
 
 /** Menaces chargées pour alimenter la courbe (les plus récentes). */
 const LIMITE_MENACES = 2000;
 
 /**
- * Tableau de bord — activité de la protection, score dynamique, campagnes.
+ * Tableau de bord — chargement des données uniquement.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * ⚠ L'AFFICHAGE EST DANS `@/components/dashboard/Releve`, ET LA SÉPARATION A
+ *   UNE RAISON PRÉCISE. Ce composant-ci lit la session et la base : rien de ce
+ *   qu'il rend ne peut donc être ouvert sans identifiants, donc rien ne peut
+ *   être relu visuellement avant mise en ligne. `Releve` ne prend que des
+ *   props : on lui passe un jeu fabriqué et on le regarde.
  *
  * ⚠ LES ALERTES VIENNENT DE `graph_analyses`, PAS DE `menaces_detectees`.
  *   Cet écran a longtemps lu la table de l'extension Chrome abandonnée : un
  *   client raccordé via Microsoft 365 voyait zéro menace alors que ses boîtes
  *   étaient bel et bien analysées.
+ *
+ * ⚠ LE BLOC « SOCIÉTÉ » A ÉTÉ SUPPRIMÉ, PAS DÉPLACÉ. Il affichait en lecture
+ *   seule six champs — raison sociale, secteur, responsable, e-mail, dirigeant
+ *   usurpé, mode résultats — qui sont TOUS déjà présents, et modifiables, sur
+ *   `/settings/company`. Le recréer ailleurs n'aurait fait que rétablir la
+ *   duplication ; l'écran de réglages existe et il est dans la barre latérale.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -76,9 +70,6 @@ export default async function DashboardPage() {
     chargerScoreDynamique(supabase, company.id),
   ]);
 
-  type CampagneListe = Pick<Campaign, "id" | "nom" | "statut" | "created_at"> & {
-    campaign_targets: { id: string; message_final_html: string | null }[] | null;
-  };
   const campaigns = (campaignRows ?? []) as CampagneListe[];
   const employes = employeeRows?.length ?? 0;
   // ⚠ LA COUVERTURE VIENT DES BOÎTES SURVEILLÉES, PLUS DE L'EXTENSION. L'axe
@@ -89,9 +80,7 @@ export default async function DashboardPage() {
   //
   // ⚠ `estSurveillee` PLUTÔT QUE `choisie`. Une boîte cochée dont la
   //   surveillance n'a jamais démarré n'analyse rien ; l'inclure allégerait le
-  //   score d'un client non protégé. Voir la définition dans
-  //   `@/lib/microsoft/etat` — c'est la même qui produit « n boîtes
-  //   surveillées » sur /microsoft, pour que les deux écrans concordent.
+  //   score d'un client non protégé.
   const boitesSurveillees = raccordement.boites.filter(estSurveillee).length;
 
   // Le graphique n'a besoin que de la date et du niveau : on n'envoie pas le
@@ -114,381 +103,20 @@ export default async function DashboardPage() {
     : null;
 
   return (
-    <div className="w-full space-y-5">
+    <div className="w-full">
       {/* Un raccordement resté à mi-chemin ne doit pas passer inaperçu :
           le client croirait ses boîtes surveillées sans qu'elles le soient. */}
       <BandeauRaccordement />
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.03em] text-foreground">
-            Tableau de bord
-          </h1>
-          <p className="mt-1 text-[13.5px] text-muted">
-            Sensibilisation à la fraude — {company.nom}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/employees" className={buttonSecondary}>
-            <IconUsers />
-            Collaborateurs
-          </Link>
-          <Link href="/campaigns/new" className={buttonPrimary}>
-            <IconPlus />
-            Nouvelle campagne
-          </Link>
-        </div>
-      </header>
-
-      {/* Indicateurs + courbe, pilotés par le sélecteur de période */}
-      <ActiviteProtection
-        menaces={menacesGraphique}
-        scoreGlobal={scores ? scores.global : null}
-        libelleNiveauScore={
-          scores ? RISK_LEVEL_LABELS[riskLevel(scores.global)] : ""
-        }
+      <Releve
+        nomSociete={company.nom}
+        menaces={menaces}
+        menacesGraphique={menacesGraphique}
+        scores={scores}
+        boitesSurveillees={boitesSurveillees}
+        employes={employes}
+        campagnes={campaigns}
       />
-
-      {/* Taux d'exposition — l'axe technique intègre la couverture */}
-      <section>
-        <article className="rounded-xl border border-border bg-surface">
-          <div className="px-5 pt-5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-faint">
-              Répartition
-            </p>
-            <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-foreground">
-              Taux d&apos;exposition
-            </h2>
-          </div>
-
-          {scores ? (
-            <div className="flex flex-col items-center gap-6 px-5 py-5 lg:flex-row lg:items-center">
-              <RiskRing
-                pourcentage={scores.global}
-                label={RISK_LEVEL_LABELS[riskLevel(scores.global)]}
-              />
-
-              <ul className="w-full min-w-0 space-y-3.5">
-                {RISK_CATEGORY_ORDER.map((categorie, index) => (
-                  <li
-                    key={categorie}
-                    className="flex items-start justify-between gap-3"
-                  >
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-2 text-[13px] font-medium text-foreground">
-                        <span
-                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground"
-                          style={{ opacity: 1 - index * 0.28 }}
-                        />
-                        {RISK_CATEGORY_LABELS[categorie]}
-                        {categorie === "humain" && (
-                          <span className="text-[10px] font-normal uppercase tracking-wide text-accent-text">
-                            dyn.
-                          </span>
-                        )}
-                        {categorie === "technique" &&
-                          scores.reductionTechnique > 0 && (
-                            <span className="text-[10px] font-normal uppercase tracking-wide text-success">
-                              −{scores.reductionTechnique}
-                            </span>
-                          )}
-                      </span>
-
-                      <span className="mt-0.5 block pl-3.5 text-[11.5px] leading-snug text-faint">
-                        {categorie === "humain"
-                          ? "Moyenne des collaborateurs (campagnes + inactivité)"
-                          : categorie === "technique" &&
-                              scores.reductionTechnique > 0
-                            ? `Renforcé par la surveillance (${boitesSurveillees} ${boitesSurveillees === 1 ? "boîte surveillée" : "boîtes surveillées"} sur ${employes} ${employes === 1 ? "collaborateur" : "collaborateurs"})`
-                            : RISK_CATEGORY_HINTS[categorie]}
-                      </span>
-                    </span>
-
-                    <span className="shrink-0 text-right">
-                      <span className="tabular block text-[13px] font-semibold text-foreground">
-                        {scores[categorie]}&nbsp;%
-                      </span>
-                      {categorie === "technique" &&
-                        scores.reductionTechnique > 0 && (
-                          <span className="tabular block text-[11px] text-faint line-through">
-                            {scores.techniqueBase}&nbsp;%
-                          </span>
-                        )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="px-5 py-10 text-[13px] text-muted">
-              Aucune évaluation disponible — complétez le questionnaire de
-              risque pour afficher le taux d&apos;exposition.
-            </p>
-          )}
-
-          {scores && scores.reductionTechnique > 0 && (
-            <div className="border-t border-border px-5 py-3.5">
-              <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-muted">
-                <IconShieldCheck className="h-3.5 w-3.5 text-success" />
-                Sans la surveillance de vos boîtes, le score global serait de{" "}
-                <span className="tabular font-medium text-foreground">
-                  {scores.globalSansSurveillance}&nbsp;%
-                </span>
-                <span className="tabular font-medium text-success">
-                  (−{scores.globalSansSurveillance - scores.global} pts)
-                </span>
-              </p>
-            </div>
-          )}
-        </article>
-      </section>
-
-      {/* Campagnes + société */}
-      <section className="grid gap-3 lg:grid-cols-5">
-        <article className="rounded-xl border border-border bg-surface lg:col-span-3">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-            <div>
-              <h2 className="text-[14px] font-semibold text-foreground">
-                Campagnes
-              </h2>
-              <p className="mt-0.5 text-[12.5px] text-muted">
-                Simulations en cours et prêtes
-              </p>
-            </div>
-            <Link
-              href="/campaigns"
-              className="inline-flex items-center gap-1 text-[12.5px] font-medium text-foreground hover:underline"
-            >
-              Voir tout
-              <IconArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          {campaigns.length === 0 ? (
-            <div className="flex flex-col items-center px-5 py-10 text-center">
-              <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted">
-                <IconCampaign />
-              </span>
-              <p className="mt-3 text-[13.5px] font-medium text-foreground">
-                Aucune campagne
-              </p>
-              <Link href="/campaigns/new" className={`${buttonPrimary} mt-4`}>
-                <IconPlus />
-                Créer
-              </Link>
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {campaigns.slice(0, 5).map((campagne) => (
-                <li key={campagne.id}>
-                  <Link
-                    href={`/campaigns/${campagne.id}`}
-                    className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-surface-2/60"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[13.5px] font-medium text-foreground">
-                        {campagne.nom}
-                      </p>
-                      <p className="mt-0.5 text-[12px] text-faint">
-                        {formatDate(campagne.created_at)} ·{" "}
-                        {(() => {
-                          const n =
-                            campagne.campaign_targets?.filter(
-                              (t) => t.message_final_html,
-                            ).length ?? 0;
-                          return n === 1 ? "1 message" : `${n} messages`;
-                        })()}
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted">
-                      {STATUT_LABELS[campagne.statut]}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </article>
-
-        <article className="rounded-xl border border-border bg-surface lg:col-span-2">
-          <div className="border-b border-border px-5 py-3.5">
-            <h2 className="text-[14px] font-semibold text-foreground">
-              Société
-            </h2>
-          </div>
-          <dl className="space-y-3 px-5 py-4">
-            <Detail label="Raison sociale" value={company.nom} />
-            <Detail
-              label="Secteur"
-              value={company.secteur ?? "Non renseigné"}
-            />
-            <Detail label="Responsable" value={company.nom_responsable} />
-            <Detail label="Email" value={company.email_responsable} />
-            <Detail label="Dirigeant usurpé" value={company.nom_dirigeant} />
-            <Detail
-              label="Mode résultats"
-              value={
-                company.mode_resultats === "nominatif"
-                  ? "Nominatif"
-                  : "Anonymisé"
-              }
-            />
-          </dl>
-        </article>
-      </section>
-
-      {/* Dernières alertes du pipeline Microsoft 365 */}
-      <section>
-        <article className="rounded-xl border border-border bg-surface">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-            <div>
-              <h2 className="text-[14px] font-semibold text-foreground">
-                Menaces récentes
-              </h2>
-              <p className="mt-0.5 text-[12.5px] text-muted">
-                Dernières tentatives interceptées sur les boîtes mail
-              </p>
-            </div>
-            <Link
-              href="/menaces"
-              className="inline-flex items-center gap-1 text-[12.5px] font-medium text-foreground hover:underline"
-            >
-              Voir tout
-              <IconArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          {menaces.length === 0 ? (
-            <div className="flex flex-col items-center px-5 py-10 text-center">
-              <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted">
-                <IconShieldCheck />
-              </span>
-              <p className="mt-3 text-[13.5px] font-medium text-foreground">
-                Aucune tentative détectée
-              </p>
-              <p className="mt-1.5 max-w-sm text-[12.5px] text-muted">
-                Les messages qui arrivent dans les boîtes surveillées sont
-                analysés en continu. Les tentatives de fraude apparaîtront ici.
-              </p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {menaces.slice(0, 5).map((menace) => (
-                <li
-                  key={menace.id}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-surface-2/40"
-                >
-                  <span className="tabular w-[86px] shrink-0 text-[12px] text-faint">
-                    {formatDateCourt(menace.detecte_at)}
-                  </span>
-
-                  <span className="min-w-[160px] flex-1">
-                    <span className="block truncate text-[13px] font-medium text-foreground">
-                      {menace.expediteur_nom || menace.expediteur_email}
-                    </span>
-                    <span className="block truncate font-mono text-[11.5px] text-muted">
-                      {menace.expediteur_email}
-                    </span>
-                  </span>
-
-                  {/* ⚠ LA BOÎTE CONCERNÉE, PAS L'OBJET DU MESSAGE. Même règle
-                      que sur la page Menaces : le sujet du courrier reçu par un
-                      collaborateur n'apparaît pas dans une liste. */}
-                  <span className="min-w-[140px] flex-1 truncate font-mono text-[12px] text-muted">
-                    {menace.boite || "—"}
-                  </span>
-
-                  <NiveauBadge
-                    niveau={menace.niveau_risque}
-                    score={menace.score}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </article>
-      </section>
     </div>
   );
-}
-
-/* -------------------------------------------------------------------------- */
-
-function RiskRing({
-  pourcentage,
-  label,
-}: {
-  pourcentage: number;
-  label: string;
-}) {
-  const rayon = 48;
-  const circonference = 2 * Math.PI * rayon;
-  const borne = Math.min(Math.max(pourcentage, 0), 100) / 100;
-  const offset = circonference * (1 - borne);
-
-  return (
-    <div className="relative h-[132px] w-[132px] shrink-0">
-      <svg
-        viewBox="0 0 128 128"
-        className="h-full w-full -rotate-90"
-        aria-hidden
-      >
-        <circle
-          cx="64"
-          cy="64"
-          r={rayon}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="7"
-          className="text-surface-3"
-        />
-        <circle
-          cx="64"
-          cy="64"
-          r={rayon}
-          fill="none"
-          strokeWidth="7"
-          strokeLinecap="round"
-          strokeDasharray={circonference}
-          strokeDashoffset={offset}
-          className="results-ring-arc stroke-accent-text"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <p className="tabular text-[28px] font-semibold leading-none tracking-[-0.04em] text-foreground">
-          {pourcentage}
-          <span className="text-[13px] font-medium text-foreground/70">%</span>
-        </p>
-        <p className="mt-1.5 text-[9px] font-medium uppercase tracking-[0.14em] text-foreground">
-          {label.replace(/^Risque\s+/i, "")}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2.5 last:border-0 last:pb-0">
-      <dt className="text-[11.5px] text-foreground">{label}</dt>
-      <dd className="truncate text-right text-[13px] text-foreground">{value}</dd>
-    </div>
-  );
-}
-
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(iso));
-}
-
-function formatDateCourt(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
 }

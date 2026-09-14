@@ -1,14 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import Link from "next/link";
 import { CourbeMenaces, type PointJour } from "@/components/dashboard/CourbeMenaces";
 import { useCompteurAnime } from "@/lib/use-compteur-anime";
-import {
-  IconAlertTriangle,
-  IconTarget,
-  IconThreat,
-} from "@/components/icons";
 import type { NiveauRisqueMenace } from "@/lib/types";
 
 /* --------------------------------------------------------------------------
@@ -34,6 +29,12 @@ export type MenacePourGraphique = {
   niveau_risque: NiveauRisqueMenace;
 };
 
+type ParNiveau = { eleve: number; modere: number; faible: number };
+
+function niveauxVides(): ParNiveau {
+  return { eleve: 0, modere: 0, faible: 0 };
+}
+
 /* --------------------------------------------------------------------------
    Agrégation
    -------------------------------------------------------------------------- */
@@ -52,13 +53,34 @@ function cleHeure(d: Date): string {
  * Découpe la période en intervalles et compte les alertes de chacun.
  * La fenêtre « 24 h » se lit à l'heure, les autres au jour : sur une journée,
  * un unique point ne dirait rien de la répartition.
+ *
+ * ⚠ ON COMPTE PAR NIVEAU, PLUS SEULEMENT EN TOTAL. C'est ce que consomme
+ *   l'infobulle : sans ventilation, un pic ne dit pas si la journée a été
+ *   grave ou seulement bruyante.
  */
 function agreger(
   menaces: MenacePourGraphique[],
   periode: Periode,
   maintenant: Date,
 ): { points: PointJour[]; debut: Date | null } {
-  const compteurs = new Map<string, number>();
+  const compteurs = new Map<string, ParNiveau>();
+
+  function ajouter(cle: string, niveau: NiveauRisqueMenace) {
+    const actuel = compteurs.get(cle) ?? niveauxVides();
+    actuel[niveau] += 1;
+    compteurs.set(cle, actuel);
+  }
+
+  function point(cle: string, label: string, labelLong: string): PointJour {
+    const parNiveau = compteurs.get(cle) ?? niveauxVides();
+    return {
+      jour: cle,
+      label,
+      labelLong,
+      valeur: parNiveau.eleve + parNiveau.modere + parNiveau.faible,
+      parNiveau,
+    };
+  }
 
   if (periode === "jour") {
     const debut = new Date(maintenant.getTime() - 23 * 3600_000);
@@ -66,19 +88,20 @@ function agreger(
 
     for (const m of menaces) {
       const d = new Date(m.detecte_at);
-      if (d >= debut) compteurs.set(cleHeure(d), (compteurs.get(cleHeure(d)) ?? 0) + 1);
+      if (d >= debut) ajouter(cleHeure(d), m.niveau_risque);
     }
 
     const points: PointJour[] = [];
     for (let i = 0; i < 24; i += 1) {
       const d = new Date(debut.getTime() + i * 3600_000);
       const heure = String(d.getHours()).padStart(2, "0");
-      points.push({
-        jour: cleHeure(d),
-        label: `${heure}h`,
-        labelLong: `${d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}, ${heure}h`,
-        valeur: compteurs.get(cleHeure(d)) ?? 0,
-      });
+      points.push(
+        point(
+          cleHeure(d),
+          `${heure}h`,
+          `${d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}, ${heure}h`,
+        ),
+      );
     }
     return { points, debut };
   }
@@ -115,112 +138,65 @@ function agreger(
 
   for (const m of menaces) {
     const d = new Date(m.detecte_at);
-    if (d >= debut) compteurs.set(cleJour(d), (compteurs.get(cleJour(d)) ?? 0) + 1);
+    if (d >= debut) ajouter(cleJour(d), m.niveau_risque);
   }
 
   const points: PointJour[] = [];
   for (let i = 0; i < nbJours; i += 1) {
     const d = new Date(debut);
     d.setDate(debut.getDate() + i);
-    points.push({
-      jour: cleJour(d),
-      label: d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
-      labelLong: d.toLocaleDateString("fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      }),
-      valeur: compteurs.get(cleJour(d)) ?? 0,
-    });
+    points.push(
+      point(
+        cleJour(d),
+        d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
+        d.toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        }),
+      ),
+    );
   }
 
   return { points, debut };
 }
 
 /* --------------------------------------------------------------------------
-   Cartes
-   -------------------------------------------------------------------------- */
-
-function Carte({
-  label,
-  icone,
-  tonIcone,
-  index,
-  accent = false,
-  children,
-}: {
-  label: string;
-  icone: ReactNode;
-  tonIcone: string;
-  index: number;
-  accent?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`menace-card relative overflow-hidden rounded-xl border bg-surface px-4 py-4 transition-colors duration-200 ${
-        accent ? "border-accent-line" : "border-border hover:border-border-strong"
-      }`}
-      style={{ animationDelay: `${index * 60}ms` }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[12px] leading-tight text-muted">{label}</p>
-        <span
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${tonIcone}`}
-        >
-          {icone}
-        </span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/** Grand chiffre commun aux cartes, avec défilement animé. */
-function GrandChiffre({
-  valeur,
-  suffixe,
-  couleur,
-}: {
-  valeur: number;
-  suffixe?: string;
-  couleur: string;
-}) {
-  const affichee = useCompteurAnime(valeur);
-  return (
-    <p
-      className={`tabular mt-3 text-[34px] font-semibold leading-none tracking-[-0.045em] ${couleur}`}
-    >
-      {affichee}
-      {suffixe && (
-        <span className="text-[16px] font-medium opacity-60">{suffixe}</span>
-      )}
-    </p>
-  );
-}
-
-/* --------------------------------------------------------------------------
-   Panneau
+   Synthèse
    -------------------------------------------------------------------------- */
 
 type Props = {
   menaces: MenacePourGraphique[];
-  /** Effectif total de la société */
-  /** Score global ; null si aucun questionnaire */
-  scoreGlobal: number | null;
-  libelleNiveauScore: string;
 };
 
 /**
- * Bloc « activité de la protection » : sélecteur de période, trois
- * indicateurs et courbe des alertes. La période ne pilote que les données
- * issues des menaces — le score de risque, lui, n'est pas daté.
+ * Bandeau de synthèse de la protection : un chiffre qui commande, la
+ * ventilation par niveau, et la courbe sur la même période.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * ⚠ TROIS CARTES ONT DISPARU D'ICI, ET ELLES NE DOIVENT PAS REVENIR.
+ *
+ *   « Mails alertés », « Score de risque », « Répartition » : trois cartes de
+ *   même poids, chacune avec son icône en cartouche et son gros chiffre. Le
+ *   résultat était que « 40 mails alertés » s'affichait plus gros que
+ *   « 29 à risque élevé », alors que c'est le second qui décide d'une action.
+ *
+ * ⚠ LE CHIFFRE DE TÊTE EST LE NOMBRE D'ALERTES ÉLEVÉES, PAS LE TOTAL. Le total
+ *   mesure le bavardage du moteur ; les élevées mesurent ce qui menace
+ *   l'entreprise. Quand il n'y en a aucune, la phrase bascule sur le total —
+ *   annoncer « 0 » en grand serait juste, mais muet.
+ *
+ * ⚠ LA CARTE « SCORE DE RISQUE » N'EST PAS DÉPLACÉE, ELLE EST SUPPRIMÉE. Elle
+ *   affichait le même 51 % que l'anneau du taux d'exposition, deux blocs plus
+ *   bas, mais sans rien en expliquer. On garde celle des deux qui montre son
+ *   calcul.
+ *
+ * ⚠ CHAQUE CHIFFRE EST UN LIEN. Ils menaient tous à une impasse : un dirigeant
+ *   qui lit « 29 élevées » veut voir lesquelles. Les compteurs pointent donc
+ *   vers `/menaces` filtré sur leur propre niveau.
+ * ─────────────────────────────────────────────────────────────────────────
  */
-export function ActiviteProtection({
-  menaces,
-  scoreGlobal,
-  libelleNiveauScore,
-}: Props) {
+export function ActiviteProtection({ menaces }: Props) {
   const [periode, setPeriode] = useState<Periode>("30j");
 
   // Date figée au premier rendu : évite que la fenêtre glisse à chaque calcul.
@@ -252,187 +228,191 @@ export function ActiviteProtection({
     PERIODES.find((p) => p.cle === periode)?.titre ?? "Période";
 
   return (
-    <div className="space-y-3">
-      {/* Sélecteur de période — contrôle segmenté, comme la page Menaces */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-faint">
-          Activité de la protection
-        </p>
-        <div
-          role="group"
-          aria-label="Période affichée"
-          className="inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-surface-2/70 p-1"
-        >
-          {PERIODES.map((p) => {
-            const actif = periode === p.cle;
-            return (
-              <button
-                key={p.cle}
-                type="button"
-                onClick={() => setPeriode(p.cle)}
-                aria-pressed={actif}
-                className={`inline-flex h-7 items-center rounded-md px-2.5 text-[12.5px] font-medium transition-[background-color,color,box-shadow] duration-200 ${
-                  actif
-                    ? "bg-accent-soft text-accent-text ring-1 ring-accent-line/50"
-                    : "text-muted hover:bg-surface-2 hover:text-foreground"
-                }`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+        <h2 className="eyebrow">Activité de la protection</h2>
+        <SelecteurPeriode periode={periode} onChange={setPeriode} />
       </div>
 
-      {/* Les quatre indicateurs */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {/* a — volume d'alertes sur la période */}
-        <Carte
-          index={0}
-          label="Mails alertés"
-          accent
-          tonIcone="border-accent-line/60 bg-accent-soft text-accent-text"
-          icone={<IconThreat className="h-[15px] w-[15px]" />}
-        >
-          <GrandChiffre
-            valeur={surPeriode.length}
-            couleur={surPeriode.length === 0 ? "text-faint/70" : "text-accent-text"}
+      <div className="bloc-releve">
+        <div className="grid gap-x-8 gap-y-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <ChiffreDeTete
+            eleve={repartition.eleve}
+            total={surPeriode.length}
+            titrePeriode={titrePeriode}
           />
-          <p className="mt-3 text-[12px] leading-tight text-faint">
-            {titrePeriode.toLowerCase()}
-          </p>
-        </Carte>
 
-        {/* b — score de risque global, surveillance des boîtes comprise */}
-        <Carte
-          index={1}
-          label="Score de risque"
-          tonIcone="border-border bg-surface-2 text-muted"
-          icone={<IconTarget className="h-[15px] w-[15px]" />}
-        >
-          {scoreGlobal === null ? (
-            <>
-              <p className="tabular mt-3 text-[34px] font-semibold leading-none tracking-[-0.045em] text-faint/70">
-                —
-              </p>
-              <p className="mt-3 text-[12px] leading-tight text-faint">
-                Questionnaire non rempli
-              </p>
-            </>
-          ) : (
-            <>
-              <GrandChiffre
-                valeur={scoreGlobal}
-                suffixe="%"
-                couleur="text-foreground"
-              />
-              <p className="mt-3 text-[12px] leading-tight text-faint">
-                {libelleNiveauScore} · dynamique
-              </p>
-            </>
-          )}
-        </Carte>
-
-        {/* ⚠ UNE CARTE A ÉTÉ RETIRÉE ICI : « Employés protégés », qui comptait
-            les postes ayant activé l'extension Chrome. Elle affichait zéro chez
-            tout client raccordé via Microsoft 365 et laissait croire à une
-            protection absente. La grille passe donc de quatre à trois
-            colonnes. */}
-
-        {/* d — répartition par niveau sur la période */}
-        <Carte
-          index={3}
-          label="Répartition"
-          tonIcone={
-            repartition.eleve > 0
-              ? "border-danger/25 bg-danger-soft text-danger"
-              : "border-border bg-surface-2 text-faint"
-          }
-          icone={<IconAlertTriangle className="h-[15px] w-[15px]" />}
-        >
-          <ul className="mt-3 space-y-2">
-            <LigneNiveau
-              label="Élevé"
-              valeur={repartition.eleve}
-              point="bg-danger"
-              couleur="text-danger"
-              total={surPeriode.length}
-            />
-            <LigneNiveau
-              label="Modéré"
-              valeur={repartition.modere}
-              point="bg-warning"
-              couleur="text-warning"
-              total={surPeriode.length}
-            />
-            <LigneNiveau
-              label="Faible"
-              valeur={repartition.faible}
-              point="bg-muted"
-              couleur="text-foreground"
-              total={surPeriode.length}
-            />
-          </ul>
-        </Carte>
-      </div>
-
-      {/* La courbe */}
-      <article className="rounded-xl border border-border bg-surface">
-        <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
-          <div>
-            <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-foreground">
-              Menaces détectées dans le temps
-            </h2>
-            <p className="mt-1 text-[12.5px] text-faint">
-              {titrePeriode} · {surPeriode.length}{" "}
-              {surPeriode.length > 1 ? "alertes" : "alerte"}
-            </p>
-          </div>
+          <VentilationNiveaux
+            repartition={repartition}
+            total={surPeriode.length}
+          />
         </div>
-        <div className="px-4 pb-3 pt-4">
+
+        <div className="filet-section px-4 pb-3 pt-4">
           <CourbeMenaces points={points} />
         </div>
-      </article>
-    </div>
+      </div>
+    </section>
   );
 }
 
 /* -------------------------------------------------------------------------- */
 
-/** Chiffre animé sans mise en forme propre, pour composer une ligne. */
-function LigneNiveau({
-  label,
-  valeur,
-  point,
-  couleur,
-  total,
+function SelecteurPeriode({
+  periode,
+  onChange,
 }: {
-  label: string;
-  valeur: number;
-  point: string;
-  couleur: string;
-  total: number;
+  periode: Periode;
+  onChange: (p: Periode) => void;
 }) {
-  const vide = valeur === 0;
-  const part = total > 0 ? Math.round((valeur / total) * 100) : 0;
+  return (
+    <div
+      role="group"
+      aria-label="Période affichée"
+      /* ⚠ LE SEGMENT ACTIF EST EN ENCRE, PLUS EN BLEU. Un contrôle teinté en
+         couleur de marque ferait croire que la couleur signifie quelque
+         chose ; dans cet écran elle ne signifie qu'un niveau de risque. */
+      className="inline-flex items-center gap-0.5 border border-border bg-surface p-0.5"
+      style={{ borderRadius: 4 }}
+    >
+      {PERIODES.map((p) => {
+        const actif = periode === p.cle;
+        return (
+          <button
+            key={p.cle}
+            type="button"
+            onClick={() => onChange(p.cle)}
+            aria-pressed={actif}
+            style={{ borderRadius: 2 }}
+            className={`inline-flex h-7 items-center px-2.5 text-[12.5px] font-medium transition-colors duration-150 ${
+              actif
+                ? "bg-foreground text-background"
+                : "text-muted hover:bg-surface-2 hover:text-foreground"
+            }`}
+          >
+            {p.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Le chiffre qui commande la page.
+ *
+ * ⚠ IL EST EN SERIF, ET CE N'EST PAS UN ORNEMENT. Le serif de la vitrine est
+ *   ce qui rattache l'écran au reste de la marque et lui donne son air de
+ *   relevé ; un chiffre en grotesque très serré est exactement la signature
+ *   d'un tableau de bord de croissance.
+ */
+function ChiffreDeTete({
+  eleve,
+  total,
+  titrePeriode,
+}: {
+  eleve: number;
+  total: number;
+  titrePeriode: string;
+}) {
+  const aucunElevee = eleve === 0;
+  const valeur = aucunElevee ? total : eleve;
+  const affichee = useCompteurAnime(valeur);
 
   return (
-    <li className="flex items-center gap-2">
-      <span
-        aria-hidden
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${point} ${vide ? "opacity-25" : ""}`}
-      />
-      <span className="text-[12px] text-muted">{label}</span>
-      <span className="ml-auto flex items-baseline gap-1.5">
+    <div className="min-w-0">
+      <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span
-          className={`tabular text-[13.5px] font-semibold ${vide ? "text-faint/70" : couleur}`}
+          className={`serif-vitrine tabular text-[52px] leading-none ${
+            aucunElevee ? "text-foreground" : "text-danger"
+          }`}
         >
-          {valeur}
+          {affichee}
         </span>
-        <span className="tabular w-8 text-right text-[10.5px] text-faint/70">
-          {vide ? "" : `${part}%`}
+        <span className="serif-vitrine text-[19px] leading-tight text-foreground">
+          {aucunElevee
+            ? total === 1
+              ? "tentative détectée"
+              : "tentatives détectées"
+            : eleve === 1
+              ? "tentative à risque élevé"
+              : "tentatives à risque élevé"}
         </span>
-      </span>
-    </li>
+      </p>
+
+      <p className="mt-2.5 text-[13px] text-muted">
+        {aucunElevee ? (
+          <>
+            Aucune à risque élevé sur la période
+            <span className="text-faint"> · {titrePeriode.toLowerCase()}</span>
+          </>
+        ) : (
+          <>
+            sur {total} {total === 1 ? "message signalé" : "messages signalés"}
+            <span className="text-faint"> · {titrePeriode.toLowerCase()}</span>
+          </>
+        )}
+      </p>
+
+      {!aucunElevee && (
+        <Link
+          href="/menaces?niveau=eleve"
+          className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent-text underline underline-offset-4 hover:text-foreground"
+        >
+          Voir ces {eleve} {eleve === 1 ? "tentative" : "tentatives"}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** Les trois niveaux, chacun cliquable vers sa propre liste. */
+function VentilationNiveaux({
+  repartition,
+  total,
+}: {
+  repartition: { eleve: number; modere: number; faible: number };
+  total: number;
+}) {
+  const lignes = [
+    { cle: "eleve", label: "Élevé", point: "bg-danger", valeur: repartition.eleve },
+    { cle: "modere", label: "Modéré", point: "bg-warning", valeur: repartition.modere },
+    { cle: "faible", label: "Faible", point: "bg-muted", valeur: repartition.faible },
+  ] as const;
+
+  return (
+    <ul className="lg:border-l lg:border-border lg:pl-8">
+      {lignes.map(({ cle, label, point, valeur }) => {
+        const part = total > 0 ? Math.round((valeur / total) * 100) : 0;
+        return (
+          <li key={cle} className="ligne-releve">
+            <Link
+              href={`/menaces?niveau=${cle}`}
+              className="flex items-center gap-2.5 py-2.5 transition-colors hover:text-accent-text"
+            >
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${point} ${
+                  valeur === 0 ? "opacity-25" : ""
+                }`}
+              />
+              <span className="text-[13px] text-muted">{label}</span>
+              <span className="ml-auto flex items-baseline gap-2">
+                <span
+                  className={`tabular text-[14px] font-semibold ${
+                    valeur === 0 ? "text-faint" : "text-foreground"
+                  }`}
+                >
+                  {valeur}
+                </span>
+                <span className="tabular w-9 text-right text-[11px] text-faint">
+                  {valeur === 0 ? "" : `${part} %`}
+                </span>
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

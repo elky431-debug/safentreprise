@@ -14,8 +14,21 @@ import type { AlerteGraph, NiveauRisqueMenace } from "@/lib/types";
  *   ce filtre, l'écran afficherait tout le courrier reçu par les boîtes
  *   surveillées — l'inverse exact de ce que le produit promet.
  *
- * ⚠ `objet` EST CHARGÉ MAIS NE DOIT PAS ÊTRE MIS EN LISTE. Voir le type
- *   `AlerteGraph` : il n'a sa place que dans le détail d'une alerte.
+ * ⚠ `objet` PEUT ÊTRE MIS EN LISTE — PARCE QUE CETTE FONCTION NE REND QUE DES
+ *   ALERTES. La règle a changé et la nuance est tout ce qui la tient : jamais
+ *   d'objet sur une liste d'ANALYSES, oui sur une liste d'ALERTES. Une liste de
+ *   tous les messages analysés donnerait au dirigeant le courrier de ses
+ *   salariés ; ici le filtre `alerte = true` ne laisse passer que ce que le
+ *   moteur désigne comme tentative de fraude, et le dirigeant a besoin de lire
+ *   ce que l'attaquant a écrit.
+ *
+ *   ⚠ DONC : SI QUELQU'UN AJOUTE UN JOUR UNE LECTURE SANS CE FILTRE, elle ne
+ *     doit pas passer par cette fonction, ou l'objet doit en être retiré. C'est
+ *     le filtre qui autorise la colonne, pas l'inverse.
+ *
+ * ⚠ LE CORPS DU MESSAGE N'EST PAS DANS `COLONNES`, ET N'A PAS À Y ENTRER. Il
+ *   n'existe pas dans cette table ; la garantie est écrite dans l'AIPD et le
+ *   DPA.
  */
 
 /** Forme brute renvoyée par PostgREST, avant remise à plat de la jointure. */
