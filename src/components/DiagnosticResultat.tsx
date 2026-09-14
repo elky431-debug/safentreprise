@@ -275,13 +275,13 @@ function CarteOffre({
       {offre.prix ? (
         <p className="mt-5 text-[16px] leading-relaxed text-foreground">
           <strong className="text-[22px] font-semibold tabular-nums tracking-[-0.02em]">
-            {formaterEuros(offre.prix.miseEnService)}
+            {formaterEuros(offre.prix.abonnementMensuel)}
           </strong>{" "}
-          de mise en service, puis{" "}
+          par mois, après un audit initial de{" "}
           <strong className="text-[22px] font-semibold tabular-nums tracking-[-0.02em]">
-            {formaterEuros(offre.prix.mensuel)}
+            {formaterEuros(offre.prix.auditInitial)}
           </strong>{" "}
-          par mois.
+          facturé une fois au démarrage.
           <span className="mt-1.5 block text-[13px] text-faint">
             Montants hors taxes. Engagement 12 mois.
           </span>

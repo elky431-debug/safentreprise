@@ -18,7 +18,7 @@ import {
 export const metadata: Metadata = {
   title: "Tarifs — Safentreprise",
   description:
-    "Trois offres selon l’effectif : audit initial d’exposition à la fraude puis abonnement de protection continue. Devis sur demande.",
+    "Trois offres selon l’effectif : audit initial d’exposition à la fraude puis abonnement de protection continue. Montants affichés, hors taxes.",
   robots: { index: true, follow: true },
 };
 
@@ -38,7 +38,7 @@ export default function TarifsPage() {
               Retour à l&apos;accueil
             </Link>
             <Link href="/demo" className={buttonPrimary}>
-              Demander un devis
+              Demander une démo
             </Link>
           </div>
         </div>
@@ -130,13 +130,14 @@ export default function TarifsPage() {
               Parlons de votre organisation
             </h2>
             <p className="mx-auto mt-4 max-w-md text-[14px] leading-relaxed text-muted">
-              Trente minutes suffisent pour cerner votre exposition et vous
-              adresser une proposition chiffrée.
+              Les montants sont au-dessus. Trente minutes suffisent pour
+              cerner votre exposition et vérifier que l’offre correspond à votre
+              organisation.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link href="/demo" className={buttonPrimary}>
-                Demander un devis
+                Demander une démo
                 <IconArrowRight />
               </Link>
               <a
@@ -163,9 +164,9 @@ export default function TarifsPage() {
 /**
  * Carte d'une offre.
  *
- * Le bloc de prix est le seul endroit à connaître AFFICHER_LES_PRIX : quand
- * la grille sera publiée, la carte affichera les montants sans autre
- * modification de la page.
+ * Le bloc de prix est le seul endroit à connaître AFFICHER_LES_PRIX. Le
+ * drapeau vaut `true` depuis le 14 septembre 2026 : la carte affiche les
+ * montants. Le repli « Sur devis » reste écrit et fonctionnel.
  */
 function CarteOffre({ offre }: { offre: Offre }) {
   const enAvant = offre.miseEnAvant;
@@ -201,7 +202,7 @@ function CarteOffre({ offre }: { offre: Offre }) {
         href={`/demo?offre=${offre.cle}`}
         className={`${enAvant ? buttonPrimary : buttonSecondary} mt-7 w-full`}
       >
-        Demander un devis
+        Demander une démo
       </Link>
     </article>
   );
