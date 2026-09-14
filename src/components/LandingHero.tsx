@@ -116,16 +116,11 @@ export function LandingHero() {
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
           {/* ================= Colonne gauche ================= */}
           <div className="text-left">
-            <p className="rise inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent-text" />
-              Protection anti-fraude pour Microsoft 365
-            </p>
-
             {/* ⚠ PLUS DE COUPE FORCÉE. Le `<br>` d'avant était calé sur une
                 colonne pleine largeur ; dans une demi-colonne il produisait une
                 ligne courte suivie d'une ligne longue. `text-balance` répartit
                 mieux, et l'espace insécable garde « boîte mail. » ensemble. */}
-            <h1 className="rise rise-1 mt-5 text-[clamp(1.85rem,3.1vw,2.8rem)] font-semibold leading-[1.12] tracking-[-0.02em] text-balance text-foreground">
+            <h1 className="titre-hero rise text-[clamp(2rem,3.6vw,3.15rem)] leading-[1.08] text-balance text-foreground">
               La sécurité d’une entreprise se joue dans sa{" "}
               <span className="text-accent-text">boîte&nbsp;mail.</span>
             </h1>
@@ -146,13 +141,13 @@ export function LandingHero() {
                 réduire le corps, ce qui coûterait plus en lisibilité que la
                 ligne gagnée. Rallonger la phrase, en revanche, ajoute une ligne
                 partout — revérifier si elle change. */}
-            <p className="rise rise-2 mt-5 max-w-[54ch] text-[16.5px] leading-relaxed text-muted">
+            <p className="rise rise-1 mt-5 max-w-[54ch] text-[16.5px] leading-relaxed text-muted">
               Safentreprise sécurise la messagerie de votre entreprise, là où
               passent les tentatives de fraude, et avertit vos équipes avant
               qu’elles n’agissent.
             </p>
 
-            <div className="rise rise-3 mt-7">
+            <div className="rise rise-2 mt-7">
               <Link href="/demo" className={buttonPrimaryLg}>
                 Demander une démo
                 <IconArrowRight />
@@ -163,7 +158,7 @@ export function LandingHero() {
                 arguments alignés horizontalement se replieraient n'importe
                 comment ; empilés, ils se lisent et forment un bloc calme sous le
                 bouton. */}
-            <ul className="rise rise-3 mt-6 flex flex-col gap-1.5">
+            <ul className="rise rise-2 mt-6 flex flex-col gap-1.5">
               {REASSURANCES.map((texte) => (
                 <li
                   key={texte}

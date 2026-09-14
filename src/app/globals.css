@@ -171,6 +171,30 @@
   letter-spacing: -0.015em;
 }
 
+/* Titre du hero — la seule exception à la serif de labeur.
+
+   ⚠ SÉLECTEUR PLUS SPÉCIFIQUE QUE `.theme-clair h1`, ET IL DOIT LE RESTER. La
+     règle du dessus vise `h1` sous `.theme-clair` : à spécificité égale, c'est
+     l'ordre d'écriture qui trancherait, ce qui casse au premier déplacement de
+     bloc. `h1.titre-hero` ajoute une classe et gagne franchement.
+
+   ⚠ INSTRUMENT SERIF N'EXISTE QU'EN 400. Poser `font-semibold` dessus ferait
+     produire un gras SYNTHÉTIQUE par le navigateur — des contours épaissis
+     mécaniquement, qui écrasent le contraste très marqué de cette police. Le
+     poids du titre vient donc de sa TAILLE, pas de sa graisse, et c'est pour ça
+     que la classe fixe `font-weight: 400`.
+
+   ⚠ LE RESTE DE LA VITRINE NE CHANGE PAS. Source Serif reste sur tous les
+     autres h1 et h2 : un serif d'affiche sur des titres de section denses les
+     rendrait moins lisibles, pas plus. */
+h1.titre-hero,
+.theme-clair h1.titre-hero,
+.sur-marine h1.titre-hero {
+  font-family: var(--font-instrument), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
 /* ⚠ IL NE SERT PLUS QU'À REVENIR AU CLAIR DANS UNE BANDE MARINE. Depuis que
      `:root` porte la charte claire, poser cette classe sur une page ne change
      rien — elle reste sur la vitrine par cohérence de lecture. Son seul rôle
