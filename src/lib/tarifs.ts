@@ -2,24 +2,29 @@
  * Grille tarifaire — source unique des montants, pour /tarifs ET /diagnostic.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ⚠ LES MONTANTS SONT DÉSORMAIS PUBLICS, ET `AFFICHER_LES_PRIX` NE LES CACHE
- *   PLUS PARTOUT.
+ * ⚠ LES MONTANTS SONT PUBLICS DEPUIS LE 14 SEPTEMBRE 2026, SUR LES DEUX PAGES.
  *
- *   La page de résultat du diagnostic affiche le prix correspondant à
- *   l'effectif déclaré : c'est ce qui donne sa conclusion au parcours. Les
- *   chiffres partent donc dans le bundle, quel que soit l'état du drapeau —
- *   la promesse d'origine (« aucun montant n'est envoyé au navigateur ») n'est
- *   plus tenue, et il vaut mieux l'écrire que la laisser croire.
+ *   La promesse d'origine — « aucun montant n'est envoyé au navigateur tant
+ *   que le drapeau vaut false » — n'a plus cours : les chiffres partent dans
+ *   le bundle, /tarifs et /diagnostic les affichent tous les deux.
  *
- *   Le drapeau ne commande plus que /tarifs. Tant qu'il vaut `false`, cette
- *   page annonce « Sur devis » pendant que /diagnostic annonce 59 €/mois :
- *   un visiteur qui fait les deux verra la contradiction. LE PASSER À `true`
- *   EST UNE LIGNE, et c'est une décision commerciale, pas technique.
+ * ⚠ REPASSER LE DRAPEAU À `false` NE SUFFIRAIT PLUS À LES CACHER. /diagnostic
+ *   ne le consulte pas : il affiche le prix correspondant à l'effectif déclaré
+ *   parce que c'est ce qui donne sa conclusion au parcours. Vouloir revenir à
+ *   « Sur devis » demande donc de traiter les DEUX pages — sinon on recrée la
+ *   contradiction que ce passage à `true` vient de supprimer.
+ *
+ * ⚠ LE VOCABULAIRE DE /tarifs SUIT LES MONTANTS. Les boutons disaient
+ *   « Demander un devis » et le bas de page promettait « une proposition
+ *   chiffrée » : sous des prix affichés, les deux racontaient que le chiffre
+ *   était caché. Ils disent maintenant « Demander une démo », ce qui est aussi
+ *   la destination réelle du lien (/demo). Toute remise à `false` doit repasser
+ *   par là.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
 /** Interrupteur de la page /tarifs uniquement. `false` = « Sur devis ». */
-export const AFFICHER_LES_PRIX = false;
+export const AFFICHER_LES_PRIX = true;
 
 /** Montants d'une offre, en euros hors taxes. */
 export type PrixOffre = {

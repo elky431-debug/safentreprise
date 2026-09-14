@@ -467,12 +467,18 @@ export type OffreDiagnostic = {
   nom: string;
   effectif: string;
   /** `null` = au-delà de la grille : nous consulter. */
-  prix: { miseEnService: number; mensuel: number } | null;
+  prix: { auditInitial: number; abonnementMensuel: number } | null;
 };
 
 /**
  * ⚠ LES MONTANTS VIENNENT DE `tarifs.ts`, SOURCE UNIQUE. Les recopier ici
  *   garantissait qu'une des deux pages finisse par mentir sur le prix.
+ *
+ * ⚠ LE VOCABULAIRE AUSSI VIENT DE /tarifs. Le versement du démarrage s'y
+ *   appelle « audit initial » ; l'appeler « mise en service » ici laissait
+ *   croire à un prospect qui compare les deux pages qu'il s'agit de deux
+ *   lignes de facture différentes. D'où la reprise des noms de champs de
+ *   `PrixOffre` plutôt qu'une traduction intermédiaire.
  */
 export function offrePourEffectif(
   effectif: string | undefined,
@@ -498,12 +504,7 @@ export function offrePourEffectif(
   return {
     nom: offre.nom,
     effectif: offre.effectif,
-    prix: offre.prix
-      ? {
-          miseEnService: offre.prix.auditInitial,
-          mensuel: offre.prix.abonnementMensuel,
-        }
-      : null,
+    prix: offre.prix,
   };
 }
 

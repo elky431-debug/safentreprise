@@ -153,7 +153,7 @@ test("chaque effectif proposé mène à une offre", () => {
       assert.equal(offre.prix, null, "au-delà de 200 : nous consulter");
     } else {
       assert.ok(offre.prix, `offre sans montant pour ${option.valeur}`);
-      assert.ok(offre.prix.miseEnService > 0 && offre.prix.mensuel > 0);
+      assert.ok(offre.prix.auditInitial > 0 && offre.prix.abonnementMensuel > 0);
     }
   }
 });
