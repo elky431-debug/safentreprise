@@ -1,23 +1,28 @@
 import Link from "next/link";
+import { buttonPrimary } from "@/components/ui";
+import { IconArrowRight } from "@/components/icons";
 
 /**
  * Le bloc « Notre équipe », en petite carte, sous les deux colonnes du hero.
  *
- * Trois visages qui se chevauchent, une phrase, un lien. L'intention est de
+ * Trois visages qui se chevauchent, une phrase, un bouton. L'intention est de
  * mettre un visage humain en face d'un produit qui parle de fraude — quelqu'un
  * répond, ce n'est pas un automate.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * ⚠ IL DOIT RESTER PETIT. Il a d'abord été une carte pleine largeur de
  *   1200 × 438 px : elle prenait la place d'une section alors qu'elle n'en est
- *   pas une, et elle écrasait le hero qu'elle était censée fermer. Ramené à
- *   380 px de large, il se lit comme ce qu'il est — une signature en bas de
- *   hero, pas un argument de plus.
+ *   pas une, et elle écrasait le hero qu'elle était censée fermer. Ramenée à
+ *   400 px de large pour environ 160 de haut, elle se lit comme ce qu'elle est
+ *   — une signature en bas de hero, pas un argument de plus.
  *
- *   Les choix qui le tiennent petit se tiennent ENSEMBLE : pastilles à 44 px et
- *   pas 64 ; une seule phrase et pas un titre suivi d'une ligne de contexte ;
- *   un lien souligné et pas un bouton ; un rembourrage vertical de 28 px et pas
- *   de 56. Rajouter l'un rouvre la porte aux autres.
+ *   Les choix qui la tiennent petite se tiennent ENSEMBLE : pastilles à 36 px
+ *   et pas 64 ; une phrase sur UNE SEULE LIGNE et pas un titre suivi d'une
+ *   ligne de contexte ; un rembourrage vertical de 20 px et pas de 56.
+ *   Rajouter l'un rouvre la porte aux autres.
+ *
+ *   Seule exception, et elle est voulue : le BOUTON a grossi pendant que le
+ *   reste rétrécissait. C'est la seule action de la carte — elle doit se voir.
  *
  * ⚠ IL FERME LE HERO, IL NE LE DÉSÉQUILIBRE PLUS. Il a vécu dans la colonne de
  *   gauche, qui devenait bien plus longue que la droite : la page penchait.
@@ -41,8 +46,9 @@ import Link from "next/link";
  *   se décrivent en mots, ils ne s'écrivent pas.
  *
  * ⚠ CE BLOC NE PORTE PAS DE « DEMANDER UNE DÉMO ». Le hero en affiche déjà un,
- *   et la barre du haut un troisième. Le lien vers le diagnostic reste : c'est
- *   une AUTRE proposition, pas la même répétée.
+ *   et la barre du haut un troisième. Le diagnostic, lui, est une AUTRE
+ *   proposition : il a donc droit à un vrai bouton, dans la variante compacte
+ *   pour ne pas rivaliser en taille avec l'action principale du hero.
  *
  * ⚠ LES PHOTOS SONT DÉCORATIVES. `aria-hidden` sur le groupe : un lecteur
  *   d'écran annoncerait sinon trois images sans information, juste avant le
@@ -75,7 +81,7 @@ const ANNEAU = { borderColor: "var(--surface-2)" };
 export function EquipeHero({ className = "" }: { className?: string }) {
   return (
     <div className={`flex justify-center ${className}`}>
-      <section className="flex w-full max-w-[380px] flex-col items-center rounded-2xl border border-border bg-surface-2 px-6 py-7 text-center shadow-[0_10px_28px_-22px_rgba(16,20,26,0.3)]">
+      <section className="flex w-full max-w-[400px] flex-col items-center rounded-2xl border border-border bg-surface-2 px-5 py-5 text-center shadow-[0_10px_28px_-22px_rgba(16,20,26,0.3)]">
         {/* ⚠ LE CHEVAUCHEMENT PASSE PAR UNE MARGE NÉGATIVE, PAS PAR `position`.
             Le groupe reste ainsi un flux normal : il se centre tout seul et sa
             largeur suit le nombre de membres, sans calcul. */}
@@ -83,12 +89,12 @@ export function EquipeHero({ className = "" }: { className?: string }) {
           {EQUIPE.map((membre, i) => (
             <span
               key={membre.cle}
-              className={`inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-2 ${
-                i > 0 ? "-ml-3" : ""
+              className={`inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 ${
+                i > 0 ? "-ml-2.5" : ""
               }`}
               style={{ background: membre.fond, ...ANNEAU }}
             >
-              {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 44 px et
+              {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 36 px et
                   les fichiers 180 px — il n'y a rien à redimensionner à la
                   volée. Une seule des trois déclinaisons part sur le réseau. */}
               <picture>
@@ -97,8 +103,8 @@ export function EquipeHero({ className = "" }: { className?: string }) {
                 <img
                   src={`${membre.fichier}.jpg`}
                   alt=""
-                  width={44}
-                  height={44}
+                  width={36}
+                  height={36}
                   loading="lazy"
                   decoding="async"
                   /* ⚠ LE `scale-[1.04]` N'EST PAS DÉCORATIF. Le cercle est
@@ -115,23 +121,28 @@ export function EquipeHero({ className = "" }: { className?: string }) {
 
           <span
             style={ANNEAU}
-            className="-ml-3 inline-flex h-11 w-11 items-center justify-center rounded-full border-2 bg-foreground text-[16px] leading-none text-background"
+            className="-ml-2.5 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-foreground text-[14px] leading-none text-background"
           >
             +
           </span>
         </div>
 
-        {/* La serif de la charte, réservée aux titres. Une seule phrase : c'est
-            ce qui garde la carte basse. */}
-        <p className="titre-page mt-4 text-[17px] leading-snug text-balance text-foreground">
+        {/* ⚠ UNE SEULE LIGNE, ET C'EST POUR ÇA QUE LE CORPS EST À 14,5 px DANS
+            UNE CARTE DE 400. Les 42 caractères tiennent alors dans les 360 px
+            utiles ; à 17 px ils passaient sur deux lignes et la carte gagnait
+            20 px de haut pour rien. Allonger la phrase la fait replier. */}
+        <p className="titre-page mt-3 text-[14.5px] leading-snug text-foreground">
           Notre équipe répond à toutes vos questions.
         </p>
 
-        <Link
-          href="/diagnostic"
-          className="mt-3 text-[13px] text-muted underline underline-offset-4 transition-colors hover:text-foreground"
-        >
+        {/* ⚠ UN BOUTON PLEIN, PAS UN LIEN SOULIGNÉ. C'est la seule action de la
+            carte et elle doit se voir ; le lien discret passait inaperçu. La
+            variante COMPACTE du bouton principal, pas la grande : le hero porte
+            déjà « Demander une démo » en grand, et deux boutons de même taille
+            se disputeraient le regard. */}
+        <Link href="/diagnostic" className={`${buttonPrimary} mt-4`}>
           Réaliser votre diagnostic gratuit
+          <IconArrowRight />
         </Link>
       </section>
     </div>
