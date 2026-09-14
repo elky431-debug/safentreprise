@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonPrimaryLg } from "@/components/ui";
 import { IconArrowRight, IconCheck } from "@/components/icons";
+import { EquipeHero } from "@/components/EquipeHero";
 
 /**
  * Les trois réassurances sous les boutons. Chacune doit être vraie.
@@ -78,6 +79,13 @@ export function LandingHero() {
             </li>
           ))}
         </ul>
+
+        {/* ⚠ L'EMPLACEMENT DEMANDÉ : sous les réassurances, dans le hero.
+            Le bouton principal reste AU-DESSUS, là où il tombe au-dessus de
+            la ligne de flottaison sur téléphone. C'est le bloc qui a renoncé
+            à son propre bouton pour ne pas répéter l'action — voir
+            `EquipeHero`. */}
+        <EquipeHero className="rise rise-3 mt-14" />
       </div>
     </section>
   );

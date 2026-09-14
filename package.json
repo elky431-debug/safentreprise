@@ -25,7 +25,8 @@
     "risque:test": "node --experimental-strip-types --test src/lib/risk-surveillance.test.ts",
     "rapport:test": "node --experimental-strip-types --test src/lib/microsoft/rapport-mensuel.test.ts",
     "correspondants:test": "node --experimental-strip-types --test src/lib/correspondants.test.ts",
-    "alerte:test": "node --experimental-strip-types --test src/lib/microsoft/alerte-dirigeant.test.ts"
+    "alerte:test": "node --experimental-strip-types --test src/lib/microsoft/alerte-dirigeant.test.ts",
+    "diagnostic:test": "node --experimental-strip-types --test src/lib/diagnostic.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

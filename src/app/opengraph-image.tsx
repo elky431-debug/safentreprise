@@ -3,7 +3,17 @@ import { join } from "path";
 import { ImageResponse } from "next/og";
 
 /**
- * Image sociale (Open Graph / Twitter) — utilise le logo PNG officiel.
+ * Image sociale (Open Graph / Twitter).
+ *
+ * ⚠ ON UTILISE LE LOGO HORIZONTAL, PAS LE BOUCLIER SEUL. Cette image est vue
+ *   hors de tout contexte — dans un fil LinkedIn, une prévisualisation de
+ *   message — où rien d'autre ne dit qui parle. Le nom doit donc y être, et
+ *   il l'est déjà dans le dessin.
+ *
+ * ⚠ LE FICHIER EST LU DEPUIS LE DISQUE ET INLINÉ EN base64. `next/og` rend
+ *   l'image côté serveur, sans réseau : une URL distante ne serait pas
+ *   chargée. C'est aussi pourquoi on prend le PNG et non l'AVIF — le moteur
+ *   de rendu ne le décode pas.
  */
 export const alt =
   "Safentreprise — tester, former et protéger ses équipes face à la fraude";
@@ -12,9 +22,9 @@ export const contentType = "image/png";
 
 export default async function OpengraphImage() {
   const bytes = await readFile(
-    join(process.cwd(), "public", "logo-safentreprise.png"),
+    join(process.cwd(), "public", "marque", "logo-480.png"),
   );
-  const embleme = `data:image/png;base64,${bytes.toString("base64")}`;
+  const logo = `data:image/png;base64,${bytes.toString("base64")}`;
 
   return new ImageResponse(
     (
@@ -30,8 +40,7 @@ export default async function OpengraphImage() {
           color: "#101828",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={embleme} width={120} height={120} alt="" />
+        <img src={logo} width={420} height={107} alt="" />
 
         <div
           style={{
