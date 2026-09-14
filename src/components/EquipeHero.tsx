@@ -13,13 +13,13 @@ import { IconArrowRight } from "@/components/icons";
  * ⚠ IL DOIT RESTER PETIT. Il a d'abord été une carte pleine largeur de
  *   1200 × 438 px : elle prenait la place d'une section alors qu'elle n'en est
  *   pas une, et elle écrasait le hero qu'elle était censée fermer. Ramenée à
- *   400 px de large pour environ 160 de haut, elle se lit comme ce qu'elle est
- *   — une signature en bas de hero, pas un argument de plus.
+ *   340 × 146 px, elle se lit comme ce qu'elle est — une signature en bas de
+ *   hero, pas un argument de plus.
  *
- *   Les choix qui la tiennent petite se tiennent ENSEMBLE : pastilles à 36 px
+ *   Les choix qui la tiennent petite se tiennent ENSEMBLE : pastilles à 32 px
  *   et pas 64 ; une phrase sur UNE SEULE LIGNE et pas un titre suivi d'une
- *   ligne de contexte ; un rembourrage vertical de 20 px et pas de 56.
- *   Rajouter l'un rouvre la porte aux autres.
+ *   ligne de contexte ; un rembourrage de 16 px et pas de 56. Rajouter l'un
+ *   rouvre la porte aux autres.
  *
  *   Seule exception, et elle est voulue : le BOUTON a grossi pendant que le
  *   reste rétrécissait. C'est la seule action de la carte — elle doit se voir.
@@ -81,7 +81,7 @@ const ANNEAU = { borderColor: "var(--surface-2)" };
 export function EquipeHero({ className = "" }: { className?: string }) {
   return (
     <div className={`flex justify-center ${className}`}>
-      <section className="flex w-full max-w-[400px] flex-col items-center rounded-2xl border border-border bg-surface-2 px-5 py-5 text-center shadow-[0_10px_28px_-22px_rgba(16,20,26,0.3)]">
+      <section className="flex w-full max-w-[340px] flex-col items-center rounded-2xl border border-border bg-surface-2 px-4 py-4 text-center shadow-[0_10px_28px_-22px_rgba(16,20,26,0.3)]">
         {/* ⚠ LE CHEVAUCHEMENT PASSE PAR UNE MARGE NÉGATIVE, PAS PAR `position`.
             Le groupe reste ainsi un flux normal : il se centre tout seul et sa
             largeur suit le nombre de membres, sans calcul. */}
@@ -89,12 +89,12 @@ export function EquipeHero({ className = "" }: { className?: string }) {
           {EQUIPE.map((membre, i) => (
             <span
               key={membre.cle}
-              className={`inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 ${
-                i > 0 ? "-ml-2.5" : ""
+              className={`inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2 ${
+                i > 0 ? "-ml-2" : ""
               }`}
               style={{ background: membre.fond, ...ANNEAU }}
             >
-              {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 36 px et
+              {/* ⚠ `<picture>` ET PAS `next/image` : les pastilles font 32 px et
                   les fichiers 180 px — il n'y a rien à redimensionner à la
                   volée. Une seule des trois déclinaisons part sur le réseau. */}
               <picture>
@@ -103,8 +103,8 @@ export function EquipeHero({ className = "" }: { className?: string }) {
                 <img
                   src={`${membre.fichier}.jpg`}
                   alt=""
-                  width={36}
-                  height={36}
+                  width={32}
+                  height={32}
                   loading="lazy"
                   decoding="async"
                   /* ⚠ LE `scale-[1.04]` N'EST PAS DÉCORATIF. Le cercle est
@@ -121,17 +121,18 @@ export function EquipeHero({ className = "" }: { className?: string }) {
 
           <span
             style={ANNEAU}
-            className="-ml-2.5 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-foreground text-[14px] leading-none text-background"
+            className="-ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border-2 bg-foreground text-[13px] leading-none text-background"
           >
             +
           </span>
         </div>
 
-        {/* ⚠ UNE SEULE LIGNE, ET C'EST POUR ÇA QUE LE CORPS EST À 14,5 px DANS
-            UNE CARTE DE 400. Les 42 caractères tiennent alors dans les 360 px
-            utiles ; à 17 px ils passaient sur deux lignes et la carte gagnait
-            20 px de haut pour rien. Allonger la phrase la fait replier. */}
-        <p className="titre-page mt-3 text-[14.5px] leading-snug text-foreground">
+        {/* ⚠ UNE SEULE LIGNE, ET C'EST ELLE QUI COMMANDE LA LARGEUR DE LA CARTE.
+            Les 42 caractères font environ 295 px à 13,5 px de corps : il faut
+            donc 308 px utiles, soit une carte de 340 avec un rembourrage
+            latéral de 16. Grossir le corps ou allonger la phrase la fait
+            replier, et la carte gagne 18 px de haut. */}
+        <p className="titre-page mt-2.5 text-[13.5px] leading-snug text-foreground">
           Notre équipe répond à toutes vos questions.
         </p>
 
@@ -140,7 +141,7 @@ export function EquipeHero({ className = "" }: { className?: string }) {
             variante COMPACTE du bouton principal, pas la grande : le hero porte
             déjà « Demander une démo » en grand, et deux boutons de même taille
             se disputeraient le regard. */}
-        <Link href="/diagnostic" className={`${buttonPrimary} mt-4`}>
+        <Link href="/diagnostic" className={`${buttonPrimary} mt-3.5`}>
           Réaliser votre diagnostic gratuit
           <IconArrowRight />
         </Link>
