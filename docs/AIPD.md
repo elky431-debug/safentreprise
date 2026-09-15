@@ -5,8 +5,8 @@ raccordées, et annotation de ceux qui présentent les caractéristiques d'une f
 
 | | |
 |---|---|
-| Version | 1.4 |
-| Date | 14 septembre 2026 |
+| Version | 1.5 |
+| Date | 15 septembre 2026 |
 | Auteur | El Fahim Yacine — Safentreprise |
 | État du code analysé | branche `claude/graph-webhook`, commit `28ab07b`, **sauf** le point 1.4 « `diagnostics_exposition` », ajouté les 13 et 14 septembre 2026 et analysé sur `claude/lance-le-local-7dt5ri` |
 | Format | Structure du logiciel PIA de la CNIL (contexte / principes / risques / validation) |
@@ -280,7 +280,7 @@ appelée avec la clé de service depuis `/api/diagnostic`. C'est plus strict que
 | **Supabase** (AWS) | La totalité des données enregistrées | **France**, région AWS eu-west-3 (Paris) |
 | **Netlify** | Tout ce qui transite pendant une requête, **corps des messages compris**, en mémoire seulement | **Allemagne**, région AWS eu-central-1 (Francfort) |
 | **Microsoft** | Source des données. Le service y écrit les modifications | Locataire du client |
-| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** ; **alertes de fraude au dirigeant**, **rapports mensuels** et **analyses de diagnostic** (voir ci-dessous) | États-Unis |
+| **Resend** | Messages de simulation ; alertes techniques internes **réduites à des compteurs et à la nature du problème** ; **alertes de fraude au dirigeant**, **avis d'interruption de surveillance**, **rapports mensuels** et **analyses de diagnostic** (voir ci-dessous) | États-Unis |
 | **SMS Partner** | Numéros de téléphone, si le canal SMS est utilisé | France |
 | **Stripe** | Données de facturation, le cas échéant | États-Unis / UE |
 
@@ -452,6 +452,43 @@ types, analyse d'impact, certification éventuelle. Ce point était déjà ouver
 (`DPA-A-VALIDER.md`, section 7 : « Non vérifié »). Il ne change pas de nature,
 mais il porte maintenant sur une catégorie de plus, et sur des personnes qui ne
 sont liées à Safentreprise par aucun contrat.
+
+### 1.5 quinquies L'avis d'interruption de surveillance
+
+**Ajouté le 15 septembre 2026.** Un quatrième message peut désormais partir vers
+le dirigeant client : l'avis que sa surveillance est **arrêtée**, envoyé une
+seule fois, au moment où la vérification périodique constate que
+l'autorisation Microsoft a été retirée.
+
+**Pourquoi il existe.** Jusqu'ici, rien ne détectait le retrait d'une
+autorisation : l'interface annonçait « n boîtes surveillées » pendant près de
+sept jours, jusqu'à l'expiration naturelle des abonnements, alors que plus aucun
+message n'était analysé. Une vérification toutes les trente minutes
+(`/api/microsoft/sante`) constate désormais l'état réel, et le dirigeant en est
+informé — parce que lui seul, par son administrateur, peut y remédier.
+
+**Ce qui transite, et c'est peu.** Le corps du message ne contient **aucune
+donnée personnelle** : un constat d'arrêt, une date, et la marche à suivre. La
+seule donnée nominative est **l'adresse du destinataire** — `email_responsable`
+de la société — qui sortait déjà vers Resend au titre de l'alerte de fraude
+décrite en 1.5 bis. Le message ne cite ni collaborateur, ni expéditeur, ni
+boîte, ni objet, ni motif de détection.
+
+**Aucune catégorie de données nouvelle** n'est donc créée par ce flux, et la
+base juridique est la même qu'en 1.5 bis : l'exécution du contrat qui lie
+Safentreprise à son client, dont la promesse centrale est précisément que la
+surveillance fonctionne.
+
+**Volume.** Un message par bascule, jamais un par vérification : la fonction
+`constater_sante_tenant` ne rend `bascule` que lorsque le statut change
+réellement. Et rien n'est envoyé sur l'état « erreur », qui est passager par
+construction — seule la révocation, confirmée par trois refus consécutifs,
+déclenche l'avis.
+
+**Ce que ce point change dans le tableau du 1.5 :** la ligne Resend doit se lire
+« … alertes de fraude au dirigeant, **avis d'interruption de surveillance**,
+rapports mensuels et analyses de diagnostic ». La liste a été complétée
+ci-dessus.
 
 ## 1.6 Supports
 
@@ -1056,6 +1093,7 @@ qui ont circulé.
 | Version | Date | Objet |
 |---|---|---|
 | 1.0 | 2026-09-03 | Rédaction initiale, sur le code au commit `70964e1` |
+| 1.5 | 2026-09-15 | § 1.5 quinquies : l'avis d'interruption de surveillance au dirigeant, et la vérification périodique de santé qui le déclenche |
 
 **À réviser** : à chaque changement de finalité, de catégorie de données, de
 durée de conservation, de sous-traitant ou de région d'hébergement — et au

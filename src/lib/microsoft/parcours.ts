@@ -31,6 +31,9 @@ const VIDE: Raccordement = {
   temoin_upn: null,
   temoin_origine: null,
   derniere_erreur: null,
+  sante_bascule_at: null,
+  sante_verifiee_at: null,
+  echecs_sante: 0,
   boites: [],
 };
 
@@ -45,6 +48,9 @@ type LigneTenant = {
   temoin_upn: string | null;
   temoin_origine: string | null;
   derniere_erreur: string | null;
+  sante_bascule_at: string | null;
+  sante_verifiee_at: string | null;
+  echecs_sante: number | null;
 };
 
 /**
@@ -64,7 +70,11 @@ export const lireRaccordement = cache(async function lireRaccordement(): Promise
     .from("microsoft_tenants")
     .select(
       "id, tenant_id, statut, consenti_par, consenti_at, restriction_verifiee_at, " +
-        "restriction_preuve, temoin_upn, temoin_origine, derniere_erreur",
+        "restriction_preuve, temoin_upn, temoin_origine, derniere_erreur, " +
+        // Écrites par la vérification de santé (`/api/microsoft/sante`). Sans
+        // elles, l'écran ne peut pas dire DEPUIS QUAND la surveillance est
+        // arrêtée — et « arrêtée » sans date se lit comme « peut-être ».
+        "sante_bascule_at, sante_verifiee_at, echecs_sante",
     )
     .order("created_at", { ascending: false })
     .limit(1)
@@ -120,6 +130,9 @@ export const lireRaccordement = cache(async function lireRaccordement(): Promise
     temoin_upn: tenant.temoin_upn,
     temoin_origine: tenant.temoin_origine,
     derniere_erreur: tenant.derniere_erreur,
+    sante_bascule_at: tenant.sante_bascule_at,
+    sante_verifiee_at: tenant.sante_verifiee_at,
+    echecs_sante: tenant.echecs_sante ?? 0,
     boites,
   };
 });

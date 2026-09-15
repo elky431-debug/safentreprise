@@ -35,16 +35,32 @@ const cache = new Map<string, { jeton: string; expireA: number }>();
 /** Marge avant expiration : on ne veut pas être refusé en plein traitement. */
 const MARGE_MS = 60_000;
 
+/**
+ * ⚠ LES CHAMPS SONT DÉCLARÉS ET AFFECTÉS À LA MAIN, PAS EN PROPRIÉTÉS DE
+ *   PARAMÈTRE. La forme courte `constructor(readonly statut: number)` est du
+ *   TypeScript qui produit du code : le mode `--experimental-strip-types` de
+ *   Node, qui se contente d'effacer les annotations, la refuse avec
+ *   ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX. Toutes les suites du projet tournent
+ *   sous ce mode — la classe devenait donc intestable, et avec elle tout
+ *   module qui classe des erreurs Graph. L'interface publique est identique.
+ */
 export class ErreurGraph extends Error {
+  readonly statut: number;
+  readonly code: string | null;
+  /** Une reprise plus tard a-t-elle une chance d'aboutir ? */
+  readonly reessayable: boolean;
+
   constructor(
     message: string,
-    readonly statut: number,
-    readonly code: string | null,
-    /** Une reprise plus tard a-t-elle une chance d'aboutir ? */
-    readonly reessayable: boolean,
+    statut: number,
+    code: string | null,
+    reessayable: boolean,
   ) {
     super(message);
     this.name = "ErreurGraph";
+    this.statut = statut;
+    this.code = code;
+    this.reessayable = reessayable;
   }
 }
 

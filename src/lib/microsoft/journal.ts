@@ -25,6 +25,11 @@ export type ActeurJournal =
   | "raccordement"
   | "restauration"
   | "exploitation"
+  /* La vérification périodique de santé des raccordements. Acteur à elle, et
+     pas « maintenance » : un journal d'accès qui confond deux travaux ne
+     répond plus à « qui a lu cette boîte, et pourquoi ». La contrainte de la
+     table est étendue par `20261006_sante_tenant.sql`. */
+  | "sante"
   | "inconnu";
 
 export type ContexteJournal = { acteur: ActeurJournal; tache?: string };

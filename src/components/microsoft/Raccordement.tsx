@@ -17,7 +17,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonPrimary, buttonSecondary } from "@/components/ui";
 import { IconArrowRight, IconRefresh } from "@/components/icons";
-import type { EtapeRaccordement, Raccordement as Etat } from "@/lib/microsoft/etat";
+import {
+  surveillanceInterrompue,
+  type EtapeRaccordement,
+  type Raccordement as Etat,
+} from "@/lib/microsoft/etat";
 import { ChoixBoites } from "./ChoixBoites";
 import { EcranRestriction } from "./EcranRestriction";
 import { EtatSurveillance } from "./EtatSurveillance";
@@ -61,7 +65,13 @@ export function Raccordement({ etat }: { etat: Etat }) {
         <EtapeDemarrer tenantUid={etat.tenant_uid} onDemarre={rafraichir} />
       )}
 
-      {etape === "actif" && (
+      {/* ⚠ LE CADRE VERT NE S'AFFICHE PLUS QUAND LA SANTÉ EST MAUVAISE, ET
+          C'ÉTAIT LE PIRE DÉFAUT DE CET ÉCRAN. `deduireEtape` ne connaît que
+          « revoque » ; sur un locataire en « erreur », elle rendait « actif »
+          et cette phrase annonçait « la surveillance est en place » alors
+          qu'on ne savait plus si un seul message était analysé.
+          `surveillanceInterrompue` domine donc l'étape, ici et partout. */}
+      {etape === "actif" && !surveillanceInterrompue(etat) && (
         <Encadre ton="succes" titre="La surveillance est en place">
           Les messages qui arrivent dans les boîtes ci-dessous sont analysés. Les
           tentatives repérées apparaissent dans l&apos;onglet Menaces, et le

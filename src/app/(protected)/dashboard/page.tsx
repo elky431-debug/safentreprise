@@ -4,7 +4,7 @@ import { Releve, type CampagneListe } from "@/components/dashboard/Releve";
 import { BandeauRaccordement } from "@/components/microsoft/BandeauRaccordement";
 import { chargerScoreDynamique } from "@/lib/risk-dynamique";
 import { appliquerSurveillanceAuScore } from "@/lib/risk-surveillance";
-import { estSurveillee } from "@/lib/microsoft/etat";
+import { nombreBoitesSurveillees } from "@/lib/microsoft/etat";
 import { lireRaccordement } from "@/lib/microsoft/parcours";
 import { chargerAlertesGraph } from "@/lib/alertes";
 import type { Company } from "@/lib/types";
@@ -78,10 +78,15 @@ export default async function DashboardPage() {
   //   via Microsoft 365, dont les boîtes sont pourtant analysées à chaque
   //   message. La protection réelle ne comptait pour rien dans le calcul.
   //
-  // ⚠ `estSurveillee` PLUTÔT QUE `choisie`. Une boîte cochée dont la
-  //   surveillance n'a jamais démarré n'analyse rien ; l'inclure allégerait le
-  //   score d'un client non protégé.
-  const boitesSurveillees = raccordement.boites.filter(estSurveillee).length;
+  // ⚠ `nombreBoitesSurveillees` PLUTÔT QU'UN FILTRE ÉCRIT ICI. Il applique
+  //   deux règles à la fois, et les deux comptent : une boîte cochée dont la
+  //   surveillance n'a jamais démarré n'analyse rien, ET un locataire dont
+  //   l'autorisation Microsoft est retirée n'analyse plus rien du tout. Sans
+  //   la seconde, le taux d'exposition continuait d'afficher « −32 points
+  //   grâce à la surveillance de vos boîtes » à un client qui n'était plus
+  //   surveillé — le même mensonge d'interface que la vérification de santé
+  //   corrige par ailleurs.
+  const boitesSurveillees = nombreBoitesSurveillees(raccordement);
 
   // Le graphique n'a besoin que de la date et du niveau : on n'envoie pas le
   // reste au client.

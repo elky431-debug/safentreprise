@@ -56,8 +56,52 @@ export type Raccordement = {
   temoin_upn: string | null;
   temoin_origine: string | null;
   derniere_erreur: string | null;
+  /** Depuis quand le statut courant dure — écrit par la vérification de santé. */
+  sante_bascule_at: string | null;
+  /** Dernière vérification de santé, succès ou échec. */
+  sante_verifiee_at: string | null;
+  /** Refus d'autorisation consécutifs. Trois font basculer en « revoque ». */
+  echecs_sante: number;
   boites: BoiteEtat[];
 };
+
+/**
+ * La surveillance est-elle ARRÊTÉE, quel que soit l'état du parcours ?
+ *
+ * ⚠ CE PRÉDICAT DOMINE TOUT LE RESTE DE L'AFFICHAGE. Un locataire peut avoir
+ *   ses quatre étapes franchies, ses boîtes vérifiées et ses abonnements
+ *   vivants, et n'analyser plus rien : il suffit que l'autorisation Microsoft
+ *   ait été retirée. Tant que ce prédicat est vrai, aucun écran n'a le droit
+ *   d'annoncer « n boîtes surveillées ».
+ *
+ * ⚠ IL EXISTE PARCE QUE `deduireEtape` NE SUFFIT PAS. Elle ne connaît que
+ *   « revoque », et rend alors « non-raccorde » — ce qui fait dire à
+ *   l'interface « reprendre le raccordement » là où il faut dire « votre
+ *   surveillance est arrêtée ». Et sur « erreur » elle ne voit rien du tout :
+ *   l'écran affichait le cadre vert « la surveillance est en place » sur un
+ *   client dont on ne savait plus si elle fonctionnait.
+ */
+export function surveillanceInterrompue(
+  r: Pick<Raccordement, "statut">,
+): boolean {
+  return r.statut === "revoque" || r.statut === "erreur";
+}
+
+/**
+ * Le nombre de boîtes RÉELLEMENT surveillées, santé du locataire comprise.
+ *
+ * ⚠ ZÉRO QUAND LE RACCORDEMENT EST COUPÉ, ET CE N'EST PAS UN DÉTAIL
+ *   D'AFFICHAGE. Ce compte alimente la couverture qui allège l'axe technique
+ *   du taux d'exposition. Sans cette remise à zéro, un client dont
+ *   l'autorisation vient d'être retirée garderait les points gagnés grâce à
+ *   une surveillance qui ne tourne plus — le score dirait « −32 points grâce à
+ *   la surveillance de vos boîtes » à quelqu'un qui n'est plus surveillé.
+ *   C'est le même mensonge que celui que cette vérification corrige.
+ */
+export function nombreBoitesSurveillees(r: Raccordement): number {
+  if (surveillanceInterrompue(r)) return 0;
+  return r.boites.filter(estSurveillee).length;
+}
 
 /**
  * Une boîte est-elle RÉELLEMENT surveillée ?
@@ -133,11 +177,28 @@ export const ETAPES_VISIBLES: {
  *   pire état possible pour un produit de sécurité.
  */
 export function resumeRaccordement(r: Raccordement): string {
+  // ⚠ LES DEUX PANNES NE DISENT PAS LA MÊME CHOSE, ET LE CLIENT NE DOIT PAS
+  //   AGIR PAREIL. « revoque » est un fait constaté trois fois : l'accord est
+  //   parti, lui seul peut le redonner. « erreur » est un doute : nous
+  //   revérifions toutes les demi-heures, il n'a rien à faire. Les écrire du
+  //   même ton enverrait un client refaire un parcours pour une panne de cinq
+  //   minutes, ou en laisserait un autre attendre un rétablissement qui ne
+  //   viendra jamais.
   if (r.statut === "revoque") {
-    return "L'autorisation Microsoft a été retirée : plus aucun message n'est analysé.";
+    return (
+      "L'autorisation Microsoft a été retirée" +
+      depuisQuand(r.sante_bascule_at) +
+      " : plus aucun message n'est analysé. Seul un administrateur de votre " +
+      "organisation peut la redonner."
+    );
   }
   if (r.statut === "erreur") {
-    return "Le raccordement Microsoft 365 est en erreur : les messages ne sont plus analysés de façon fiable.";
+    return (
+      "Nous ne parvenons plus à joindre votre messagerie Microsoft 365" +
+      depuisQuand(r.sante_bascule_at) +
+      " : la surveillance n'est plus fiable. Nous revérifions automatiquement " +
+      "toutes les trente minutes."
+    );
   }
 
   switch (r.etape) {
@@ -150,8 +211,28 @@ export function resumeRaccordement(r: Raccordement): string {
     case "activation":
       return "La restriction est vérifiée. Il reste à démarrer la surveillance — aucun message n'est analysé pour l'instant.";
     case "actif": {
-      const n = r.boites.filter(estSurveillee).length;
+      const n = nombreBoitesSurveillees(r);
       return n === 1 ? "1 boîte surveillée." : `${n} boîtes surveillées.`;
     }
   }
+}
+
+/**
+ * « depuis le 14 septembre 2026 à 09:12 », ou rien si la date manque.
+ *
+ * ⚠ ELLE PEUT MANQUER, ET LA PHRASE DOIT TENIR SANS ELLE. Un locataire passé
+ *   en panne avant la migration `20261006` n'a pas de date de bascule. Écrire
+ *   « depuis null » serait pire que de ne rien dire.
+ */
+function depuisQuand(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return ` depuis le ${new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d)}`;
 }
