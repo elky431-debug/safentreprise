@@ -129,8 +129,12 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
                       {menace.expediteur_nom}
                     </span>
                   )}
+                  {/* ⚠ LA SEULE MONOSPACE DE L'APPLICATION. Voir `.adresse` dans
+                      `globals.css` et l'exception écrite dans le document : la
+                      chasse fixe est ce qui rend `dumnd` distinguable de
+                      `durand` sur une ligne de tableau. */}
                   <span
-                    className="block truncate text-[13px] text-muted"
+                    className="adresse block truncate text-muted"
                     title={menace.expediteur_email ?? undefined}
                   >
                     {menace.expediteur_email || "adresse absente"}

@@ -32,8 +32,32 @@ marques génériques et à concentrer l'affirmation sur un seul endroit.
 tabulaires. Grotesque large, à forte hauteur d'x, qui supporte les graisses
 lourdes sans devenir bavarde.
 
-Aucune serif nulle part. Aucune monospace, y compris pour les données et les
-identifiants.
+Aucune serif nulle part. Aucune monospace — **sauf une exception, arrêtée le
+15 septembre 2026 : la colonne « Expéditeur ».**
+
+### L'exception monospace, et sa mesure
+
+L'adresse de l'expéditeur est le seul texte de l'application que le lecteur
+doit épeler. Tout le produit consiste à lui faire repérer qu'un domaine
+ressemble à un autre sans l'être — `cabinet-durand.fr.co` contre
+`cabinet-durand.fr`.
+
+Une mesure, et une seule, fonde l'exception. En Archivo 13 px, `rn` fait
+11,64 px et `m` 11,18 px : 0,46 px d'écart, autant dire la même largeur, donc
+`cabinet-durand.fr` et `cabinet-dumnd.fr` occupent la même place sur la ligne.
+En JetBrains Mono, la chasse fixe sépare le même couple de 7,80 px.
+
+Portée de l'exception, à ne pas élargir :
+
+- **l'adresse** de l'expéditeur, partout où elle s'affiche — tableau de bord,
+  page Menaces, dépliant de détail ;
+- **pas** le nom affiché qui l'accompagne, qui est du texte ordinaire ;
+- **pas** les objets, les motifs, les dates, ni aucun autre champ.
+
+L'argument ne s'étend pas aux autres homoglyphes. Pour `l` / `I` ou `0` / `O`,
+la largeur ne prouve rien : c'est la forme du glyphe qui compte, et elle n'a pas
+été mesurée. L'exception tient sur le seul couple mesuré, et sur le fait que
+cette colonne porte la fraude.
 
 ### Échelle
 
@@ -55,15 +79,15 @@ Longueur de ligne : 70 caractères maximum sur le texte courant.
 
 Phrase capitalisée partout — titres, boutons, en-têtes de tableau, étiquettes.
 **Aucune capitale intégrale, nulle part, sans exception.** Les en-têtes de
-tableau se distinguent par la graisse et la couleur, pas par la casse.
+tableau se distinguent par la graisse et la valeur d'encre, pas par la casse.
 
 ---
 
 ## Couleur
 
-Le parti est strict : l'interface est en encre sur papier, et **la couleur est
-réservée au risque**. Un aplat coloré dans cette interface signifie toujours
-quelque chose. Nulle part ailleurs.
+Le parti est strict : l'interface est en encre sur papier, et **la couleur ne
+subsiste que sur une panne réelle du produit, jamais sur une donnée**. Un aplat
+coloré veut dire qu'il y a quelque chose à réparer. Nulle part ailleurs.
 
 ```css
 --encre:        #0D1F3C;  /* marine profond — texte, surfaces sombres, boutons */
@@ -72,9 +96,15 @@ quelque chose. Nulle part ailleurs.
 --papier:       #F4F6F9;  /* fond de page */
 --surface:      #FFFFFF;  /* cartes, tableaux, panneaux */
 
---eleve:        #C8102E;  /* risque élevé */
---modere:       #B5670A;  /* risque modéré */
---faible:       #1C7A58;  /* risque faible, états sains */
+/* Le niveau de risque : trois valeurs d'une seule teinte, aucune couleur. */
+--eleve:        #0D1F3C;  /* risque élevé  — fond de pastille, texte blanc */
+--modere:       #5A6B84;  /* risque modéré — fond de pastille, texte blanc */
+--faible:       #E7ECF3;  /* risque faible — fond de pastille, texte encre douce */
+
+/* La panne, et elle seule. Ces trois-là ne sont PAS des alias des précédents. */
+--danger:       #C8102E;  /* surveillance interrompue */
+--warning:      #B5670A;  /* une porte sur deux fermée */
+--success:      #5A6B84;  /* état sain — encre douce, aucun vert */
 ```
 
 Le marine change : `#0D1F3C` remplace `#0f2444`. Plus profond, plus froid, il
@@ -83,11 +113,51 @@ tient le rôle du noir sans être noir.
 Interdits : fond crème ou beige, dégradés, ombres portées douces, aplats
 colorés décoratifs, couleur d'accent sur les boutons.
 
-### Application du risque
+### Le niveau de risque se dit en valeurs d'encre, pas en couleur
 
-Les niveaux s'affichent en pastille pleine, texte blanc, rayon 3 px, 12 px de
-graisse 600. Pas de pastille cerclée avec un point coloré à l'intérieur : c'est
-deux signaux pour une seule information.
+Les niveaux s'affichent en pastille pleine, rayon 3 px, 12 px de graisse 600.
+Pas de pastille cerclée avec un point coloré à l'intérieur : c'est deux signaux
+pour une seule information.
+
+**Le feu tricolore rouge / ambre / vert est supprimé.** Il était la dernière
+chose qui faisait ressembler l'écran à n'importe quel logiciel de gestion.
+Trois valeurs d'une seule teinte disent la même hiérarchie : la ligne la plus
+grave est la plus sombre, donc la plus lourde à l'œil, et le tri d'un coup
+d'œil reste possible sans lire les mots.
+
+| Niveau | Fond | Texte | Contraste |
+|---|---|---|---|
+| Élevé | `#0D1F3C` | blanc | 16,43:1 |
+| Modéré | `#5A6B84` | blanc | 5,42:1 |
+| Faible | `#E7ECF3` | `#5A6B84` | 4,57:1 |
+
+`--faible` est un **fond**, jamais une couleur de texte : sur du blanc il tombe
+à 1,19:1. La pastille faible est aussi le texte le moins contrasté de l'écran,
+à 4,57:1 pour un seuil AA de 4,5:1 — c'est cohérent, c'est le niveau le moins
+important, mais on ne l'éclaircit pas davantage sans redescendre le texte avec.
+
+### La couleur ne subsiste que sur une panne réelle du produit
+
+`--danger`, `--warning` et `--success` étaient des alias de `--eleve`,
+`--modere` et `--faible`. **Ils ne le sont plus, et ils ne doivent pas le
+redevenir.**
+
+Un niveau de risque se hiérarchise, une panne s'annonce : ce ne sont pas les
+mêmes objets. Les faire basculer à l'encre avec les niveaux aurait rendu « la
+surveillance de vos boîtes est interrompue » identique à un bloc ordinaire.
+
+La règle qui en découle, et qui s'applique à toute page nouvelle :
+
+- une **donnée** — un niveau, un compteur, un motif, un filtre, un segment
+  actif — ne porte jamais de couleur. Elle porte une valeur d'encre ;
+- une **panne du produit** — accès révoqué, jeton expiré, boîtes non
+  analysées — porte `--danger` ou `--warning`, et c'est le seul endroit ;
+- un **état sain** ne porte rien du tout. Il n'a rien à signaler : il se dit en
+  encre douce. Le vert a disparu de l'application, y compris sur les coches.
+
+Corollaire pratique : si vous hésitez à colorer quelque chose, demandez-vous
+s'il y a un geste technique à faire pour que ça redevienne normal. Si la
+réponse est non, c'est une donnée, et elle reste en encre.
 
 ---
 
@@ -106,8 +176,9 @@ Base de 4 px. Valeurs autorisées : 4, 8, 12, 16, 24, 32, 48.
 | Largeur maximale du contenu | 1280 px |
 | Rayon des angles | 4 px sur tout, 3 px sur les pastilles. Jamais plus. |
 
-Le rayon unique est délibéré : la hiérarchie se lit par la couleur et la
-graisse, pas par l'arrondi.
+Le rayon unique est délibéré : la hiérarchie se lit par la valeur d'encre et
+la graisse, pas par l'arrondi — ni par la couleur, qui ne dit plus que la
+panne.
 
 ---
 

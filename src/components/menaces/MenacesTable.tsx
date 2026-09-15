@@ -359,8 +359,11 @@ export function MenacesTable({
                             {menace.expediteur_nom}
                           </p>
                         )}
+                        {/* `.adresse` et non `font-mono` : la classe utilitaire
+                            est neutralisée dans `.canevas-app`, c'est voulu.
+                            L'adresse est la seule exception écrite. */}
                         <p
-                          className="mt-0.5 truncate font-mono text-[11.5px] text-muted"
+                          className="adresse mt-0.5 truncate text-muted"
                           title={menace.expediteur_email ?? undefined}
                         >
                           {menace.expediteur_email || (

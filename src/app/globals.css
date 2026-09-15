@@ -450,6 +450,22 @@ body {
   font-family: var(--font-mono-stack), ui-monospace, monospace;
 }
 
+/* ⚠ LA SEULE MONOSPACE DE L'APPLICATION : L'ADRESSE DE L'EXPÉDITEUR. Le
+   document la nomme comme une exception arrêtée, avec sa mesure : en Archivo
+   13 px, `rn` fait 11,64 px et `m` 11,18 px — 0,46 px d'écart, donc
+   `cabinet-durand.fr` et `cabinet-dumnd.fr` occupent la même place sur la
+   ligne. La chasse fixe sépare le même couple de 7,80 px, et c'est précisément
+   ce que le produit demande au lecteur de repérer.
+
+   ⚠ L'ADRESSE, PAS LE NOM AFFICHÉ, ET RIEN D'AUTRE. Ne pas poser cette classe
+     sur un objet, un motif, une date ou un identifiant : l'exception tient sur
+     le seul couple mesuré et sur le fait que cette colonne porte la fraude. */
+.canevas-app .adresse {
+  font-family: var(--font-mono-stack), ui-monospace, monospace;
+  font-size: 12.5px;
+  letter-spacing: 0;
+}
+
 /* ⚠ `.eyebrow` EST NEUTRALISÉE, PAS SEULEMENT INUTILISÉE. C'est la classe des
    petites capitales monospace espacées de 0,16 em — exactement le marqueur que
    le document range dans les suppressions, et la règle qu'il énonce est « aucune
