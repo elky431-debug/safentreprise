@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CourbeMenaces, type PointJour } from "@/components/dashboard/CourbeMenaces";
 import { useCompteurAnime } from "@/lib/use-compteur-anime";
+import { PastilleNiveau } from "@/components/dashboard/Releve";
 import type { NiveauRisqueMenace } from "@/lib/types";
 
 /* --------------------------------------------------------------------------
@@ -229,12 +230,15 @@ export function ActiviteProtection({ menaces }: Props) {
 
   return (
     <section>
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <h2 className="eyebrow">Activité de la protection</h2>
+      {/* ⚠ PLUS D'ÉTIQUETTE AU-DESSUS DU GRAPHIQUE. « Activité de la
+          protection », en petites capitales espacées, figurait dans la liste
+          des suppressions : le graphique se comprend seul, et le titre de
+          section au-dessus le nomme déjà. */}
+      <div className="flex justify-end pb-3">
         <SelecteurPeriode periode={periode} onChange={setPeriode} />
       </div>
 
-      <div className="bloc-releve">
+      <div className="bloc-app">
         <div className="grid gap-x-8 gap-y-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_260px]">
           <ChiffreDeTete
             eleve={repartition.eleve}
@@ -248,7 +252,7 @@ export function ActiviteProtection({ menaces }: Props) {
           />
         </div>
 
-        <div className="filet-section px-4 pb-3 pt-4">
+        <div className="border-t border-border px-4 pb-3 pt-4">
           <CourbeMenaces points={points} />
         </div>
       </div>
@@ -272,8 +276,7 @@ function SelecteurPeriode({
       /* ⚠ LE SEGMENT ACTIF EST EN ENCRE, PLUS EN BLEU. Un contrôle teinté en
          couleur de marque ferait croire que la couleur signifie quelque
          chose ; dans cet écran elle ne signifie qu'un niveau de risque. */
-      className="inline-flex items-center gap-0.5 border border-border bg-surface p-0.5"
-      style={{ borderRadius: 4 }}
+      className="inline-flex items-center gap-0.5 rounded border border-border bg-surface p-0.5"
     >
       {PERIODES.map((p) => {
         const actif = periode === p.cle;
@@ -283,8 +286,7 @@ function SelecteurPeriode({
             type="button"
             onClick={() => onChange(p.cle)}
             aria-pressed={actif}
-            style={{ borderRadius: 2 }}
-            className={`inline-flex h-7 items-center px-2.5 text-[12.5px] font-medium transition-colors duration-150 ${
+            className={`inline-flex h-8 items-center rounded px-3 text-[13.5px] font-medium transition-colors duration-[120ms] ease-out ${
               actif
                 ? "bg-foreground text-background"
                 : "text-muted hover:bg-surface-2 hover:text-foreground"
@@ -322,25 +324,34 @@ function ChiffreDeTete({
   return (
     <div className="min-w-0">
       <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span
-          className={`serif-vitrine tabular text-[52px] leading-none ${
-            aucunElevee ? "text-foreground" : "text-danger"
-          }`}
-        >
+        {/* ⚠ EN ENCRE, PAS EN ROUGE, ET EN ARCHIVO, PAS EN SERIF. Le grand
+            chiffre coloré figurait dans les suppressions. La couleur passe sur
+            la pastille à côté, et seulement si le niveau l'exige : un seul
+            signal pour une seule information.
+
+            ⚠ ET IL NE DÉPASSE PAS 34 px. Le seul chiffre de 56 px de la page
+            est le taux d'exposition, en haut. Deux accroches n'en font plus
+            aucune. */}
+        <span className="chiffre text-[34px] font-extrabold leading-none tracking-[-0.035em] text-foreground">
           {affichee}
         </span>
-        <span className="serif-vitrine text-[19px] leading-tight text-foreground">
+        {/* ⚠ LA PASTILLE DIT LE NIVEAU, LA PHRASE NE LE RÉPÈTE PAS. Écrire
+            « 9 [Élevé] tentatives à risque élevé » donnait deux fois la même
+            information à dix pixels d'écart. La pastille porte le niveau, le
+            mot qui suit porte l'unité. */}
+        {!aucunElevee && <PastilleNiveau niveau="eleve" />}
+        <span className="text-[16px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
           {aucunElevee
             ? total === 1
               ? "tentative détectée"
               : "tentatives détectées"
             : eleve === 1
-              ? "tentative à risque élevé"
-              : "tentatives à risque élevé"}
+              ? "tentative"
+              : "tentatives"}
         </span>
       </p>
 
-      <p className="mt-2.5 text-[13px] text-muted">
+      <p className="texte-second mt-2">
         {aucunElevee ? (
           <>
             Aucune à risque élevé sur la période
@@ -357,7 +368,7 @@ function ChiffreDeTete({
       {!aucunElevee && (
         <Link
           href="/menaces?niveau=eleve"
-          className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent-text underline underline-offset-4 hover:text-foreground"
+          className="texte-second mt-3 inline-block font-medium text-foreground underline underline-offset-4"
         >
           Voir ces {eleve} {eleve === 1 ? "tentative" : "tentatives"}
         </Link>
@@ -375,9 +386,9 @@ function VentilationNiveaux({
   total: number;
 }) {
   const lignes = [
-    { cle: "eleve", label: "Élevé", point: "bg-danger", valeur: repartition.eleve },
-    { cle: "modere", label: "Modéré", point: "bg-warning", valeur: repartition.modere },
-    { cle: "faible", label: "Faible", point: "bg-muted", valeur: repartition.faible },
+    { cle: "eleve", label: "Élevé", point: "pastille-eleve", valeur: repartition.eleve },
+    { cle: "modere", label: "Modéré", point: "pastille-modere", valeur: repartition.modere },
+    { cle: "faible", label: "Faible", point: "pastille-faible", valeur: repartition.faible },
   ] as const;
 
   return (
@@ -385,27 +396,24 @@ function VentilationNiveaux({
       {lignes.map(({ cle, label, point, valeur }) => {
         const part = total > 0 ? Math.round((valeur / total) * 100) : 0;
         return (
-          <li key={cle} className="ligne-releve">
+          <li key={cle} className="ligne-tableau">
+            {/* ⚠ PASTILLE PLEINE, PAS UN POINT SUIVI D'UN LIBELLÉ. Un point
+                coloré à côté d'un mot donne deux signaux pour une seule
+                information — c'est la règle du document. */}
             <Link
               href={`/menaces?niveau=${cle}`}
-              className="flex items-center gap-2.5 py-2.5 transition-colors hover:text-accent-text"
+              className="flex min-h-[44px] items-center gap-3 py-2"
             >
-              <span
-                aria-hidden
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${point} ${
-                  valeur === 0 ? "opacity-25" : ""
-                }`}
-              />
-              <span className="text-[13px] text-muted">{label}</span>
-              <span className="ml-auto flex items-baseline gap-2">
+              <span className={`pastille ${point} ${valeur === 0 ? "opacity-40" : ""}`}>
+                {label}
+              </span>
+              <span className="ml-auto flex items-baseline gap-3">
                 <span
-                  className={`tabular text-[14px] font-semibold ${
-                    valeur === 0 ? "text-faint" : "text-foreground"
-                  }`}
+                  className={`chiffre ${valeur === 0 ? "text-muted" : "text-foreground"}`}
                 >
                   {valeur}
                 </span>
-                <span className="tabular w-9 text-right text-[11px] text-faint">
+                <span className="chiffre w-10 text-right text-[13px] font-normal text-muted">
                   {valeur === 0 ? "" : `${part} %`}
                 </span>
               </span>

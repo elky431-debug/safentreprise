@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {
+  Archivo,
   Bricolage_Grotesque,
   Instrument_Serif,
   Inter,
@@ -55,6 +56,29 @@ const bricolage = Bricolage_Grotesque({
   display: "swap",
 });
 
+/**
+ * La police de l'espace connecté, et la seule.
+ *
+ * ⚠ UNE SEULE FAMILLE, AUCUNE SERIF, AUCUNE MONOSPACE. C'est la règle
+ *   d'ouverture de `docs/DIRECTION-ARTISTIQUE.md`. L'application portait
+ *   auparavant Jakarta pour le texte, Source Serif pour les titres et
+ *   JetBrains Mono pour les adresses : trois familles pour un outil de
+ *   travail, et la signature du design générique que ce document nomme.
+ *
+ * ⚠ PAS DE `weight` : le fichier VARIABLE couvre 100 à 900 d'un seul
+ *   téléchargement. L'échelle en demande cinq (400, 600, 700, 800), et le 800
+ *   du chiffre d'accroche doit être un vrai dessin, pas un gras synthétique.
+ *
+ * ⚠ L'AXE `wdth` N'EST PAS DEMANDÉ. Archivo en porte un (62–125) ; `next/font`
+ *   n'embarque que `wght` par défaut et fige l'autre à 100. Le réclamer
+ *   alourdirait le fichier pour un axe que rien ne pilote ici.
+ */
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono-stack",
   subsets: ["latin"],
@@ -98,7 +122,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${jakarta.variable} ${inter.variable} ${sourceSerif.variable} ${instrumentSerif.variable} ${bricolage.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
+      className={`${jakarta.variable} ${inter.variable} ${sourceSerif.variable} ${instrumentSerif.variable} ${bricolage.variable} ${archivo.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         {children}

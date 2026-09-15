@@ -321,82 +321,244 @@ body {
 }
 
 /* ==========================================================================
-   Espace connecté — le canevas « relevé »
+   Espace connecté — direction artistique
    ==========================================================================
 
-   ⚠ CE BLOC REMPLACE `.app-canvas`, QUI N'ÉTAIT PLUS POSÉ NULLE PART. Il
-     déclarait un aplat blanc sur fond blanc, donc rien, et aucun composant ne
-     le portait plus.
+   La règle complète est dans `docs/DIRECTION-ARTISTIQUE.md`. Ce bloc en est la
+   mise en œuvre, et rien ne doit s'en écarter sans que le document change
+   d'abord.
 
-   ⚠ LA TEINTE EST LOCALE À L'ESPACE CONNECTÉ, ET DOIT LE RESTER. `--background`
-     et `--surface` valent tous les deux `#ffffff` dans `:root` : une carte
-     blanche sur fond blanc n'existe que par sa bordure. Redéfinir les jetons
-     ICI plutôt que dans `:root` teinte l'application sans toucher à la
-     vitrine, qui garde son blanc franc. C'est la raison d'être de l'étage
-     `--clair-*` décrit en tête de fichier : on réapplique, on ne recopie pas.
+   ⚠ CE BLOC REMPLACE LE CANEVAS « RELEVÉ » DU 14 SEPTEMBRE, et il l'annule.
+     Le papier chaud, les titres en Source Serif et les petites capitales
+     espacées y étaient posés comme une identité ; la direction artistique les
+     nomme comme la signature du design générique qu'il fallait retirer. Ne pas
+     les réintroduire par morceaux.
 
-   ⚠ LE FOND EST UN PAPIER CHAUD, PAS UN GRIS BLEUTÉ. Le gris froid est la
-     couleur de tous les tableaux de bord ; c'est précisément ce dont l'écran
-     devait sortir. Le repère est un relevé de banque ou une liasse
-     comptable — d'où un blanc cassé légèrement jaune, sous lequel le marine
-     reste franc.
+   ⚠ LA PORTÉE S'ARRÊTE À `.canevas-app`. La vitrine publique garde Bricolage
+     Grotesque et Source Serif jusqu'à sa propre passe — décision du
+     15 septembre, écrite en tête du document. Redéfinir ces jetons dans
+     `:root` repeindrait la landing sans qu'on l'ait regardée.
 
-   ⚠ LES TRAITS SE POSENT PAR CLASSE, JAMAIS PAR UTILITAIRE TAILWIND. La règle
-     `* { border-color: var(--border) }` de ce fichier n'est dans AUCUNE
-     couche : elle bat toutes les utilitaires de couleur de bordure. Les
-     filets du relevé passent donc par les classes ci-dessous, dont la
-     spécificité de classe l'emporte franchement. Même détour que l'anneau des
-     pastilles de `EquipeHero`.
+   ⚠ TROIS COULEURS, ET ELLES NE SERVENT QU'AU RISQUE. Rouge, ambre, vert
+     n'apparaissent nulle part ailleurs : ni bouton, ni lien, ni graphique, ni
+     décor. C'est ce qui fait qu'une tache rouge se remarque. Un aplat coloré
+     dans cet écran signifie toujours quelque chose.
    ========================================================================== */
-.canevas-releve {
-  --papier: #f7f6f3;
+.canevas-app {
+  /* ---- La charte, source unique de l'espace connecté ---- */
+  --encre: #0d1f3c;
+  --encre-douce: #5a6b84;
+  --trait: #dde2e9;
+  --papier: #f4f6f9;
 
+  --eleve: #c8102e;
+  --modere: #b5670a;
+  --faible: #1c7a58;
+
+  /* ---- Branchement sur les jetons partagés ---- */
   --background: var(--papier);
   --surface: #ffffff;
-  --surface-2: #faf9f7;
-  --surface-3: #efeee9;
+  --surface-2: #f4f6f9;
+  --surface-3: #e7ecf3;
 
-  /* Un trait un peu plus présent que sur la vitrine : sur du papier, un filet
-     à 10 % disparaît là où il se lit encore sur du blanc pur. */
-  --border: rgba(16, 20, 26, 0.13);
-  --border-strong: rgba(16, 20, 26, 0.22);
+  --border: var(--trait);
+  --border-strong: #c3cbd8;
 
+  --foreground: var(--encre);
+  --muted: var(--encre-douce);
+  --faint: var(--encre-douce);
+
+  /* ⚠ L'ACCENT DEVIENT L'ENCRE. « Couleur d'accent sur les boutons » est dans
+     la liste des interdits : un bouton principal est un aplat d'encre, pas un
+     aplat de marque. Le jeton reste pour ne pas avoir à réécrire chaque
+     utilitaire, mais il ne porte plus de teinte propre. */
+  --accent: var(--encre);
+  --accent-hover: #081426;
+  --accent-contraste: #ffffff;
+  --accent-text: var(--encre);
+  --accent-soft: rgba(13, 31, 60, 0.06);
+  --accent-line: rgba(13, 31, 60, 0.22);
+
+  --danger: var(--eleve);
+  --danger-soft: rgba(200, 16, 46, 0.08);
+  --warning: var(--modere);
+  --warning-soft: rgba(181, 103, 10, 0.08);
+  --success: var(--faible);
+  --success-soft: rgba(28, 122, 88, 0.08);
+
+  /* ⚠ AUCUNE OMBRE. « Ombres portées douces » est un interdit explicite. Le
+     relief se lit par le contraste entre `--surface` et `--papier`. */
+  --relief: none;
+  --relief-haut: none;
+
+  font-family: var(--font-archivo), system-ui, -apple-system, sans-serif;
   background: var(--background);
+  color: var(--foreground);
 }
 
-/* Le filet de tête du relevé — plein, en encre, pas en gris de bordure.
-   C'est lui qui donne le ton « document » avant même qu'on lise le contenu. */
-.filet-releve {
-  border-bottom: 1.5px solid var(--foreground);
+/* ⚠ RAYON UNIQUE : 4 px PARTOUT, 3 px SUR LES PASTILLES, JAMAIS PLUS. La
+   hiérarchie se lit par la couleur et la graisse, pas par l'arrondi. Cette
+   règle écrase les utilitaires `rounded-*` du sous-arbre plutôt que de les
+   traquer un par un — il y en a plusieurs centaines. */
+.canevas-app [class*="rounded"] {
+  border-radius: 4px;
 }
 
-/* Séparation entre deux sections du relevé. Franche, sans carte flottante. */
-.filet-section {
-  border-top: 1px solid var(--border-strong);
+.canevas-app .pastille,
+.canevas-app [class*="rounded-full"].pastille {
+  border-radius: 3px;
 }
 
-/* Bloc du relevé : un cadre net, presque sans arrondi, sans ombre.
-   ⚠ 4 px ET PAS 12. L'arrondi large est ce qui fait « application » ; le
-     document, lui, a des angles. */
-.bloc-releve {
-  border: 1px solid var(--border);
+/* ⚠ AUCUNE SERIF, AUCUNE MONOSPACE — Y COMPRIS SUR LES CLASSES HÉRITÉES.
+   `.titre-page`, `.serif-vitrine` et `.font-display` existent encore pour la
+   vitrine ; dans l'application elles doivent rendre de l'Archivo. Les neutraliser
+   ici évite d'avoir à les retirer de chaque composant dans la même passe, et
+   surtout évite qu'une serif revienne par un composant partagé.
+
+   SEULE EXCEPTION, ÉCRITE DANS LE DOCUMENT : le `<pre>` d'un script que
+   l'administrateur copie dans sa console. Un script dont l'indentation ne
+   s'aligne plus est plus difficile à relire, et c'est un texte destiné à sortir
+   de l'interface. */
+.canevas-app .titre-page,
+.canevas-app .serif-vitrine,
+.canevas-app .font-display,
+.canevas-app .font-mono,
+.canevas-app [class*="font-mono"] {
+  font-family: var(--font-archivo), system-ui, -apple-system, sans-serif;
+  letter-spacing: 0;
+}
+
+.canevas-app pre.script {
+  font-family: var(--font-mono-stack), ui-monospace, monospace;
+}
+
+/* ---- L'échelle typographique ---- */
+
+.canevas-app .titre-page-da {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.canevas-app .titre-section {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.canevas-app .titre-bloc {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.canevas-app .texte-courant {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+  max-width: 70ch;
+}
+
+.canevas-app .texte-second {
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--encre-douce);
+}
+
+/* ⚠ EN-TÊTE DE TABLEAU : GRAISSE ET COULEUR, JAMAIS LA CASSE. « Aucune
+   capitale intégrale, nulle part, sans exception » — les petites capitales
+   espacées sont le marqueur générique le plus visible que ce document
+   supprime. */
+.canevas-app .entete-tableau {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--encre-douce);
+}
+
+.canevas-app .chiffre {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le seul endroit où l'on s'affirme. Rien d'autre sur la page ne dépasse 34 px. */
+.canevas-app .chiffre-accroche {
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- La pastille de risque ---- */
+
+/* ⚠ PLEINE, TEXTE BLANC, PAS DE POINT À L'INTÉRIEUR. Une pastille cerclée
+   portant un point coloré donne deux signaux pour une seule information. */
+.canevas-app .pastille {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #ffffff;
+  border: 0;
+  white-space: nowrap;
+}
+
+.canevas-app .pastille-eleve { background: var(--eleve); }
+.canevas-app .pastille-modere { background: var(--modere); }
+.canevas-app .pastille-faible { background: var(--faible); }
+.canevas-app .pastille-neutre {
+  background: transparent;
+  color: var(--encre-douce);
+  padding-left: 0;
+}
+
+/* ---- Mouvement ---- */
+
+/* ⚠ AUCUNE ANIMATION D'ENTRÉE, AUCUN EFFET AU SURVOL DES CARTES. Les
+   transitions ne servent qu'à montrer ce qui vient de changer. On neutralise
+   ici les animations héritées plutôt que de les retirer une par une — elles
+   reviendraient par un composant partagé. */
+.canevas-app .menace-card,
+.canevas-app .menace-row,
+.canevas-app .results-kpi,
+.canevas-app .results-row,
+.canevas-app .rise {
+  animation: none !important;
+}
+
+.canevas-app .bloc-releve:hover,
+.canevas-app .bloc-app:hover {
+  background: var(--surface);
+}
+
+/* Le bloc de l'application : un cadre net, sans ombre, rembourrage de 20 px. */
+.canevas-app .bloc-app {
+  border: 1px solid var(--trait);
   border-radius: 4px;
   background: var(--surface);
   box-shadow: none;
 }
 
-/* Ligne de tableau du relevé. Le filet vit sur la ligne, pas sur un conteneur. */
-.ligne-releve {
-  border-bottom: 1px solid var(--border);
+/* Ligne de tableau — 44 px de haut, séparée par un filet, pas par une carte. */
+.canevas-app .ligne-tableau {
+  min-height: 44px;
+  border-bottom: 1px solid var(--trait);
 }
 
-.ligne-releve:last-child {
+.canevas-app .ligne-tableau:last-child {
   border-bottom: 0;
-}
-
-/* En-tête de colonne — petites capitales, filet d'appui. */
-.entete-colonne {
-  border-bottom: 1px solid var(--border-strong);
 }
 
 /* Carte atelier */

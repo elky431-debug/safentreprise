@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { NiveauBadge } from "@/components/menaces/MenacesTable";
-import { IconArrowRight, IconShieldCheck } from "@/components/icons";
+import { IconShieldCheck } from "@/components/icons";
 import { motifPrincipal } from "@/lib/signaux";
 import type { AlerteGraph } from "@/lib/types";
 
@@ -49,15 +49,16 @@ const COLONNES =
 export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
   if (menaces.length === 0) {
     return (
-      <div className="bloc-releve px-6 py-12 text-center">
-        <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border text-faint">
-          <IconShieldCheck />
-        </span>
-        <p className="mt-3.5 text-[13.5px] font-medium text-foreground">
-          Aucune tentative détectée
+      <div className="bloc-app px-5 py-10">
+        {/* ⚠ UN ÉCRAN VIDE EST UNE INVITATION À AGIR, PAS UN CONSTAT DE VIDE.
+            Et il est aligné à gauche comme le reste : le centrage était un
+            reste de la mise en page précédente. */}
+        <p className="titre-bloc text-foreground">
+          <IconShieldCheck className="mr-2 inline h-4 w-4 align-[-2px] text-success" />
+          Aucune tentative détectée à ce jour
         </p>
-        <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-relaxed text-muted">
-          Les messages qui arrivent dans les boîtes surveillées sont analysés en
+        <p className="texte-courant mt-1.5 text-muted">
+          Les messages qui arrivent dans vos boîtes surveillées sont analysés en
           continu. Les tentatives de fraude apparaîtront ici.
         </p>
       </div>
@@ -65,12 +66,12 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
   }
 
   return (
-    <div className="bloc-releve overflow-hidden">
+    <div className="bloc-app overflow-hidden">
       {/* En-tête de colonnes — masqué en mobile, où les lignes s'empilent et
           où des titres de colonnes ne correspondraient plus à rien. */}
       <div
         aria-hidden
-        className={`entete-colonne hidden px-5 py-2.5 lg:grid ${COLONNES}`}
+        className={`hidden border-b border-border px-5 py-2.5 lg:grid ${COLONNES}`}
       >
         <Colonne>Date</Colonne>
         <Colonne>Niveau</Colonne>
@@ -83,13 +84,13 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
         {menaces.map((menace) => {
           const motif = motifPrincipal(menace.signaux);
           return (
-            <li key={menace.id} className="ligne-releve">
+            <li key={menace.id} className="ligne-tableau">
               <Link
                 href={`/menaces?alerte=${encodeURIComponent(menace.id)}`}
-                className={`group items-baseline px-5 py-3.5 transition-colors hover:bg-surface-2 ${COLONNES}`}
+                className={`group min-h-[44px] items-center px-5 py-2.5 ${COLONNES}`}
               >
                 {/* Date */}
-                <span className="tabular order-1 text-[12px] text-faint lg:order-none">
+                <span className="chiffre order-1 text-[13px] font-normal text-muted lg:order-none">
                   {formaterDate(menace.detecte_at)}
                 </span>
 
@@ -106,7 +107,7 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
                   className="order-3 col-span-2 min-w-0 lg:order-none lg:col-span-1"
                   title={menace.objet ?? undefined}
                 >
-                  <span className="block truncate text-[13.5px] text-foreground group-hover:text-accent-text">
+                  <span className="block truncate text-[15px] text-foreground group-hover:underline">
                     {menace.objet || (
                       <span className="text-faint">sans objet</span>
                     )}
@@ -116,12 +117,12 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
                 {/* Expéditeur — nom puis adresse */}
                 <span className="order-4 col-span-2 min-w-0 lg:order-none lg:col-span-1">
                   {menace.expediteur_nom && (
-                    <span className="block truncate text-[12.5px] text-foreground">
+                    <span className="block truncate text-[13.5px] text-foreground">
                       {menace.expediteur_nom}
                     </span>
                   )}
                   <span
-                    className="block truncate font-mono text-[11.5px] text-muted"
+                    className="block truncate text-[13px] text-muted"
                     title={menace.expediteur_email ?? undefined}
                   >
                     {menace.expediteur_email || "adresse absente"}
@@ -132,9 +133,9 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
                     moteur, qui tient sur trois lignes de haut. */}
                 <span className="order-5 col-span-2 min-w-0 lg:order-none lg:col-span-1">
                   {motif === null ? (
-                    <span className="text-[12.5px] text-faint">—</span>
+                    <span className="texte-second">—</span>
                   ) : (
-                    <span className="block truncate text-[12.5px] text-muted">
+                    <span className="block truncate text-[13.5px] text-muted">
                       {motif.label}
                       {motif.autres > 0 && (
                         <span className="text-faint">
@@ -156,8 +157,14 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * ⚠ CASSE DE PHRASE, JAMAIS DE CAPITALES INTÉGRALES. Les en-têtes se
+ *   distinguent par la graisse et la couleur — c'est la règle du document, et
+ *   les petites capitales espacées étaient le marqueur générique le plus
+ *   visible de l'écran.
+ */
 function Colonne({ children }: { children: React.ReactNode }) {
-  return <span className="eyebrow">{children}</span>;
+  return <span className="entete-tableau">{children}</span>;
 }
 
 /** « 12 sept. · 14:05 » — assez pour situer sans occuper deux lignes. */
@@ -176,17 +183,18 @@ function formaterDate(iso: string): string {
 export function PiedListeMenaces({ total }: { total: number }) {
   return (
     <div className="flex items-center justify-between gap-4 pt-3">
-      <p className="text-[12.5px] text-faint">
+      <p className="texte-second">
         {total > 5
           ? `5 dernières sur ${total} tentatives`
           : `${total} ${total === 1 ? "tentative" : "tentatives"} au total`}
       </p>
+      {/* ⚠ PAS DE FLÈCHE ACCOLÉE AU LIEN. Elle figure dans la liste des
+          suppressions : un lien souligné est déjà un lien. */}
       <Link
         href="/menaces"
-        className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-accent-text underline underline-offset-4 hover:text-foreground"
+        className="texte-second font-medium text-foreground underline underline-offset-4"
       >
         Toutes les tentatives
-        <IconArrowRight className="h-3.5 w-3.5" />
       </Link>
     </div>
   );

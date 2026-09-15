@@ -17,24 +17,23 @@ export const NIVEAU_LABELS: Record<NiveauRisqueMenace, string> = {
   faible: "Faible",
 };
 
-const NIVEAU_TONS: Record<NiveauRisqueMenace, { badge: string; point: string }> = {
-  eleve: {
-    badge: "border-danger/25 bg-danger-soft text-danger",
-    point: "bg-danger",
-  },
-  modere: {
-    badge: "border-warning/25 bg-warning-soft text-warning",
-    point: "bg-warning",
-  },
-  faible: {
-    badge: "border-border-strong bg-surface-2 text-muted",
-    point: "bg-muted",
-  },
+const NIVEAU_TONS: Record<NiveauRisqueMenace, string> = {
+  eleve: "pastille-eleve",
+  modere: "pastille-modere",
+  faible: "pastille-faible",
 };
 
 /**
- * Badge du niveau de risque, pastille et score compris : « ● Élevé · 85 ».
- * Réunir les trois évite de disperser l'information sur deux lignes.
+ * Le niveau de risque, en pastille pleine.
+ *
+ * ⚠ PLEINE, TEXTE BLANC, RAYON 3 px, ET AUCUN POINT À L'INTÉRIEUR. La version
+ *   précédente était un cadre clair contenant un point coloré et le libellé :
+ *   deux signaux pour une seule information, et l'un des marqueurs que la
+ *   direction artistique nomme. Le fond coloré suffit.
+ *
+ * ⚠ LE SCORE RESTE, MAIS HORS DE LA PASTILLE. Il l'allongeait et diluait le
+ *   niveau, qui est ce qu'on lit en premier ; il se range à côté, en chiffre
+ *   tabulaire.
  */
 export function NiveauBadge({
   niveau,
@@ -43,20 +42,15 @@ export function NiveauBadge({
   niveau: NiveauRisqueMenace;
   score?: number;
 }) {
-  const ton = NIVEAU_TONS[niveau];
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-2 pr-2.5 text-[11.5px] font-semibold tracking-wide ${ton.badge}`}
-    >
-      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${ton.point}`} />
-      {NIVEAU_LABELS[niveau]}
+    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+      <span className={`pastille ${NIVEAU_TONS[niveau]}`}>
+        {NIVEAU_LABELS[niveau]}
+      </span>
       {score !== undefined && (
-        <>
-          <span aria-hidden className="opacity-30">
-            ·
-          </span>
-          <span className="tabular font-medium opacity-70">{score}</span>
-        </>
+        <span className="chiffre text-[13px] font-normal text-muted">
+          {score}
+        </span>
       )}
     </span>
   );

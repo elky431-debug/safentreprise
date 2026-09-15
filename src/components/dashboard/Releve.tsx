@@ -8,7 +8,7 @@ import {
   ListeMenaces,
   PiedListeMenaces,
 } from "@/components/dashboard/ListeMenaces";
-import { IconArrowRight, IconPlus, IconUsers } from "@/components/icons";
+import { IconPlus, IconUsers } from "@/components/icons";
 import {
   RISK_CATEGORY_ORDER,
   RISK_LEVEL_LABELS,
@@ -41,24 +41,33 @@ export type ReleveProps = {
 };
 
 /**
- * Le tableau de bord, présenté comme un relevé — l'affichage seul.
+ * Le tableau de bord — l'affichage seul.
  *
- * ──────────────────────────────────────────────────────────────────────────
+ * ─────────────────────────────────────────────────────────────────────────
  * ⚠ IL NE LIT NI SESSION NI BASE, ET C'EST CE QUI PERMET DE LE MONTRER. La
  *   page `/dashboard` charge les données et ne fait que lui passer des props.
  *   Séparés ainsi, le même composant peut être rendu avec un jeu fabriqué pour
  *   une relecture visuelle, sans identifiants Supabase et sans recopier son
  *   balisage dans une maquette qui divergerait au premier changement.
  *
- * ⚠ L'ORDRE DES SECTIONS PORTE LA HIÉRARCHIE. Les tentatives viennent AVANT le
- *   taux d'exposition et les campagnes : c'est la seule section sur laquelle un
- *   dirigeant agit le jour même. La synthèse qui la précède tient volontairement
- *   en peu de hauteur pour ne pas la repousser sous le pli.
+ * ⚠ CET ÉCRAN SUIT `docs/DIRECTION-ARTISTIQUE.md` À LA LETTRE. Six marques ont
+ *   été retirées le 15 septembre, et elles ne doivent pas revenir :
  *
- * ⚠ LA COULEUR NE DÉSIGNE QU'UN NIVEAU DE RISQUE. Rouge, ambre, gris : rien
- *   d'autre n'est coloré sur cet écran — ni les compteurs, ni la courbe, ni les
- *   contrôles. C'est ce qui fait qu'une tache rouge se remarque.
- * ──────────────────────────────────────────────────────────────────────────
+ *     1. le fil d'ariane en petites capitales espacées ;
+ *     2. l'étiquette au-dessus du graphique — il se comprend seul ;
+ *     3. le mot « Safentreprise » répété alors que le logo est dans la barre ;
+ *     4. la flèche accolée aux liens ;
+ *     5. le grand chiffre en serif coloré ;
+ *     6. le remplissage dégradé sous la courbe.
+ *
+ * ⚠ UN SEUL CHIFFRE DÉPASSE 34 px SUR CETTE PAGE : le taux d'exposition, en
+ *   haut. C'est le seul endroit où l'interface s'affirme, et c'est le CONTRASTE
+ *   avec le reste qui produit l'effet. Grossir un second chiffre le détruirait.
+ *
+ * ⚠ LE TABLEAU PASSE AVANT LE GRAPHIQUE. C'est là que le dirigeant travaille ;
+ *   la courbe est un contexte, pas le sujet. L'ordre précédent — courbe, puis
+ *   tableau — en faisait un élément secondaire.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 export function Releve({
   nomSociete,
@@ -70,131 +79,100 @@ export function Releve({
   campagnes,
 }: ReleveProps) {
   return (
-    <>
-      <EnteteReleve nomSociete={nomSociete} />
+    <div className="mx-auto w-full max-w-[1280px]">
+      <EnteteApp nomSociete={nomSociete} />
 
-      <div className="mt-8 space-y-9">
-        <ActiviteProtection menaces={menacesGraphique} />
+      {/* Écart entre sections : 32 px, valeur unique du document. */}
+      <div className="mt-8 space-y-8">
+        <Exposition
+          scores={scores}
+          boitesSurveillees={boitesSurveillees}
+          employes={employes}
+        />
 
         <section>
-          <TitreSection
-            titre="Tentatives récentes"
-            description="Chaque ligne ouvre le détail de la tentative."
-          />
+          <TitreSection titre="Tentatives récentes" />
           <ListeMenaces menaces={menaces.slice(0, LIGNES_AFFICHEES)} />
           {menaces.length > 0 && <PiedListeMenaces total={menaces.length} />}
         </section>
 
         <section>
-          <TitreSection
-            titre="Taux d'exposition"
-            description="Ce que votre organisation offre à une tentative de fraude, avant même qu'elle arrive."
-          />
-          <TauxExposition
-            scores={scores}
-            boitesSurveillees={boitesSurveillees}
-            employes={employes}
-          />
+          <TitreSection titre="Tentatives dans le temps" />
+          <ActiviteProtection menaces={menacesGraphique} />
         </section>
 
         <section>
           <TitreSection
             titre="Campagnes"
-            description="Simulations en cours et prêtes à partir."
             lien={{ href: "/campaigns", libelle: "Toutes les campagnes" }}
           />
           <ListeCampagnes campagnes={campagnes} />
         </section>
       </div>
-    </>
+    </div>
   );
 }
 
 /* --------------------------------------------------------------------------
-   En-tête de relevé
+   En-tête
    -------------------------------------------------------------------------- */
 
 /**
- * L'en-tête du document.
- *
- * ⚠ C'EST LUI QUI DONNE LE TON, AVANT MÊME QU'ON LISE UN CHIFFRE. Petites
- *   capitales espacées, nom de la société en serif, période et date d'édition
- *   sous un filet plein : les codes d'un relevé de banque ou d'une liasse
- *   comptable. L'ancien en-tête — « Tableau de bord » suivi d'un sous-titre
- *   gris — ne disait ni pour qui ni pour quand.
- *
- * ⚠ LA DATE EST CALCULÉE AU RENDU, SUR LE SERVEUR. Cette page est déjà
- *   dynamique — elle lit la session — donc aucune mise en cache n'ira figer un
- *   « édité le » périmé.
+ * ⚠ LE NOM DE L'ENTREPRISE CLIENTE, PAS LE NÔTRE. Le logo Safentreprise est
+ *   déjà dans la barre latérale ; le répéter ici occupait la ligne la plus
+ *   visible de la page pour ne rien apprendre. Et le fil d'ariane en petites
+ *   capitales espacées qui le précédait était le marqueur générique le plus
+ *   voyant de l'écran.
  */
-function EnteteReleve({ nomSociete }: { nomSociete: string }) {
+function EnteteApp({ nomSociete }: { nomSociete: string }) {
   const maintenant = new Date();
   const debut = new Date(maintenant);
   debut.setDate(debut.getDate() - 29);
 
   return (
-    <header>
-      <p className="eyebrow">Safentreprise · Surveillance de la messagerie</p>
-
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-        <h1 className="serif-vitrine text-[27px] leading-tight text-foreground">
-          {nomSociete}
-        </h1>
-
-        <div className="flex flex-wrap gap-2">
-          <Link href="/employees" className={buttonSecondary}>
-            <IconUsers />
-            Collaborateurs
-          </Link>
-          <Link href="/campaigns/new" className={buttonPrimary}>
-            <IconPlus />
-            Nouvelle campagne
-          </Link>
-        </div>
+    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="min-w-0">
+        <h1 className="titre-page-da text-foreground">{nomSociete}</h1>
+        <p className="texte-second mt-1.5">
+          Du {formaterJourMois(debut)} au {formaterJourMois(maintenant)}
+        </p>
       </div>
 
-      <div className="filet-releve mt-3" />
-
-      <p className="mt-2.5 flex flex-wrap justify-between gap-x-6 gap-y-1 text-[12px] text-faint">
-        <span>
-          Période du {formaterJourMois(debut)} au {formaterJourMois(maintenant)}
-        </span>
-        <span>Édité le {formaterDateLongue(maintenant)}</span>
-      </p>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/employees" className={buttonSecondary}>
+          <IconUsers />
+          Collaborateurs
+        </Link>
+        <Link href="/campaigns/new" className={buttonPrimary}>
+          <IconPlus />
+          Nouvelle campagne
+        </Link>
+      </div>
     </header>
   );
 }
 
-/* --------------------------------------------------------------------------
-   Sections
-   -------------------------------------------------------------------------- */
-
+/**
+ * ⚠ PAS DE FILET SOUS LE TITRE. « Les bordures encodent une information, elles
+ *   ne décorent pas » : deux blocs de même nature se séparent par l'espace.
+ *   Un filet horizontal sous chaque titre était l'une des marques listées.
+ */
 function TitreSection({
   titre,
-  description,
   lien,
 }: {
   titre: string;
-  description?: string;
   lien?: { href: string; libelle: string };
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 pb-3">
-      <div className="min-w-0">
-        <h2 className="serif-vitrine text-[17px] leading-tight text-foreground">
-          {titre}
-        </h2>
-        {description && (
-          <p className="mt-1 text-[12.5px] text-muted">{description}</p>
-        )}
-      </div>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 pb-3">
+      <h2 className="titre-section text-foreground">{titre}</h2>
       {lien && (
         <Link
           href={lien.href}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-accent-text underline underline-offset-4 hover:text-foreground"
+          className="texte-second font-medium text-foreground hover:underline"
         >
           {lien.libelle}
-          <IconArrowRight className="h-3.5 w-3.5" />
         </Link>
       )}
     </div>
@@ -202,23 +180,26 @@ function TitreSection({
 }
 
 /* --------------------------------------------------------------------------
-   Taux d'exposition
+   Le taux d'exposition — le seul endroit où l'on s'affirme
    -------------------------------------------------------------------------- */
 
-export type Scores = ReturnType<typeof appliquerSurveillanceAuScore>;
+type Scores = ReturnType<typeof appliquerSurveillanceAuScore>;
 
 /**
- * ⚠ C'EST LA SEULE OCCURRENCE DU SCORE SUR CET ÉCRAN. Une carte « Score de
- *   risque » affichait le même pourcentage plus haut, dans un cadre à moitié
- *   vide et sans rien en expliquer. Des deux, on garde celle qui montre son
- *   calcul : l'anneau, les trois axes, et ce que la surveillance retire.
+ * ⚠ 56 px, ARCHIVO 800, SERRAGE −0.04em, ET RIEN D'AUTRE NE DÉPASSE 34 px.
+ *   C'est la seule affirmation de la page, et elle ne vaut que par le silence
+ *   de tout ce qui l'entoure.
  *
- * ⚠ LES LIBELLÉS SONT ÉCRITS EN FRANÇAIS, PAS EN ABRÉVIATIONS. « Humain DYN. »
- *   et « Technique −10 » étaient indéchiffrables pour un dirigeant de PME —
- *   c'est pourtant lui le lecteur. Chaque axe dit maintenant d'où vient son
- *   chiffre, en une phrase.
+ * ⚠ L'ANNEAU A DISPARU. Il dessinait un cercle décoratif autour d'un nombre
+ *   qui se lit très bien seul, et la direction artistique ne demande qu'un
+ *   nombre avec une légende courte. La couleur du niveau reste, mais sur la
+ *   pastille — un seul signal pour une seule information.
+ *
+ * ⚠ LES LIBELLÉS SONT EN FRANÇAIS, PAS EN ABRÉVIATIONS. « Humain DYN. » et
+ *   « Technique −10 » étaient indéchiffrables pour un dirigeant de PME, qui est
+ *   pourtant le lecteur.
  */
-function TauxExposition({
+function Exposition({
   scores,
   boitesSurveillees,
   employes,
@@ -229,28 +210,16 @@ function TauxExposition({
 }) {
   if (!scores) {
     return (
-      <div className="bloc-releve px-6 py-10">
-        <p className="text-[13px] text-muted">
-          Aucune évaluation disponible — complétez le questionnaire de risque
-          pour afficher le taux d&apos;exposition.
+      <section className="bloc-app p-5">
+        <p className="texte-courant text-muted">
+          Complétez le questionnaire de risque pour afficher votre taux
+          d&apos;exposition.
         </p>
-      </div>
+      </section>
     );
   }
 
   const niveau = riskLevel(scores.global);
-
-  const explications: Record<RiskCategory, string> = {
-    procedures:
-      "D'après vos réponses sur la validation des virements et la vérification des RIB.",
-    humain: `Recalculé d'après les résultats de vos campagnes, et non d'après le questionnaire.`,
-    technique:
-      scores.reductionTechnique > 0
-        ? `Allégé de ${scores.reductionTechnique} points parce que ${boitesSurveillees} ${
-            boitesSurveillees === 1 ? "boîte est surveillée" : "boîtes sont surveillées"
-          } sur ${employes} ${employes === 1 ? "collaborateur" : "collaborateurs"}.`
-        : "D'après vos garde-fous d'outils et d'accès. Aucune boîte surveillée ne l'allège pour l'instant.",
-  };
 
   const titres: Record<RiskCategory, string> = {
     procedures: "Vos procédures internes",
@@ -258,121 +227,82 @@ function TauxExposition({
     technique: "Vos protections techniques",
   };
 
+  const explications: Record<RiskCategory, string> = {
+    procedures:
+      "D'après vos réponses sur la validation des virements et la vérification des RIB.",
+    humain:
+      "Recalculé d'après les résultats de vos campagnes, et non d'après le questionnaire.",
+    technique:
+      scores.reductionTechnique > 0
+        ? `Allégé de ${scores.reductionTechnique} points parce que ${boitesSurveillees} ${
+            boitesSurveillees === 1 ? "boîte est surveillée" : "boîtes sont surveillées"
+          } sur ${employes} ${employes === 1 ? "collaborateur" : "collaborateurs"}.`
+        : "D'après vos garde-fous d'outils et d'accès.",
+  };
+
   return (
-    <div className="bloc-releve">
-      <div className="flex flex-col items-center gap-7 px-6 py-6 lg:flex-row lg:items-start">
-        <AnneauExposition pourcentage={scores.global} niveau={niveau} />
-
-        <ul className="w-full min-w-0">
-          {RISK_CATEGORY_ORDER.map((categorie) => (
-            <li
-              key={categorie}
-              className="ligne-releve flex items-start justify-between gap-5 py-3 first:pt-0"
-            >
-              <div className="min-w-0">
-                <p className="text-[13.5px] font-medium text-foreground">
-                  {titres[categorie]}
-                </p>
-                <p className="mt-0.5 text-[12px] leading-snug text-muted">
-                  {explications[categorie]}
-                </p>
-              </div>
-
-              <div className="shrink-0 text-right">
-                <span className="tabular block text-[15px] font-semibold text-foreground">
-                  {scores[categorie]}&nbsp;%
-                </span>
-                {categorie === "technique" && scores.reductionTechnique > 0 && (
-                  <span className="tabular block text-[11.5px] text-faint line-through">
-                    {scores.techniqueBase}&nbsp;%
-                  </span>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+    <section className="bloc-app grid gap-x-12 gap-y-6 p-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <div>
+        <p className="flex items-baseline gap-3">
+          <span className="chiffre-accroche text-foreground">
+            {scores.global}
+            <span className="text-[28px]">&nbsp;%</span>
+          </span>
+          <PastilleNiveau niveau={niveau} />
+        </p>
+        <p className="texte-second mt-2">
+          Taux d&apos;exposition à la fraude au virement
+        </p>
       </div>
 
-      {scores.reductionTechnique > 0 && (
-        <div className="filet-section px-6 py-3.5">
-          <p className="text-[12.5px] leading-relaxed text-muted">
-            Sans la surveillance de vos boîtes, votre taux d&apos;exposition
-            serait de{" "}
-            <span className="tabular font-medium text-foreground">
-              {scores.globalSansSurveillance}&nbsp;%
-            </span>{" "}
-            — soit{" "}
-            <span className="tabular font-medium text-foreground">
-              {scores.globalSansSurveillance - scores.global} points
-            </span>{" "}
-            de plus.
-          </p>
-        </div>
-      )}
-    </div>
+      <ul>
+        {RISK_CATEGORY_ORDER.map((categorie) => (
+          <li
+            key={categorie}
+            className="ligne-tableau flex items-start justify-between gap-5 py-3 first:pt-0"
+          >
+            <div className="min-w-0">
+              <p className="titre-bloc text-foreground">{titres[categorie]}</p>
+              <p className="texte-second mt-0.5">{explications[categorie]}</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <span className="chiffre block text-foreground">
+                {scores[categorie]}&nbsp;%
+              </span>
+              {categorie === "technique" && scores.reductionTechnique > 0 && (
+                <span className="chiffre mt-1 block text-[13px] font-normal text-muted line-through">
+                  {scores.techniqueBase}&nbsp;%
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 /**
- * L'anneau du taux d'exposition.
+ * La pastille de niveau : pleine, texte blanc, rayon 3 px.
  *
- * ⚠ L'ARC PREND LA COULEUR DU NIVEAU, PLUS CELLE DE LA MARQUE. Il était bleu,
- *   c'est-à-dire décoratif : un taux de 12 % et un taux de 84 % se peignaient
- *   pareil. Rouge, ambre ou gris, il dit maintenant quelque chose — et il
- *   reste dans la seule règle de couleur de l'écran.
+ * ⚠ PAS DE POINT COLORÉ À L'INTÉRIEUR D'UN CADRE CLAIR. C'était deux signaux
+ *   pour une seule information — la couleur du fond suffit.
  */
-function AnneauExposition({
-  pourcentage,
+export function PastilleNiveau({
   niveau,
 }: {
-  pourcentage: number;
   niveau: "faible" | "modere" | "eleve";
 }) {
-  const rayon = 46;
-  const circonference = 2 * Math.PI * rayon;
-  const borne = Math.min(Math.max(pourcentage, 0), 100) / 100;
-  const offset = circonference * (1 - borne);
-
-  const teinte = {
-    eleve: "var(--danger)",
-    modere: "var(--warning)",
-    faible: "var(--muted)",
+  const classe = {
+    eleve: "pastille pastille-eleve",
+    modere: "pastille pastille-modere",
+    faible: "pastille pastille-faible",
   }[niveau];
 
   return (
-    <div className="relative h-[128px] w-[128px] shrink-0">
-      <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90" aria-hidden>
-        <circle
-          cx="64"
-          cy="64"
-          r={rayon}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="6"
-          className="text-surface-3"
-        />
-        <circle
-          cx="64"
-          cy="64"
-          r={rayon}
-          fill="none"
-          stroke={teinte}
-          strokeWidth="6"
-          strokeDasharray={circonference}
-          strokeDashoffset={offset}
-          className="results-ring-arc"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <p className="serif-vitrine tabular text-[30px] leading-none text-foreground">
-          {pourcentage}
-          <span className="text-[15px]">&nbsp;%</span>
-        </p>
-        <p className="eyebrow mt-2">
-          {RISK_LEVEL_LABELS[niveau].replace(/^Risque\s+/i, "")}
-        </p>
-      </div>
-    </div>
+    <span className={classe}>
+      {RISK_LEVEL_LABELS[niveau].replace(/^Risque\s+/i, "")}
+    </span>
   );
 }
 
@@ -383,9 +313,9 @@ function AnneauExposition({
 function ListeCampagnes({ campagnes }: { campagnes: CampagneListe[] }) {
   if (campagnes.length === 0) {
     return (
-      <div className="bloc-releve px-6 py-10 text-center">
-        <p className="text-[13.5px] font-medium text-foreground">
-          Aucune campagne
+      <div className="bloc-app p-5">
+        <p className="texte-courant text-foreground">
+          Aucune campagne pour l&apos;instant.
         </p>
         <Link href="/campaigns/new" className={`${buttonPrimary} mt-4`}>
           <IconPlus />
@@ -396,28 +326,28 @@ function ListeCampagnes({ campagnes }: { campagnes: CampagneListe[] }) {
   }
 
   return (
-    <div className="bloc-releve overflow-hidden">
+    <div className="bloc-app overflow-hidden">
       <ul>
         {campagnes.slice(0, 5).map((campagne) => {
           const envoyes =
             campagne.campaign_targets?.filter((t) => t.message_final_html)
               .length ?? 0;
           return (
-            <li key={campagne.id} className="ligne-releve">
+            <li key={campagne.id} className="ligne-tableau">
               <Link
                 href={`/campaigns/${campagne.id}`}
-                className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-surface-2"
+                className="flex min-h-[44px] items-center justify-between gap-4 px-5 py-2.5"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[13.5px] text-foreground">
+                  <p className="truncate text-[15px] text-foreground">
                     {campagne.nom}
                   </p>
-                  <p className="tabular mt-0.5 text-[12px] text-faint">
+                  <p className="texte-second mt-0.5">
                     {formaterDateLongue(new Date(campagne.created_at))} ·{" "}
                     {envoyes === 1 ? "1 message" : `${envoyes} messages`}
                   </p>
                 </div>
-                <span className="eyebrow shrink-0">
+                <span className="texte-second shrink-0">
                   {STATUT_LABELS[campagne.statut]}
                 </span>
               </Link>

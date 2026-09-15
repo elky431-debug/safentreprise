@@ -28,9 +28,9 @@ export type PointJour = {
  *   l'espace connecté.
  */
 const NIVEAUX_INFOBULLE = [
-  { cle: "eleve", label: "Élevé", point: "bg-danger", texte: "text-danger" },
-  { cle: "modere", label: "Modéré", point: "bg-warning", texte: "text-warning" },
-  { cle: "faible", label: "Faible", point: "bg-muted", texte: "text-muted" },
+  { cle: "eleve", label: "Élevé", point: "pastille-eleve" },
+  { cle: "modere", label: "Modéré", point: "pastille-modere" },
+  { cle: "faible", label: "Faible", point: "pastille-faible" },
 ] as const;
 
 /**
@@ -149,13 +149,12 @@ export function CourbeMenaces({ points }: Props) {
       y: MARGE.haut + hauteurTrace * (1 - p.valeur / max),
     }));
 
+    // ⚠ PLUS DE CHEMIN D'AIRE. Il fermait la courbe vers la ligne de base pour
+    //   la remplir d'un dégradé ; le remplissage est supprimé, et garder le
+    //   calcul laisserait une géométrie morte que quelqu'un rebrancherait.
     const ligne = cheminMonotone(coords);
-    const aire =
-      coords.length >= 2
-        ? `${ligne} L ${coords[coords.length - 1].x} ${MARGE.haut + hauteurTrace} L ${coords[0].x} ${MARGE.haut + hauteurTrace} Z`
-        : "";
 
-    return { coords, ligne, aire, max, maxBrut, largeurTrace, hauteurTrace };
+    return { coords, ligne, max, maxBrut, largeurTrace, hauteurTrace };
   }, [points, largeur]);
 
   /** Index du point le plus proche du curseur. */
@@ -245,10 +244,6 @@ export function CourbeMenaces({ points }: Props) {
           );
         })}
 
-        {/* Aire puis ligne */}
-        {geometrie.aire && (
-          <path d={geometrie.aire} fill="url(#courbe-menaces-aire)" />
-        )}
         <path
           d={geometrie.ligne}
           fill="none"
@@ -324,28 +319,22 @@ export function CourbeMenaces({ points }: Props) {
             boxShadow: "0 8px 24px -14px rgba(16, 20, 26, 0.4)",
           }}
         >
-          <p className="whitespace-nowrap text-[11px] text-muted">
-            {actif.labelLong}
-          </p>
-          <p className="tabular whitespace-nowrap text-[13.5px] font-semibold text-foreground">
+          <p className="texte-second whitespace-nowrap">{actif.labelLong}</p>
+          <p className="chiffre whitespace-nowrap text-[15px] text-foreground">
             {actif.valeur}{" "}
             {actif.valeur > 1 ? "tentatives" : "tentative"}
           </p>
 
           {actif.valeur > 0 && (
             <ul className="mt-1.5 space-y-0.5">
-              {NIVEAUX_INFOBULLE.map(({ cle, label, point, texte }) =>
+              {NIVEAUX_INFOBULLE.map(({ cle, label, point }) =>
                 actif.parNiveau[cle] > 0 ? (
                   <li
                     key={cle}
                     className="flex items-center gap-1.5 whitespace-nowrap text-[11.5px]"
                   >
-                    <span
-                      aria-hidden
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${point}`}
-                    />
-                    <span className={texte}>{label}</span>
-                    <span className="tabular ml-auto pl-3 font-medium text-foreground">
+                    <span className={`pastille ${point}`}>{label}</span>
+                    <span className="chiffre ml-auto pl-3 text-foreground">
                       {actif.parNiveau[cle]}
                     </span>
                   </li>
@@ -357,7 +346,14 @@ export function CourbeMenaces({ points }: Props) {
       )}
 
       {/* Même donnée, lisible par les technologies d'assistance */}
-      <table className="sr-only">
+      {/* ⚠ L'ENVELOPPE PORTE `sr-only`, PAS LA TABLE, ET C'EST UN CORRECTIF.
+          Posée sur le `<table>` lui-même, la classe ne l'empêchait pas
+          d'élargir le document : un tableau s'étend pour tenir son contenu, et
+          ses cinq colonnes ajoutaient 10 px de défilement horizontal en
+          mobile — mesuré à 390 px de large. Sur un `<div>` absolu d'un pixel,
+          `overflow: hidden` clippe réellement. */}
+      <div className="sr-only">
+      <table>
         <caption>Tentatives détectées par jour, réparties par niveau</caption>
         <thead>
           <tr>
@@ -380,6 +376,7 @@ export function CourbeMenaces({ points }: Props) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
