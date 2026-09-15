@@ -351,9 +351,18 @@ body {
   --trait: #dde2e9;
   --papier: #f4f6f9;
 
-  --eleve: #c8102e;
-  --modere: #b5670a;
-  --faible: #1c7a58;
+  /* ⚠ LE NIVEAU DE RISQUE N'EST PLUS EN ROUGE, AMBRE ET VERT. Le feu tricolore
+     était la dernière chose qui faisait ressembler l'écran à n'importe quel
+     logiciel de gestion. Trois valeurs d'une seule teinte disent la même
+     hiérarchie : la ligne la plus grave est la plus sombre, donc la plus lourde
+     à l'œil, et le tri d'un coup d'œil reste possible sans lire les mots.
+
+     ⚠ `--faible` EST UN FOND, PAS UNE COULEUR DE TEXTE. Il est trop clair pour
+       porter du blanc : la pastille faible reprend l'encre douce en texte, voir
+       `.pastille-faible` plus bas. Ne pas l'employer en `text-*`. */
+  --eleve: #0d1f3c;
+  --modere: #5a6b84;
+  --faible: #e7ecf3;
 
   /* ---- Branchement sur les jetons partagés ---- */
   --background: var(--papier);
@@ -379,12 +388,21 @@ body {
   --accent-soft: rgba(13, 31, 60, 0.06);
   --accent-line: rgba(13, 31, 60, 0.22);
 
-  --danger: var(--eleve);
-  --danger-soft: rgba(200, 16, 46, 0.08);
-  --warning: var(--modere);
-  --warning-soft: rgba(181, 103, 10, 0.08);
-  --success: var(--faible);
-  --success-soft: rgba(28, 122, 88, 0.08);
+  /* ⚠ CES TROIS JETONS NE SUIVENT PLUS LE NIVEAU DE RISQUE, ET C'EST VOULU.
+     Ils étaient des alias de `--eleve` / `--modere` / `--faible` ; les faire
+     passer à l'encre avec eux aurait fait ressembler « la surveillance de vos
+     boîtes est interrompue » à un bloc ordinaire. Un niveau de risque se
+     hiérarchise, une panne s'annonce : ce ne sont pas les mêmes objets.
+
+     La couleur ne subsiste donc que sur une panne réelle du produit, jamais
+     sur une donnée. Et le vert disparaît complètement : un état sain n'a rien
+     à signaler, il se dit en encre douce. */
+  --danger: #c8102e;
+  --danger-soft: rgba(200, 16, 46, 0.07);
+  --warning: #b5670a;
+  --warning-soft: rgba(181, 103, 10, 0.07);
+  --success: var(--encre-douce);
+  --success-soft: rgba(13, 31, 60, 0.05);
 
   /* ⚠ AUCUNE OMBRE. « Ombres portées douces » est un interdit explicite. Le
      relief se lit par le contraste entre `--surface` et `--papier`. */
@@ -531,7 +549,16 @@ body {
 
 .canevas-app .pastille-eleve { background: var(--eleve); }
 .canevas-app .pastille-modere { background: var(--modere); }
-.canevas-app .pastille-faible { background: var(--faible); }
+
+/* Le fond le plus clair de la gamme ne peut pas porter du blanc : 1,19:1, soit
+   un texte illisible. La pastille faible reprend donc l'encre douce, qui donne
+   4,57:1 — au-dessus du seuil AA de 4,5:1, mais c'est le texte le moins
+   contrasté de l'écran, et c'est cohérent : c'est aussi le moins important.
+   Ne pas éclaircir `--faible` davantage sans redescendre le texte avec. */
+.canevas-app .pastille-faible {
+  background: var(--faible);
+  color: var(--encre-douce);
+}
 .canevas-app .pastille-neutre {
   background: transparent;
   color: var(--encre-douce);
@@ -550,6 +577,15 @@ body {
 .canevas-app .results-row,
 .canevas-app .rise {
   animation: none !important;
+}
+
+/* ⚠ ET AUCUNE OMBRE COLORÉE. `.menace-card--alerte` portait une ombre rose de
+   34 px : une ombre portée douce ET une couleur décorative, c'est-à-dire deux
+   interdits du document dans une seule déclaration. Elle est écrite en dur,
+   hors du jeton `--relief`, donc c'est ici qu'on la coupe. */
+.canevas-app .menace-card--alerte,
+.canevas-app .menace-card--alerte:hover {
+  box-shadow: none;
 }
 
 .canevas-app .bloc-releve:hover,

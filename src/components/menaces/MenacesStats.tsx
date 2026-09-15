@@ -33,16 +33,20 @@ const TONS: Record<TonCompteur, StylesTon> = {
     jauge: "bg-accent-text",
     bordure: "border-accent-line",
   },
+  /* ⚠ LES COMPTEURS NE SONT PLUS ROUGES NI AMBRE. Ils comptent un niveau de
+     risque, pas une panne : la hiérarchie passe par la valeur de l'encre,
+     comme sur les pastilles. `--danger` et `--warning` restent réservés à une
+     interruption réelle du produit. */
   danger: {
-    valeur: "text-danger",
-    icone: "border-danger/25 bg-danger-soft text-danger",
-    jauge: "bg-danger",
+    valeur: "text-foreground",
+    icone: "border-border-strong bg-surface-2 text-foreground",
+    jauge: "bg-foreground",
     bordure: "border-border",
   },
   warning: {
-    valeur: "text-warning",
-    icone: "border-warning/25 bg-warning-soft text-warning",
-    jauge: "bg-warning",
+    valeur: "text-foreground",
+    icone: "border-border bg-surface-2 text-muted",
+    jauge: "bg-muted",
     bordure: "border-border",
   },
   neutre: {
@@ -82,18 +86,15 @@ function Carte({ label, valeur, detail, icone, ton, part, index }: CarteProps) {
     <div
       className={`menace-card group relative overflow-hidden rounded-xl border bg-surface px-4 pb-4 pt-4 transition-[border-color,box-shadow,transform] duration-200 ${
         enAlerte
-          ? "menace-card--alerte border-danger/30"
+          ? "menace-card--alerte border-border-strong"
           : `${styles.bordure} hover:border-border-strong`
       }`}
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      {/* Halo diffus, réservé à la carte en alerte */}
-      {enAlerte && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -right-10 -top-14 h-32 w-32 rounded-full bg-danger/12 blur-2xl"
-        />
-      )}
+      {/* ⚠ LE HALO DIFFUS EST PARTI. Un cercle rouge flouté en fond de carte
+          est un dégradé ET une couleur décorative : deux interdits du document
+          dans le même élément. La carte qui a quelque chose à signaler se
+          distingue par le trait de sa bordure. */}
 
       <div className="relative flex items-start justify-between gap-3">
         <p className="text-[12px] leading-tight text-muted">{label}</p>

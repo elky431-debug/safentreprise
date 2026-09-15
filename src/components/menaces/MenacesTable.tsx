@@ -66,13 +66,18 @@ export function NiveauBadge({
  *   la recopier pour afficher le même motif. Seule la TEINTE reste ici : elle
  *   relève de l'affichage, et chaque écran peut la rendre à sa façon.
  */
+/* ⚠ LES TROIS FAMILLES NE SONT PLUS TROIS COULEURS. Un motif dit POURQUOI le
+   moteur a alerté, pas à quel point c'est grave : le rose et l'ambre qu'elles
+   portaient ajoutaient une gravité qu'elles ne mesurent pas, en concurrence
+   avec la pastille de niveau juste à côté. La famille se lit désormais au
+   poids du cadre, et la gravité nulle part ailleurs que sur le niveau. */
 export const TONS_SIGNAL: Record<TonSignal, string> = {
-  // Incohérence d'identité — teinte de la marque
-  identite: "border-accent-line/40 bg-accent-soft text-accent-text",
-  // Canal d'envoi douteux — ambre
-  canal: "border-warning/20 bg-warning-soft text-warning",
-  // Passage à l'acte (argent, urgence) — rouge
-  action: "border-danger/20 bg-danger-soft text-danger",
+  // Incohérence d'identité — la famille la plus probante, cadre le plus marqué
+  identite: "border-border-strong bg-surface-2 text-foreground",
+  // Canal d'envoi douteux
+  canal: "border-border bg-surface-2 text-muted",
+  // Passage à l'acte (argent, urgence)
+  action: "border-border bg-surface-2 text-muted",
 };
 
 /** Pastille d'un signal — fond teinté selon la famille. */
@@ -129,13 +134,15 @@ function formaterDateComplete(iso: string): string {
 type Filtre = NiveauRisqueMenace | "tous";
 
 /**
- * Chaque filtre s'active dans SA couleur plutôt qu'un bleu uniforme :
- * le segment sélectionné rappelle ainsi le niveau qu'il isole.
+ * ⚠ LE SEGMENT ACTIF NE PREND PLUS LA COULEUR DU NIVEAU QU'IL ISOLE. Un
+ *   filtre dit où l'on se trouve dans la liste, pas si la situation est grave :
+ *   l'écrire en rouge mettait une alarme sur une commande de navigation. Tous
+ *   les segments s'activent de la même façon.
  */
 const FILTRES: { cle: Filtre; label: string; actif: string }[] = [
-  { cle: "tous", label: "Tous", actif: "bg-accent-soft text-accent-text ring-accent-line/50" },
-  { cle: "eleve", label: "Élevé", actif: "bg-danger-soft text-danger ring-danger/25" },
-  { cle: "modere", label: "Modéré", actif: "bg-warning-soft text-warning ring-warning/25" },
+  { cle: "tous", label: "Tous", actif: "bg-surface-3 text-foreground ring-border-strong" },
+  { cle: "eleve", label: "Élevé", actif: "bg-surface-3 text-foreground ring-border-strong" },
+  { cle: "modere", label: "Modéré", actif: "bg-surface-3 text-foreground ring-border-strong" },
   { cle: "faible", label: "Faible", actif: "bg-surface-3 text-foreground ring-border-strong" },
 ];
 
