@@ -11,7 +11,6 @@ import {
   IconCampaign,
   IconContacts,
   IconDashboard,
-  IconDeliverability,
   IconEye,
   IconFormation,
   IconLogout,
@@ -64,17 +63,16 @@ const NAV_SECTIONS: { id: string; title: string; items: NavItem[] }[] = [
       { href: "/settings/formations", label: "Formations", Icon: IconFormation },
     ],
   },
-  {
-    id: "conformite",
-    title: "Conformité",
-    items: [
-      {
-        href: "/settings/deliverability",
-        label: "Délivrabilité",
-        Icon: IconDeliverability,
-      },
-    ],
-  },
+  // ⚠ LA RUBRIQUE « CONFORMITÉ » A DISPARU AVEC SON SEUL ONGLET. « Délivrabilité »
+  //   demandait au client d'autoriser `mail.safentreprise.com` — une valeur que
+  //   son propre code désignait comme un placeholder — alors que les messages
+  //   partent par Resend. Elle faisait configurer une règle Exchange sur un
+  //   domaine d'où rien n'est expédié. La page est conservée hors routage dans
+  //   `docs/archive/`, avec ce qu'il faudrait pour la ressusciter.
+  //
+  //   ⚠ NE PAS LA REMETTRE SANS UN VRAI DOMAINE D'ENVOI AUTHENTIFIÉ. Une
+  //     consigne fausse sur un écran de conformité coûte plus cher que pas
+  //     d'écran du tout.
   {
     id: "compte",
     title: "Compte",

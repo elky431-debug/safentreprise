@@ -61,25 +61,7 @@ export default function HelpPage() {
         </Panel>
 
         <Panel>
-          <PanelHeader title="3. Autoriser le domaine d'envoi" />
-          <div className="space-y-3 px-6 py-5 text-[13.5px] leading-relaxed text-muted">
-            <p>
-              Pour limiter le spam et la quarantaine, autorisez le domaine
-              d&apos;envoi Safentreprise côté Microsoft 365 ou Google Workspace.
-              Les étapes détaillées sont dans{" "}
-              <Link
-                href="/settings/deliverability"
-                className="font-medium text-accent-text hover:underline"
-              >
-                Délivrabilité
-              </Link>
-              .
-            </p>
-          </div>
-        </Panel>
-
-        <Panel>
-          <PanelHeader title="4. Créer et envoyer une campagne" />
+          <PanelHeader title="3. Créer et envoyer une campagne" />
           <div className="space-y-3 px-6 py-5 text-[13.5px] leading-relaxed text-muted">
             <ol className="list-decimal space-y-2 pl-5">
               <li>
@@ -111,7 +93,7 @@ export default function HelpPage() {
         </Panel>
 
         <Panel>
-          <PanelHeader title="5. Interpréter les résultats" />
+          <PanelHeader title="4. Interpréter les résultats" />
           <div className="space-y-3 px-6 py-5 text-[13.5px] leading-relaxed text-muted">
             <p>Sur une campagne « envoyée », trois indicateurs principaux :</p>
             <ul className="list-disc space-y-1.5 pl-5">
@@ -148,7 +130,7 @@ export default function HelpPage() {
         </Panel>
 
         <Panel>
-          <PanelHeader title="6. Cadre légal / CNIL" />
+          <PanelHeader title="5. Cadre légal / CNIL" />
           <div className="space-y-3 px-6 py-5 text-[13.5px] leading-relaxed text-muted">
             <p>
               Les simulations de phishing sont possibles sous conditions : finalité
