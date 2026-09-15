@@ -224,42 +224,25 @@ GRANT EXECUTE ON FUNCTION public.tenants_a_verifier(INTEGER) TO service_role;
 --   ce qui rend la bascule réversible sans intervention.
 
 -- =============================================================================
--- 5. Ce que la veille doit voir
+-- 5. Ce que la veille doit voir — RETIRÉ, VOIR 20261007
 -- =============================================================================
-
-CREATE OR REPLACE VIEW public.tenants_en_alerte AS
-  SELECT t.id AS tenant_uid,
-         t.tenant_id,
-         t.company_id,
-         c.nom AS societe,
-         t.statut,
-         t.echecs_sante,
-         t.sante_bascule_at,
-         t.sante_verifiee_at,
-         CASE
-           WHEN t.statut = 'revoque' THEN
-             'AUTORISATION RETIRÉE — plus aucun message n''est analysé depuis ' ||
-             COALESCE(t.sante_bascule_at::TEXT, 'une date inconnue') || '. ' ||
-             COALESCE(t.derniere_erreur, '')
-           WHEN t.statut = 'erreur' THEN
-             'Santé incertaine (' || t.echecs_sante || '/3 refus d''autorisation) — ' ||
-             COALESCE(t.derniere_erreur, 'sans détail')
-           -- Une vérification qui ne passe plus est un problème en soi : la
-           -- tâche planifiée est peut-être arrêtée, et l'absence d'alerte
-           -- ressemblerait alors à « tout va bien ».
-           ELSE 'Aucune vérification de santé depuis ' ||
-                COALESCE(age(now(), t.sante_verifiee_at)::TEXT, 'toujours')
-         END AS motif
-    FROM microsoft_tenants t
-    LEFT JOIN companies c ON c.id = t.company_id
-   WHERE t.statut IN ('revoque', 'erreur')
-      OR t.sante_verifiee_at IS NULL
-      OR t.sante_verifiee_at < now() - INTERVAL '3 hours';
-
-COMMENT ON VIEW public.tenants_en_alerte IS
-  'Locataires coupés, douteux, ou plus vérifiés du tout. Doit rester vide.';
-
-GRANT SELECT ON public.tenants_en_alerte TO authenticated, service_role;
+--
+-- ⚠ CETTE SECTION CRÉAIT UNE VUE `tenants_en_alerte` QUI EXISTAIT DÉJÀ, depuis
+--   `20260907_raccordement.sql:454`. La collision de noms n'a été vue par
+--   personne à l'écriture ; Postgres l'a refusée à l'application (42P16,
+--   « cannot drop columns from view »), et le contournement — un DROP VIEW
+--   devant — a remplacé l'originale par une version plus pauvre, SANS son
+--   `WITH (security_invoker = true)`. `microsoft_tenants` étant protégée par
+--   RLS, la vue est alors devenue lisible entre sociétés.
+--
+--   La définition fusionnée — avancement du raccordement ET santé du
+--   consentement, security_invoker rétabli — vit désormais dans
+--   `20261007_tenants_en_alerte_fusion.sql`. Elle n'est pas recopiée ici :
+--   deux définitions d'une même vue, c'est exactement ce qui a produit le
+--   défaut.
+--
+-- ⚠ AVANT DE CRÉER UNE VUE, VÉRIFIER QU'ELLE N'EXISTE PAS DÉJÀ :
+--     grep -rn "VIEW public.<nom>" supabase/migrations/
 
 -- =============================================================================
 -- 6. Le journal doit pouvoir nommer le nouvel acteur
