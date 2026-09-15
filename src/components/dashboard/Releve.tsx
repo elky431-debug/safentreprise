@@ -343,7 +343,7 @@ function ListeCampagnes({ campagnes }: { campagnes: CampagneListe[] }) {
                     {campagne.nom}
                   </p>
                   <p className="texte-second mt-0.5">
-                    {formaterDateLongue(new Date(campagne.created_at))} ·{" "}
+                    {formaterDateLongue(new Date(campagne.created_at))},{" "}
                     {envoyes === 1 ? "1 message" : `${envoyes} messages`}
                   </p>
                 </div>

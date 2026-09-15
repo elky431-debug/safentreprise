@@ -209,13 +209,11 @@ export function CourbeMenaces({ points }: Props) {
             élevé, ambre pour modéré, gris pour faible. Un tracé bleu ne
             désignait rien — il décorait, et il faisait de l'écran un tableau de
             bord de croissance de plus. Le seul endroit où la couleur reparaît
-            ici, c'est l'infobulle, où elle qualifie bien un niveau. */}
-        <defs>
-          <linearGradient id="courbe-menaces-aire" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
+            ici, c'est l'infobulle, où elle qualifie bien un niveau.
+
+            ⚠ PLUS DE `<defs>` NON PLUS. Le dégradé sous la courbe figure dans
+              la liste des suppressions : l'aire a été retirée, et la définition
+              du dégradé restait derrière elle sans plus rien à peindre. */}
 
         {/* Graduations horizontales — volontairement effacées */}
         {[0, 0.5, 1].map((t) => {

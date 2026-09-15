@@ -9,10 +9,19 @@
  *
  *   Une fois la surveillance en marche, le bandeau s'efface et laisse une
  *   ligne discrète : il n'a plus rien à dire.
+ *
+ * ⚠ PLUS AUCUNE FLÈCHE ACCOLÉE À UN LIEN. La direction artistique les nomme
+ *   explicitement — « la flèche → accolée à Voir le détail » — et ce fichier
+ *   en portait trois. Un bouton et un lien souligné disent déjà qu'ils mènent
+ *   quelque part.
+ *
+ * ⚠ ET PLUS DE TIRET CADRATIN NI DE POINT MÉDIAN COMME SÉPARATEURS. Ils font
+ *   partie du même vocabulaire générique que les capitales espacées : une
+ *   phrase se ponctue, elle ne s'assemble pas avec des signes.
  */
 import Link from "next/link";
 import { buttonPrimary } from "@/components/ui";
-import { IconArrowRight, IconEye, IconShieldCheck } from "@/components/icons";
+import { IconEye, IconShieldCheck } from "@/components/icons";
 import { annuaireCoupe, resumeRaccordement } from "@/lib/microsoft/etat";
 import { lireRaccordement } from "@/lib/microsoft/parcours";
 
@@ -29,20 +38,19 @@ export async function BandeauRaccordement() {
      invisible. */
   if (etat.etape === "actif" && !enPanne && annuaireKo) {
     return (
-      <section className="rounded-xl border border-warning/30 bg-warning-soft px-5 py-4">
+      <section className="rounded border border-warning/40 bg-warning-soft px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h2 className="flex items-center gap-2 text-[14px] font-semibold text-foreground">
+            <h2 className="titre-bloc flex items-center gap-2 text-foreground">
               <IconEye className="h-4 w-4 shrink-0 text-warning" />
               Votre protection Microsoft 365 est amoindrie
             </h2>
-            <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted">
+            <p className="texte-courant mt-1.5 text-muted">
               {resume}
             </p>
           </div>
           <Link href="/microsoft" className={`${buttonPrimary} shrink-0`}>
             Voir ce qu&apos;il faut faire
-            <IconArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </section>
@@ -54,15 +62,14 @@ export async function BandeauRaccordement() {
     return (
       <Link
         href="/microsoft"
-        className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-2.5 transition-colors hover:bg-surface-2/60"
+        className="bloc-app flex min-h-[44px] flex-wrap items-center gap-2.5 px-5 py-2.5"
       >
         <IconShieldCheck className="h-4 w-4 shrink-0 text-success" />
-        <span className="text-[13px] text-foreground">
-          Microsoft 365 — {resume}
+        <span className="text-[15px] text-foreground">
+          Microsoft 365 : {resume}
         </span>
-        <span className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-medium text-muted">
+        <span className="texte-second ml-auto font-medium text-foreground underline underline-offset-4">
           Voir le détail
-          <IconArrowRight className="h-3.5 w-3.5" />
         </span>
       </Link>
     );
@@ -72,15 +79,15 @@ export async function BandeauRaccordement() {
 
   return (
     <section
-      className={`rounded-xl border px-5 py-4 ${
+      className={`rounded border px-5 py-4 ${
         enPanne
-          ? "border-danger/25 bg-danger-soft"
-          : "border-warning/30 bg-warning-soft"
+          ? "border-danger/40 bg-danger-soft"
+          : "border-warning/40 bg-warning-soft"
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-2 text-[14px] font-semibold text-foreground">
+          <h2 className="titre-bloc flex items-center gap-2 text-foreground">
             <IconEye
               className={`h-4 w-4 shrink-0 ${enPanne ? "text-danger" : "text-warning"}`}
             />
@@ -90,7 +97,7 @@ export async function BandeauRaccordement() {
                 ? "Vos boîtes Microsoft 365 ne sont pas encore surveillées"
                 : "Raccordement Microsoft 365 à terminer"}
           </h2>
-          <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted">
+          <p className="texte-courant mt-1.5 text-muted">
             {resume}
           </p>
         </div>
@@ -101,7 +108,6 @@ export async function BandeauRaccordement() {
             : enPanne
               ? "Voir ce qui bloque"
               : "Reprendre le raccordement"}
-          <IconArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
     </section>

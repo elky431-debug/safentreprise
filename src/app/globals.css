@@ -432,6 +432,20 @@ body {
   font-family: var(--font-mono-stack), ui-monospace, monospace;
 }
 
+/* ⚠ `.eyebrow` EST NEUTRALISÉE, PAS SEULEMENT INUTILISÉE. C'est la classe des
+   petites capitales monospace espacées de 0,16 em — exactement le marqueur que
+   le document range dans les suppressions, et la règle qu'il énonce est « aucune
+   capitale intégrale, nulle part, sans exception ». Elle n'apparaît aujourd'hui
+   que dans la vitrine, qui la garde ; l'annuler ici empêche qu'un composant
+   partagé la réintroduise dans l'application sans que personne le voie. */
+.canevas-app .eyebrow {
+  font-family: var(--font-archivo), system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+}
+
 /* ---- L'échelle typographique ---- */
 
 .canevas-app .titre-page-da {

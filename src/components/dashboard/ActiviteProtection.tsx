@@ -225,9 +225,6 @@ export function ActiviteProtection({ menaces }: Props) {
     [surPeriode],
   );
 
-  const titrePeriode =
-    PERIODES.find((p) => p.cle === periode)?.titre ?? "Période";
-
   return (
     <section>
       {/* ⚠ PLUS D'ÉTIQUETTE AU-DESSUS DU GRAPHIQUE. « Activité de la
@@ -243,7 +240,6 @@ export function ActiviteProtection({ menaces }: Props) {
           <ChiffreDeTete
             eleve={repartition.eleve}
             total={surPeriode.length}
-            titrePeriode={titrePeriode}
           />
 
           <VentilationNiveaux
@@ -301,21 +297,20 @@ function SelecteurPeriode({
 }
 
 /**
- * Le chiffre qui commande la page.
+ * Le chiffre qui commande le bloc.
  *
- * ⚠ IL EST EN SERIF, ET CE N'EST PAS UN ORNEMENT. Le serif de la vitrine est
- *   ce qui rattache l'écran au reste de la marque et lui donne son air de
- *   relevé ; un chiffre en grotesque très serré est exactement la signature
- *   d'un tableau de bord de croissance.
+ * ⚠ IL N'EST PLUS EN SERIF, ET IL NE PORTE PLUS LE NOM DE LA PÉRIODE. La
+ *   version précédente l'écrivait en Source Serif coloré et faisait suivre
+ *   « sur 30 jours » : le document range la serif et le grand chiffre coloré
+ *   dans les suppressions, et le sélecteur juste au-dessus dit déjà la période.
+ *   Le prop `titrePeriode` a donc disparu plutôt que d'être gardé inutilisé.
  */
 function ChiffreDeTete({
   eleve,
   total,
-  titrePeriode,
 }: {
   eleve: number;
   total: number;
-  titrePeriode: string;
 }) {
   const aucunElevee = eleve === 0;
   const valeur = aucunElevee ? total : eleve;
@@ -352,17 +347,13 @@ function ChiffreDeTete({
       </p>
 
       <p className="texte-second mt-2">
-        {aucunElevee ? (
-          <>
-            Aucune à risque élevé sur la période
-            <span className="text-faint"> · {titrePeriode.toLowerCase()}</span>
-          </>
-        ) : (
-          <>
-            sur {total} {total === 1 ? "message signalé" : "messages signalés"}
-            <span className="text-faint"> · {titrePeriode.toLowerCase()}</span>
-          </>
-        )}
+        {/* ⚠ PLUS DE POINT MÉDIAN, ET PLUS DE PÉRIODE ICI. Le point médian fait
+            partie du vocabulaire générique que la direction artistique
+            supprime ; et la période est déjà lisible dans le sélecteur, juste
+            au-dessus. La retirer enlève le séparateur ET une redondance. */}
+        {aucunElevee
+          ? "Aucune à risque élevé sur la période"
+          : `sur ${total} ${total === 1 ? "message signalé" : "messages signalés"}`}
       </p>
 
       {!aucunElevee && (

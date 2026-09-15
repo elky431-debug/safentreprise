@@ -185,8 +185,13 @@ function Sidebar({ companyName, userEmail }: SidebarProps) {
                 style={{ flex: section.items.length }}
               >
                 <div className="shrink-0 px-2.5 pt-1">
+                  {/* ⚠ CASSE DE PHRASE. C'était le dernier jeu de petites
+                      capitales espacées de la coquille — `tracking-[0.14em]`
+                      sur dix pixels. Le titre de section se distingue
+                      désormais par la graisse et la couleur, comme les
+                      en-têtes de colonnes. */}
                   <p
-                    className="max-h-0 overflow-hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-faint opacity-0 transition-all duration-200 group-hover/sidebar:mb-0.5 group-hover/sidebar:max-h-4 group-hover/sidebar:opacity-100"
+                    className="max-h-0 overflow-hidden text-[11px] font-semibold text-faint opacity-0 transition-all duration-200 group-hover/sidebar:mb-0.5 group-hover/sidebar:max-h-4 group-hover/sidebar:opacity-100"
                     aria-hidden
                   >
                     {section.title}

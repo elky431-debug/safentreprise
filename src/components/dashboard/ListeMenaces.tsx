@@ -89,9 +89,17 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
                 href={`/menaces?alerte=${encodeURIComponent(menace.id)}`}
                 className={`group min-h-[44px] items-center px-5 py-2.5 ${COLONNES}`}
               >
-                {/* Date */}
-                <span className="chiffre order-1 text-[13px] font-normal text-muted lg:order-none">
-                  {formaterDate(menace.detecte_at)}
+                {/* Date — le jour au-dessus de l'heure, sans séparateur.
+                    ⚠ LE POINT MÉDIAN QUI LES RELIAIT EST PARTI. Deux
+                      informations sur deux lignes n'ont pas besoin d'un signe
+                      pour être distinguées. */}
+                <span className="order-1 lg:order-none">
+                  <span className="chiffre block text-[13px] font-normal text-muted">
+                    {formaterJour(menace.detecte_at)}
+                  </span>
+                  <span className="chiffre block text-[13px] font-normal text-muted">
+                    {formaterHeure(menace.detecte_at)}
+                  </span>
                 </span>
 
                 {/* Niveau — la seule couleur de la ligne */}
@@ -167,16 +175,27 @@ function Colonne({ children }: { children: React.ReactNode }) {
   return <span className="entete-tableau">{children}</span>;
 }
 
-/** « 12 sept. · 14:05 » — assez pour situer sans occuper deux lignes. */
-function formaterDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString("fr-FR", {
+/**
+ * ⚠ DEUX FONCTIONS PLUTÔT QU'UNE, PARCE QUE LE SÉPARATEUR A DISPARU. Le jour
+ *   et l'heure tenaient sur une seule ligne, reliés par un point médian qui
+ *   figure dans la liste des suppressions. Les empiler rend le signe inutile,
+ *   au lieu de le remplacer par un autre.
+ */
+
+/** « 12 sept. » */
+function formaterJour(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", {
     day: "numeric",
     month: "short",
-  })} · ${d.toLocaleTimeString("fr-FR", {
+  });
+}
+
+/** « 14:05 » */
+function formaterHeure(iso: string): string {
+  return new Date(iso).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
-  })}`;
+  });
 }
 
 /** Pied de liste : le renvoi vers la page complète. */
