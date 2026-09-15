@@ -34,6 +34,9 @@ const VIDE: Raccordement = {
   sante_bascule_at: null,
   sante_verifiee_at: null,
   echecs_sante: 0,
+  panne_portee: null,
+  annuaire_ko_at: null,
+  annuaire_erreur: null,
   boites: [],
 };
 
@@ -51,6 +54,9 @@ type LigneTenant = {
   sante_bascule_at: string | null;
   sante_verifiee_at: string | null;
   echecs_sante: number | null;
+  panne_portee: "courrier" | "tout" | null;
+  annuaire_ko_at: string | null;
+  annuaire_erreur: string | null;
 };
 
 /**
@@ -74,7 +80,8 @@ export const lireRaccordement = cache(async function lireRaccordement(): Promise
         // Écrites par la vérification de santé (`/api/microsoft/sante`). Sans
         // elles, l'écran ne peut pas dire DEPUIS QUAND la surveillance est
         // arrêtée — et « arrêtée » sans date se lit comme « peut-être ».
-        "sante_bascule_at, sante_verifiee_at, echecs_sante",
+        "sante_bascule_at, sante_verifiee_at, echecs_sante, panne_portee, " +
+        "annuaire_ko_at, annuaire_erreur",
     )
     .order("created_at", { ascending: false })
     .limit(1)
@@ -133,6 +140,9 @@ export const lireRaccordement = cache(async function lireRaccordement(): Promise
     sante_bascule_at: tenant.sante_bascule_at,
     sante_verifiee_at: tenant.sante_verifiee_at,
     echecs_sante: tenant.echecs_sante ?? 0,
+    panne_portee: tenant.panne_portee,
+    annuaire_ko_at: tenant.annuaire_ko_at,
+    annuaire_erreur: tenant.annuaire_erreur,
     boites,
   };
 });

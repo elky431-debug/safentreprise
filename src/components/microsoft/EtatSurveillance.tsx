@@ -12,6 +12,7 @@
  *   choisie, vérifiée, abonnée. Seule la dernière fait arriver les messages.
  */
 import {
+  annuaireCoupe,
   surveillanceInterrompue,
   type Raccordement,
 } from "@/lib/microsoft/etat";
@@ -21,6 +22,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
   const choisies = etat.boites.filter((b) => b.choisie);
   const abonnees = choisies.filter((b) => b.abonnee).length;
   const interrompue = surveillanceInterrompue(etat);
+  const annuaireKo = annuaireCoupe(etat);
 
   // Une boîte retirée garde son abonnement Microsoft quelques jours, le temps
   // qu'il expire. Ses messages ne sont plus analysés — les notifications sont
@@ -37,11 +39,54 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
           dans `constater_sante_tenant` : trois refus d'autorisation
           consécutifs, et rien d'autre, font une révocation. */}
 
-      {etat.statut === "revoque" && (
+      {etat.statut === "revoque" && etat.panne_portee === "tout" && (
         <Encadre ton="danger" titre="Votre surveillance est arrêtée">
           <p>
-            L&apos;autorisation accordée à Safentreprise a été retirée dans
-            votre annuaire Microsoft
+            Microsoft refuse désormais de nous délivrer la moindre
+            autorisation
+            {etat.sante_bascule_at && (
+              <>
+                , le{" "}
+                <strong className="font-medium text-foreground">
+                  {dateLisible(etat.sante_bascule_at)}
+                </strong>
+              </>
+            )}
+            . L&apos;application Safentreprise a probablement été supprimée ou
+            désactivée dans votre annuaire.{" "}
+            <strong className="font-medium text-foreground">
+              Depuis, plus aucun message n&apos;est analysé
+            </strong>{" "}
+            et aucune tentative de fraude n&apos;est signalée.
+          </p>
+          <p className="mt-2">
+            <strong className="font-medium text-foreground">
+              Deux gestes sont nécessaires, dans cet ordre.
+            </strong>{" "}
+            D&apos;abord le bouton «&nbsp;Autoriser chez Microsoft&nbsp;» en
+            haut de cette page, qu&apos;un administrateur général doit valider.
+            Ensuite, faites réexécuter par un administrateur Exchange le script
+            PowerShell de l&apos;étape «&nbsp;Restreindre l&apos;accès&nbsp;».
+            Le premier seul ne rétablira pas l&apos;analyse du courrier.
+          </p>
+          {etat.derniere_erreur && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-[12.5px] hover:text-foreground">
+                Voir la réponse de Microsoft
+              </summary>
+              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
+                {etat.derniere_erreur}
+              </pre>
+            </details>
+          )}
+        </Encadre>
+      )}
+
+      {etat.statut === "revoque" && etat.panne_portee !== "tout" && (
+        <Encadre ton="danger" titre="Votre surveillance est arrêtée">
+          <p>
+            L&apos;attribution de rôle qui nous donne accès à vos boîtes a été
+            retirée dans Exchange
             {etat.sante_bascule_at && (
               <>
                 , le{" "}
@@ -56,14 +101,26 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
             </strong>{" "}
             et aucune tentative de fraude n&apos;est signalée.
           </p>
+          {/* ⚠ CE PARAGRAPHE EXISTE PARCE QUE LA PREMIÈRE VERSION DISAIT LE
+              CONTRAIRE. Elle envoyait le client cliquer « Autoriser chez
+              Microsoft » — un geste qui ne rétablit RIEN ici, puisque le
+              consentement Entra est toujours valable. Un test réel l'a
+              montré : l'accès au courrier vient du RBAC Exchange posé par le
+              script, pas d'un rôle d'application Entra. */}
           <p className="mt-2">
-            Nous ne pouvons pas la rétablir de notre côté : seul un
-            administrateur de votre organisation peut redonner l&apos;accord.
-            Le bouton «&nbsp;Autoriser chez Microsoft&nbsp;» en haut de cette
-            page reprend le parcours —{" "}
             <strong className="font-medium text-foreground">
-              vos boîtes choisies et la restriction déjà vérifiée sont
-              conservées
+              Ce n&apos;est pas le bouton «&nbsp;Autoriser chez
+              Microsoft&nbsp;» qui réglera ce problème
+            </strong>{" "}
+            — cette autorisation-là est toujours valable.
+          </p>
+          <p className="mt-2">
+            Il faut faire réexécuter par un administrateur Exchange le script
+            PowerShell de l&apos;étape «&nbsp;Restreindre l&apos;accès&nbsp;»,
+            celui qui déclare Safentreprise dans Exchange et lui attribue
+            l&apos;accès à vos seules boîtes choisies.{" "}
+            <strong className="font-medium text-foreground">
+              Vos boîtes choisies et le périmètre déjà défini sont conservés
             </strong>
             , il n&apos;y a pas tout à refaire.
           </p>
@@ -74,6 +131,61 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
               </summary>
               <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
                 {etat.derniere_erreur}
+              </pre>
+            </details>
+          )}
+        </Encadre>
+      )}
+
+      {/* ⚠ AMBRE, PAS ROUGE, ET CE N'EST PAS UN ADOUCISSEMENT. Les messages
+          sont TOUJOURS analysés : dire « arrêtée » serait faux. Ce qui tombe,
+          c'est la reconnaissance des dirigeants et collaborateurs, donc
+          l'usurpation d'annuaire. Et le remède est l'inverse exact de celui du
+          courrier coupé — d'où deux encadrés, jamais un seul. */}
+      {annuaireKo && (
+        <Encadre ton="attention" titre="Votre protection est amoindrie">
+          <p>
+            <strong className="font-medium text-foreground">
+              Vos messages sont toujours analysés
+            </strong>{" "}
+            — la surveillance fonctionne. En revanche, nous n&apos;avons plus
+            accès à votre annuaire Microsoft
+            {etat.annuaire_ko_at && (
+              <>
+                {" "}
+                depuis le{" "}
+                <strong className="font-medium text-foreground">
+                  {dateLisible(etat.annuaire_ko_at)}
+                </strong>
+              </>
+            )}
+            .
+          </p>
+          <p className="mt-2">
+            <strong className="font-medium text-foreground">
+              Ce qui se dégrade en attendant :
+            </strong>{" "}
+            le moteur ne reconnaît plus les noms et adresses de vos dirigeants
+            et de vos collaborateurs. Une tentative qui se présente au nom de
+            l&apos;un d&apos;eux — le scénario le plus courant de l&apos;arnaque
+            au président — ne sera plus repérée comme telle. Les autres règles
+            de détection continuent de fonctionner.
+          </p>
+          <p className="mt-2">
+            <strong className="font-medium text-foreground">
+              Pour rétablir :
+            </strong>{" "}
+            le bouton «&nbsp;Autoriser chez Microsoft&nbsp;» en haut de cette
+            page. Un administrateur général doit réaccorder le consentement. Il
+            n&apos;y a rien d&apos;autre à refaire.
+          </p>
+          {etat.annuaire_erreur && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-[12.5px] hover:text-foreground">
+                Voir la réponse de Microsoft
+              </summary>
+              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
+                {etat.annuaire_erreur}
               </pre>
             </details>
           )}

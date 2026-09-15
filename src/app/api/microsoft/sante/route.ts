@@ -33,7 +33,13 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 import { rpcService } from "@/lib/microsoft/consentement";
-import { panneGenerale, sonder, type Verdict } from "@/lib/microsoft/sante";
+import {
+  panneGenerale,
+  sonder,
+  type Constat,
+  type Portee,
+  type Verdict,
+} from "@/lib/microsoft/sante";
 import { avecContexteJournal } from "@/lib/microsoft/journal";
 import { envoyerEmail } from "@/lib/send/email";
 import { erreurExpediteur, expediteurVerifie } from "@/lib/send/expediteur";
@@ -62,15 +68,21 @@ type Constatation = {
   statut_apres: string;
   bascule: boolean;
   echecs: number;
+  portee: Portee | null;
+  annuaire_bascule: boolean;
+  annuaire_coupe: boolean;
 };
 
 type Bilan = {
   tenant_uid: string;
   societe: string | null;
   verdict: Verdict;
+  portee: Portee | null;
   statut_avant: string;
   statut_apres: string;
   bascule: boolean;
+  annuaire_coupe: boolean;
+  annuaire_bascule: boolean;
   detail: string;
 };
 
@@ -167,58 +179,155 @@ function texteInterne(b: Bilan): string {
   return [
     `Locataire : ${b.societe ?? "société inconnue"} (${b.tenant_uid})`,
     `Statut : ${b.statut_avant} → ${b.statut_apres}`,
+    `Porte : ${b.portee ?? (b.annuaire_coupe ? "annuaire" : "—")}`,
     `Verdict de la sonde : ${b.verdict}`,
     "",
     `Détail Microsoft : ${b.detail || "sans détail"}`,
     "",
-    b.statut_apres === "revoque"
-      ? "PLUS AUCUN MESSAGE N'EST ANALYSÉ pour ce client. L'accord doit être " +
-        "redonné depuis sa page Microsoft 365."
-      : b.statut_apres === "erreur"
-        ? "La surveillance est incertaine. Si c'est passager, la prochaine " +
-          "vérification rétablira le statut toute seule."
-        : "Retour à la normale, rien à faire.",
+    conduiteInterne(b),
   ].join("\n");
 }
 
+function conduiteInterne(b: Bilan): string {
+  if (b.statut_apres === "revoque" && b.portee === "tout") {
+    return (
+      "TOUT COUPÉ — plus aucun message n'est analysé. L'application a " +
+      "probablement été supprimée du locataire : le client doit reprendre le " +
+      "parcours depuis le consentement, PUIS refaire exécuter le script."
+    );
+  }
+  if (b.statut_apres === "revoque") {
+    return (
+      "COURRIER COUPÉ — plus aucun message n'est analysé. C'est l'attribution " +
+      "de rôle Exchange qui a sauté : refaire le consentement Entra n'y " +
+      "changerait RIEN, il faut réexécuter le script PowerShell de l'étape 3."
+    );
+  }
+  if (b.annuaire_coupe) {
+    return (
+      "ANNUAIRE COUPÉ — les messages sont toujours analysés, mais l'usurpation " +
+      "d'annuaire n'est plus détectée. Le consentement Entra doit être " +
+      "réaccordé (bouton « Autoriser chez Microsoft »)."
+    );
+  }
+  if (b.statut_apres === "erreur") {
+    return (
+      "La surveillance est incertaine. Si c'est passager, la prochaine " +
+      "vérification rétablira le statut toute seule."
+    );
+  }
+  return "Retour à la normale, rien à faire.";
+}
+
+/* --------------------------------------------------------------------------
+   Les trois textes au dirigeant
+   -------------------------------------------------------------------------- */
+
 /**
- * L'alerte au dirigeant — révocation uniquement.
+ * ⚠ TROIS PANNES, TROIS REMÈDES OPPOSÉS, ET C'EST TOUT L'ENJEU DE CES TEXTES.
+ *   La première version en connaissait un seul et disait « cliquez Autoriser
+ *   chez Microsoft » dans les trois cas. Un test réel a montré que c'était faux
+ *   deux fois sur trois : l'accès au courrier vient du RBAC Exchange posé par
+ *   le script, pas d'un rôle d'application Entra. Envoyer un client refaire un
+ *   consentement pour réparer une attribution de rôle Exchange, c'est le faire
+ *   tourner en rond pendant que rien n'est analysé.
  *
- * ⚠ JAMAIS SUR « erreur ». C'est passager par construction, et le plus souvent
- *   notre problème ou celui de Microsoft. Un mail à chaque hoquet apprendrait
- *   au dirigeant à ignorer nos alertes — et le jour de la vraie révocation, il
- *   ne la lirait pas.
- *
- * ⚠ AUCUNE DONNÉE PERSONNELLE DANS LE CORPS. Un statut, une date, une marche à
- *   suivre. La seule donnée nominative est l'adresse du destinataire, qui sort
- *   déjà vers Resend au titre de l'alerte de fraude (AIPD § 1.5 bis).
+ * ⚠ ET L'ANNUAIRE N'EST PAS UNE INTERRUPTION. Les messages continuent d'être
+ *   analysés ; c'est la reconnaissance des dirigeants et collaborateurs qui
+ *   tombe, donc l'usurpation d'annuaire. Le dire « arrêté » serait un second
+ *   mensonge. Le texte doit être pressant SANS être alarmiste.
  */
-function texteDirigeant(societe: string | null): string {
-  return [
-    `Bonjour,`,
-    "",
-    `La surveillance Safentreprise de votre messagerie Microsoft 365 est ` +
-      `ARRÊTÉE${societe ? ` pour ${societe}` : ""}.`,
-    "",
-    `L'autorisation que votre administrateur avait accordée à Safentreprise a ` +
-      `été retirée dans votre annuaire Microsoft. Depuis, plus aucun message ` +
-      `n'est analysé, et aucune tentative de fraude n'est signalée.`,
-    "",
-    `Nous l'avons constaté automatiquement — vous n'avez rien fait de mal, et ` +
-      `nous ne pouvons pas le rétablir depuis chez nous : seul un ` +
-      `administrateur de votre organisation peut redonner l'accord.`,
-    "",
-    `POUR RÉTABLIR LA SURVEILLANCE`,
-    `Connectez-vous à votre espace Safentreprise, page « Microsoft 365 », et ` +
-      `suivez le bouton « Autoriser chez Microsoft ». Vos boîtes déjà ` +
-      `choisies et la restriction déjà vérifiée sont conservées : il n'y a pas ` +
-      `tout à refaire.`,
-    "",
-    `Si vous n'êtes pas à l'origine de ce retrait, vérifiez auprès de votre ` +
-      `administrateur qu'il s'agit bien d'une décision voulue.`,
-    "",
-    `L'équipe Safentreprise`,
-  ].join("\n");
+function texteDirigeant(
+  societe: string | null,
+  cas: "courrier" | "tout" | "annuaire",
+): { objet: string; corps: string } {
+  const chez = societe ? ` pour ${societe}` : "";
+
+  if (cas === "annuaire") {
+    return {
+      objet: "Votre protection Safentreprise est amoindrie",
+      corps: [
+        "Bonjour,",
+        "",
+        `Vos messages sont toujours analysés${chez} — la surveillance ` +
+          "fonctionne. En revanche, nous n'avons plus accès à votre annuaire " +
+          "Microsoft.",
+        "",
+        "CE QUI SE DÉGRADE EN ATTENDANT",
+        "Le moteur ne reconnaît plus les noms et adresses de vos dirigeants et " +
+          "de vos collaborateurs. Une tentative qui se présente au nom de l'un " +
+          "d'eux — le scénario le plus courant de l'arnaque au président — ne " +
+          "sera plus repérée comme telle. Les autres règles de détection " +
+          "continuent de fonctionner normalement.",
+        "",
+        "POUR RÉTABLIR",
+        "Connectez-vous à votre espace Safentreprise, page « Microsoft 365 », " +
+          "et suivez le bouton « Autoriser chez Microsoft ». Un administrateur " +
+          "général devra réaccorder le consentement. Il n'y a rien d'autre à " +
+          "refaire.",
+        "",
+        "L'équipe Safentreprise",
+      ].join("\n"),
+    };
+  }
+
+  if (cas === "tout") {
+    return {
+      objet: "Votre surveillance Safentreprise est arrêtée",
+      corps: [
+        "Bonjour,",
+        "",
+        `La surveillance Safentreprise de votre messagerie Microsoft 365 est ` +
+          `ARRÊTÉE${chez}.`,
+        "",
+        "Microsoft refuse désormais de nous délivrer la moindre autorisation. " +
+          "L'application Safentreprise a probablement été supprimée ou " +
+          "désactivée dans votre annuaire. Depuis, plus aucun message n'est " +
+          "analysé, et aucune tentative de fraude n'est signalée.",
+        "",
+        "POUR RÉTABLIR — DEUX ÉTAPES",
+        "1. Espace Safentreprise, page « Microsoft 365 », bouton « Autoriser " +
+          "chez Microsoft » : un administrateur général réaccorde l'accès.",
+        "2. Puis faites réexécuter par un administrateur Exchange le script " +
+          "PowerShell de l'étape 3, qui redonne à Safentreprise l'accès à vos " +
+          "seules boîtes choisies.",
+        "",
+        "Les deux sont nécessaires : la première seule ne rétablira pas " +
+          "l'analyse du courrier.",
+        "",
+        "L'équipe Safentreprise",
+      ].join("\n"),
+    };
+  }
+
+  return {
+    objet: "Votre surveillance Safentreprise est arrêtée",
+    corps: [
+      "Bonjour,",
+      "",
+      `La surveillance Safentreprise de votre messagerie Microsoft 365 est ` +
+        `ARRÊTÉE${chez}. Depuis, plus aucun message n'est analysé, et aucune ` +
+        "tentative de fraude n'est signalée.",
+      "",
+      "L'attribution de rôle qui nous donne accès à vos boîtes a été retirée " +
+        "dans Exchange. Nous ne pouvons pas la rétablir de notre côté.",
+      "",
+      "POUR RÉTABLIR",
+      "⚠ Ce n'est PAS le bouton « Autoriser chez Microsoft » qui réglera ce " +
+        "problème. Cette autorisation-là est toujours valable.",
+      "",
+      "Il faut faire réexécuter par un administrateur Exchange le script " +
+        "PowerShell de l'étape 3 — celui qui déclare Safentreprise dans " +
+        "Exchange et lui attribue l'accès à vos seules boîtes choisies. Vous " +
+        "le retrouvez dans votre espace, page « Microsoft 365 », étape " +
+        "« Restreindre l'accès ».",
+      "",
+      "Vos boîtes choisies et le périmètre déjà défini sont conservés : il n'y " +
+        "a pas tout à refaire.",
+      "",
+      "L'équipe Safentreprise",
+    ].join("\n"),
+  };
 }
 
 /* ==========================================================================
@@ -234,19 +343,28 @@ async function executer() {
   }
 
   // --- 1. Sonder tout le parc, sans rien écrire -----------------------------
-  const sondes: { l: Locataire; verdict: Verdict; detail: string }[] = [];
+  const sondes: { l: Locataire; c: Constat }[] = [];
 
   for (const l of locataires) {
     let graphUserId: string | null = null;
     try {
       graphUserId = await boiteSonde(l.tenant_uid);
     } catch (erreur) {
-      // Une base injoignable n'est pas un problème d'autorisation.
-      sondes.push({ l, verdict: "passager", detail: messageDe(erreur) });
+      // Une base injoignable n'est pas un problème d'autorisation, et ne dit
+      // rien de l'annuaire : on ne touche à aucun drapeau.
+      sondes.push({
+        l,
+        c: {
+          verdict: "passager",
+          portee: null,
+          detail: messageDe(erreur),
+          annuaireOk: null,
+          annuaireDetail: null,
+        },
+      });
       continue;
     }
-    const constat = await sonder(l.tenant_id, graphUserId);
-    sondes.push({ l, verdict: constat.verdict, detail: constat.detail });
+    sondes.push({ l, c: await sonder(l.tenant_id, graphUserId) });
   }
 
   // --- 2. Le garde-fou de la panne générale ---------------------------------
@@ -254,13 +372,18 @@ async function executer() {
   // ⚠ SANS LUI, UN SECRET EXPIRÉ MARQUERAIT TOUT LE PARC « RÉVOQUÉ » EN TROIS
   //   PASSAGES, et enverrait à chaque client un mail lui annonçant que son
   //   administrateur a retiré son accord. Ce serait faux, et irrattrapable.
-  const generale = panneGenerale(sondes.map((s) => s.verdict));
+  const generale = panneGenerale(sondes.map((s) => s.c.verdict));
   if (generale) {
     for (const s of sondes) {
-      if (s.verdict === "definitif") {
-        s.verdict = "passager";
-        s.detail = `[panne générale probable, révocation non retenue] ${s.detail}`;
+      if (s.c.verdict === "definitif") {
+        s.c.verdict = "passager";
+        s.c.portee = null;
+        s.c.detail = `[panne générale probable, révocation non retenue] ${s.c.detail}`;
       }
+      // ⚠ ET ON NE LÈVE PAS NON PLUS LE DRAPEAU D'ANNUAIRE. Une panne
+      //   généralisée le ferait tomber partout à la fois, avec la même
+      //   fausseté et le même mail à chaque client.
+      s.c.annuaireOk = null;
     }
   }
 
@@ -274,51 +397,85 @@ async function executer() {
   for (const s of sondes) {
     const lignes = await rpcService<Constatation[]>("constater_sante_tenant", {
       p_tenant_uid: s.l.tenant_uid,
-      p_verdict: s.verdict,
-      p_detail: s.detail,
+      p_verdict: s.c.verdict,
+      p_portee: s.c.portee,
+      p_detail: s.c.detail,
+      p_annuaire_ok: s.c.annuaireOk,
+      p_annuaire_detail: s.c.annuaireDetail,
     });
     const c = (Array.isArray(lignes) ? lignes[0] : lignes) as Constatation | undefined;
     if (!c) continue;
 
     const societe = await societeDe(s.l.company_id);
 
-    bilans.push({
+    const bilan: Bilan = {
       tenant_uid: s.l.tenant_uid,
       societe: societe.nom,
-      verdict: s.verdict,
+      verdict: s.c.verdict,
+      portee: c.portee,
       statut_avant: c.statut_avant,
       statut_apres: c.statut_apres,
       bascule: c.bascule,
-      detail: s.detail,
-    });
+      annuaire_coupe: c.annuaire_coupe,
+      annuaire_bascule: c.annuaire_bascule,
+      detail: s.c.detail,
+    };
+    bilans.push(bilan);
 
-    if (!c.bascule) continue;
+    // ⚠ DEUX AXES, DONC DEUX BASCULES POSSIBLES DANS LE MÊME PASSAGE. Le
+    //   courrier et l'annuaire ne tombent pas ensemble ; chacun a son mail.
+    if (!c.bascule && !c.annuaire_bascule) continue;
 
-    // Interne, sur toute bascule.
     const erreurInterne = await envoyer(
       process.env.VEILLE_DESTINATAIRE?.trim() || EMAIL_CONTACT,
-      `[Safentreprise] ${societe.nom ?? "Un client"} — surveillance ${c.statut_apres}`,
-      texteInterne(bilans[bilans.length - 1]),
+      `[Safentreprise] ${societe.nom ?? "Un client"} — ${resumeObjet(bilan)}`,
+      texteInterne(bilan),
     );
     if (erreurInterne) console.error("[sante] alerte interne :", erreurInterne);
 
-    // Dirigeant, sur révocation seulement.
-    if (c.statut_apres === "revoque" && societe.email) {
-      const erreurClient = await envoyer(
-        societe.email,
-        "Votre surveillance Safentreprise est arrêtée",
-        texteDirigeant(societe.nom),
-      );
+    if (!societe.email) continue;
+
+    // --- Le dirigeant ------------------------------------------------------
+    //
+    // ⚠ TOUJOURS PAS SUR « erreur ». C'est passager par construction : un mail
+    //   à chaque hoquet apprendrait au dirigeant à ignorer nos alertes, et le
+    //   jour de la vraie coupure il ne la lirait pas.
+    //
+    // ⚠ MAIS OUI SUR L'ANNUAIRE, et c'est un ajout assumé à la règle
+    //   « révocation seulement ». Un annuaire coupé est un fait CONSTATÉ, pas
+    //   un doute, et seul le client peut le réparer — par un geste qui n'est
+    //   pas celui de la révocation de courrier. Se taire le laisserait avec
+    //   une détection amputée sans le savoir.
+    if (c.bascule && c.statut_apres === "revoque") {
+      const cas = c.portee === "tout" ? "tout" : "courrier";
+      const { objet, corps } = texteDirigeant(societe.nom, cas);
+      const erreurClient = await envoyer(societe.email, objet, corps);
       if (erreurClient) console.error("[sante] alerte dirigeant :", erreurClient);
+    } else if (c.annuaire_bascule && c.annuaire_coupe && c.statut_apres !== "revoque") {
+      // Sur une révocation, le mail rouge dit déjà tout : en ajouter un second
+      // sur l'annuaire noierait le message qui compte.
+      const { objet, corps } = texteDirigeant(societe.nom, "annuaire");
+      const erreurClient = await envoyer(societe.email, objet, corps);
+      if (erreurClient) console.error("[sante] alerte annuaire :", erreurClient);
     }
   }
 
   return Response.json({
     locataires: locataires.length,
     panne_generale: generale,
-    bascules: bilans.filter((b) => b.bascule).length,
+    bascules: bilans.filter((b) => b.bascule || b.annuaire_bascule).length,
     bilans,
   });
+}
+
+/** Le résumé qui tient dans un objet de mail. */
+function resumeObjet(b: Bilan): string {
+  if (b.statut_apres === "revoque") {
+    return b.portee === "tout" ? "TOUT COUPÉ" : "courrier coupé";
+  }
+  if (b.annuaire_bascule && b.annuaire_coupe) return "annuaire coupé";
+  if (b.statut_apres === "erreur") return "santé incertaine";
+  return "retour à la normale";
 }
 
 /* ==========================================================================

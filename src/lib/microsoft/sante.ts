@@ -2,52 +2,91 @@
  * La sonde de santé d'un raccordement : elle constate, elle ne décide pas.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ⚠ POURQUOI CE MODULE EXISTE. `maj_sante_tenant` et `tenants_a_verifier`
- *   dormaient depuis 20260907 sans que personne ne les appelle. Rien n'écrivait
- *   donc jamais « revoque » ni « erreur » : un administrateur qui retirait
- *   l'autorisation Microsoft arrêtait toute la chaîne d'analyse, et
- *   l'interface continuait d'annoncer « n boîtes surveillées » jusqu'à
- *   l'expiration naturelle des abonnements — près de SEPT JOURS.
+ * ⚠ SAFENTREPRISE FRANCHIT DEUX PORTES INDÉPENDANTES, ET C'EST TOUT L'OBJET
+ *   DE CE MODULE. Un test réel l'a établi : révoquer les autorisations Entra
+ *   de l'application (User.Read.All, User.Read) N'ARRÊTE PAS l'analyse du
+ *   courrier — les bannières continuent de se poser.
  *
- * ⚠ LE JETON SEUL NE PROUVE RIEN, ET C'EST LE PIÈGE CENTRAL. Si l'administrateur
- *   supprime les AUTORISATIONS sans supprimer l'application, Azure AD continue
- *   de délivrer un jeton — simplement vide de tout rôle. Une sonde qui
- *   s'arrêterait là déclarerait « tout va bien » sur un client devenu aveugle.
- *   D'où le second temps : un appel Graph qui exerce réellement
- *   `Mail.ReadWrite` sur une boîte surveillée.
+ *     • LE COURRIER vient du RBAC Exchange, posé par le script PowerShell de
+ *       l'étape 3 : `New-ManagementRoleAssignment -Role 'Application
+ *       Mail.ReadWrite'`. Il se coupe avec Remove-ManagementRoleAssignment.
  *
- * ⚠ ET LE JETON EN CACHE MENT ENCORE PLUS LONGTEMPS. Microsoft ne révoque pas
- *   les jetons déjà délivrés : ils restent valables environ une heure avec les
- *   permissions d'avant. `oublierJeton` est donc appelé AVANT chaque sonde.
- *   Ce n'est pas une précaution théorique — c'est écrit dans `graph.ts` à
- *   partir d'un cas réel où la vérification lisait encore une boîte dont le
- *   consentement venait d'être retiré.
+ *     • L'ANNUAIRE vient d'un rôle d'application Entra (User.Read.All), et
+ *       alimente `/users` — donc `listerBoites` et `listerAnnuaire`. Il se
+ *       coupe en révoquant le consentement administrateur.
  *
- * ⚠ CE MODULE NE CHOISIT PAS LE STATUT. Il rend un verdict — `ok`, `passager`,
- *   `definitif` — et c'est `constater_sante_tenant`, en SQL, qui décide si cela
- *   vaut une révocation. Un seul endroit à relire pour savoir ce qui fait
- *   basculer un client, au lieu d'une règle éparpillée entre deux langages.
+ *   ET LES REMÈDES SONT OPPOSÉS. Refaire le consentement ne rétablit pas le
+ *   courrier ; réexécuter le script ne rétablit pas l'annuaire. Une sonde qui
+ *   ne dirait pas LAQUELLE a lâché enverrait le client corriger ce qui n'est
+ *   pas cassé — c'est ce que faisait la première version.
+ *
+ * ⚠ LE JETON EN CACHE MENT PENDANT UNE HEURE. Microsoft ne révoque pas les
+ *   jetons déjà délivrés : ils gardent les permissions d'avant jusqu'à
+ *   expiration. `oublierJeton` est donc appelé AVANT chaque sonde. Ce n'est pas
+ *   théorique — c'est écrit dans `graph.ts` à partir d'un cas réel.
+ *
+ * ⚠ CE MODULE NE CHOISIT PAS LE STATUT. Il rend un verdict et une portée ;
+ *   c'est `constater_sante_tenant`, en SQL, qui décide si cela vaut une
+ *   révocation, et qui sait que l'annuaire coupé NE DOIT PAS arrêter la
+ *   surveillance du courrier.
  * ─────────────────────────────────────────────────────────────────────────
  */
-import { ErreurGraph, appelGraph, oublierJeton } from "./graph";
+import {
+  ErreurGraph,
+  appelGraph,
+  obtenirJeton,
+  oublierJeton,
+  sonderBoite,
+} from "./graph";
 
-/** Ce que la sonde a vu. Rien de plus, rien d'interprété. */
+/** Ce que la sonde a vu sur l'axe courrier. Rien de plus, rien d'interprété. */
 export type Verdict = "ok" | "passager" | "definitif";
+
+/** Laquelle des deux portes a lâché. L'annuaire n'y est pas : il a son axe. */
+export type Portee = "courrier" | "tout";
 
 export type Constat = {
   verdict: Verdict;
+  /** Renseignée seulement quand le verdict est « definitif ». */
+  portee: Portee | null;
   detail: string;
+  /**
+   * L'annuaire répond-il ? `null` = pas testé, on ne touche pas au drapeau.
+   *
+   * ⚠ AXE SÉPARÉ, SANS EFFET SUR LE VERDICT. Un annuaire coupé n'arrête rien :
+   *   les messages continuent d'être analysés. Ce qui se dégrade, c'est la
+   *   reconnaissance des dirigeants et collaborateurs — donc l'usurpation
+   *   d'annuaire, la règle la plus forte du moteur.
+   */
+  annuaireOk: boolean | null;
+  annuaireDetail: string | null;
 };
+
+/**
+ * Codes qui ressemblent à un refus d'autorisation mais n'en sont pas.
+ *
+ * ⚠ CETTE LISTE EST PRIORITAIRE SUR TOUT LE RESTE, ET UN ESSAI L'EXIGE.
+ *   `invalid_client` arrive avec un statut 401, que la règle de repli
+ *   classait « definitif ». Or il désigne un secret d'application
+ *   Safentreprise expiré ou faux : il frappe TOUS les locataires au même
+ *   instant, et aucun client ne peut rien y faire.
+ *
+ *   Le garde-fou `panneGenerale` ne rattrape pas ce cas quand le parc compte
+ *   deux clients ou moins — c'est-à-dire aujourd'hui. Sans cette liste, le
+ *   jour où le secret expire, chaque client recevrait un mail lui annonçant
+ *   que son administrateur a retiré son accord. Deux protections valent mieux
+ *   qu'une quand l'erreur est irrattrapable en image.
+ */
+const CODES_NOTRE_FAUTE = new Set([
+  "invalid_client",
+  "invalid_request",
+  "unsupported_grant_type",
+]);
 
 /**
  * Codes d'erreur Azure AD qui désignent l'AUTORISATION elle-même.
  *
- * ⚠ `invalid_client` N'Y EST PAS, ET SON ABSENCE EST VOLONTAIRE. Ce code
- *   signale un secret d'application invalide ou expiré : c'est NOTRE
- *   configuration, pas le consentement du client. Le traiter comme définitif
- *   marquerait tout le parc « révoqué » le jour où le secret expire, et
- *   enverrait chaque client refaire un parcours qui n'y changerait rien.
- *   Voir aussi `panneGenerale()` plus bas.
+ * ⚠ `invalid_client` N'Y EST PAS : voir `CODES_NOTRE_FAUTE`.
  */
 const CODES_AUTORISATION = new Set([
   "unauthorized_client",
@@ -73,27 +112,6 @@ const CODES_AUTORISATION = new Set([
 const MOTIFS_AUTORISATION =
   /AADSTS700016|AADSTS7000222|AADSTS650052|AADSTS90002|application.{0,40}not found|does not exist in tenant/i;
 
-/**
- * Codes qui ressemblent à un refus d'autorisation mais n'en sont pas.
- *
- * ⚠ CETTE LISTE EST PRIORITAIRE SUR TOUT LE RESTE, ET UN ESSAI L'EXIGE.
- *   `invalid_client` arrive avec un statut 401, que la règle de repli
- *   classait « definitif ». Or il désigne un secret d'application
- *   Safentreprise expiré ou faux : il frappe TOUS les locataires au même
- *   instant, et aucun client ne peut rien y faire.
- *
- *   Le garde-fou `panneGenerale` ne rattrape pas ce cas quand le parc compte
- *   deux clients ou moins — c'est-à-dire aujourd'hui. Sans cette liste, le
- *   jour où le secret expire, chaque client recevrait un mail lui annonçant
- *   que son administrateur a retiré son accord. Deux protections valent mieux
- *   qu'une quand l'erreur est irrattrapable en image.
- */
-const CODES_NOTRE_FAUTE = new Set([
-  "invalid_client",
-  "invalid_request",
-  "unsupported_grant_type",
-]);
-
 function messageDe(erreur: unknown): string {
   return erreur instanceof Error ? erreur.message : String(erreur);
 }
@@ -114,8 +132,7 @@ export function classer(erreur: unknown): Verdict {
   }
 
   // ⚠ NOTRE FAUTE D'ABORD, AVANT TOUTE AUTRE RÈGLE. Un secret expiré répond
-  //   401, que le repli plus bas classerait « definitif ». Voir
-  //   `CODES_NOTRE_FAUTE`.
+  //   401, que le repli plus bas classerait « definitif ».
   if (erreur.code && CODES_NOTRE_FAUTE.has(erreur.code)) return "passager";
 
   // 429 et 5xx sont explicitement rejouables : Graph le dit lui-même.
@@ -148,13 +165,42 @@ export function panneGenerale(verdicts: Verdict[]): boolean {
   return verdicts.every((v) => v !== "ok");
 }
 
+/* ==========================================================================
+   Les deux portes
+   ========================================================================== */
+
 /**
- * Sonde un locataire.
+ * La porte de l'annuaire : `/users`, donc `User.Read.All` côté Entra.
+ *
+ * ⚠ ON NE REND PAS D'ERREUR, ON REND UN ÉTAT. Une panne d'annuaire ne doit
+ *   jamais interrompre la sonde du courrier : ce sont deux diagnostics
+ *   indépendants, et l'un ne préjuge pas de l'autre.
+ */
+async function sonderAnnuaire(
+  tenantId: string,
+): Promise<{ ok: boolean; detail: string | null }> {
+  try {
+    await appelGraph<{ value?: unknown[] }>(
+      tenantId,
+      "GET",
+      "/users?$top=1&$select=id",
+    );
+    return { ok: true, detail: null };
+  } catch (erreur) {
+    // ⚠ SEUL UN REFUS COMPTE. Un 429 ou un 503 sur l'annuaire ne veut pas dire
+    //   que le consentement a été retiré : lever le drapeau là-dessus ferait
+    //   afficher « annuaire coupé » à un client dont tout va bien.
+    if (classer(erreur) !== "definitif") return { ok: true, detail: null };
+    return { ok: false, detail: messageDe(erreur).slice(0, 400) };
+  }
+}
+
+/**
+ * Sonde un locataire, sur ses deux portes.
  *
  * `graphUserId` est la boîte témoin de la sonde : une boîte que le client a
- * choisie et que la restriction a autorisée. Sans elle, on ne peut vérifier
- * que le jeton — voir l'avertissement en tête de fichier sur ce que cela
- * laisse passer.
+ * choisie ET que la restriction a autorisée. Sans elle, on ne peut éprouver
+ * que le jeton et l'annuaire — et le verdict le dit.
  */
 export async function sonder(
   tenantId: string,
@@ -164,33 +210,114 @@ export async function sonder(
   // heure. C'est la première chose à faire, avant toute autre.
   oublierJeton(tenantId);
 
+  // --- Porte 0 : le jeton lui-même ----------------------------------------
+  //
+  // ⚠ S'IL TOMBE, LES DEUX PORTES SONT FERMÉES, et c'est une portée à elle.
+  //   L'application a été supprimée ou désactivée dans le locataire : refaire
+  //   le consentement ne suffira pas, il faut reprendre tout le parcours. On
+  //   l'éprouve EN PREMIER et SÉPARÉMENT, parce qu'un échec de jeton et un 403
+  //   sur `/users` se ressemblent à l'arrivée alors qu'ils ne demandent pas du
+  //   tout le même geste au client.
   try {
-    if (!graphUserId) {
-      // Pas de boîte surveillée : le jeton est tout ce qu'on peut éprouver.
-      // Le verdict reste honnête sur ce qu'il vaut.
-      await appelGraph<{ value?: unknown[] }>(
-        tenantId,
-        "GET",
-        "/users?$top=1&$select=id",
-      );
+    await obtenirJeton(tenantId);
+  } catch (erreur) {
+    const detail = messageDe(erreur).slice(0, 400);
+    if (classer(erreur) === "definitif") {
       return {
-        verdict: "ok",
-        detail: "Jeton obtenu, annuaire lisible. Aucune boîte à sonder.",
+        verdict: "definitif",
+        portee: "tout",
+        detail,
+        // Tout est fermé : l'annuaire l'est aussi, et le dire évite un
+        // encadré ambre qui ferait doublon avec le rouge.
+        annuaireOk: false,
+        annuaireDetail: detail,
       };
     }
+    // Panne passagère — on ne touche à aucun drapeau.
+    return {
+      verdict: "passager",
+      portee: null,
+      detail,
+      annuaireOk: null,
+      annuaireDetail: null,
+    };
+  }
 
-    // ⚠ L'APPEL LE MOINS COÛTEUX QUI EXERCE VRAIMENT `Mail.ReadWrite`. On lit
-    //   l'identifiant du dossier Réception, pas son contenu : aucun message
-    //   n'est ouvert, aucune donnée personnelle n'entre dans la réponse, et
-    //   Microsoft répond en quelques dizaines de millisecondes.
-    await appelGraph<{ id?: string }>(
-      tenantId,
-      "GET",
-      `/users/${encodeURIComponent(graphUserId)}/mailFolders/inbox?$select=id`,
-    );
+  // --- Les deux portes, indépendamment -------------------------------------
+  const annuaire = await sonderAnnuaire(tenantId);
+  return sonderCourrier(tenantId, graphUserId, annuaire);
+}
 
-    return { verdict: "ok", detail: "Jeton obtenu, boîte surveillée lisible." };
-  } catch (erreur) {
-    return { verdict: classer(erreur), detail: messageDe(erreur).slice(0, 400) };
+/**
+ * La porte du courrier : un MESSAGE, via le RBAC Exchange.
+ *
+ * ⚠ `sonderBoite` PLUTÔT QU'UNE SONDE ÉCRITE ICI, ET SON COMMENTAIRE DIT
+ *   POURQUOI. Une première version lisait `/mailFolders/inbox` : un appel
+ *   Exchange lui aussi, donc soumis aux mêmes autorisations, mais un dossier
+ *   n'est pas un message. La preuve doit porter sur ce que le client craint
+ *   réellement — qu'on lise son courrier.
+ *
+ * ⚠ ET ELLE DISTINGUE 404 DE 403, CE QUI ÉVITE UN FAUX DIAGNOSTIC. Un compte
+ *   sans boîte aux lettres rend 404 : ce n'est pas un refus, cela ne prouve
+ *   rien, et compter ce 404 comme une coupure ferait annoncer une révocation à
+ *   un client dont tout fonctionne.
+ */
+async function sonderCourrier(
+  tenantId: string,
+  graphUserId: string | null,
+  annuaire: { ok: boolean; detail: string | null },
+): Promise<Constat> {
+  if (!graphUserId) {
+    // Aucune boîte vérifiée : rien à éprouver côté Exchange. Le verdict reste
+    // honnête sur ce qu'il vaut.
+    return {
+      verdict: "ok",
+      portee: null,
+      detail: "Jeton obtenu. Aucune boîte vérifiée à sonder.",
+      annuaireOk: annuaire.ok,
+      annuaireDetail: annuaire.detail,
+    };
+  }
+
+  const sondage = await sonderBoite(tenantId, graphUserId);
+
+  switch (sondage.etat) {
+    case "lisible":
+      return {
+        verdict: "ok",
+        portee: null,
+        detail: "Jeton obtenu, boîte surveillée lisible.",
+        annuaireOk: annuaire.ok,
+        annuaireDetail: annuaire.detail,
+      };
+
+    case "refuse":
+      return {
+        verdict: "definitif",
+        portee: "courrier",
+        detail: `Lecture refusée : ${sondage.code} — ${sondage.message}`.slice(0, 400),
+        annuaireOk: annuaire.ok,
+        annuaireDetail: annuaire.detail,
+      };
+
+    case "introuvable":
+      // Le compte n'a pas de boîte. Ce n'est pas un refus : on ne conclut rien
+      // et on ne compte surtout pas d'échec d'autorisation.
+      return {
+        verdict: "passager",
+        portee: null,
+        detail: `Boîte témoin introuvable, sondage non concluant : ${sondage.message}`.slice(0, 400),
+        annuaireOk: annuaire.ok,
+        annuaireDetail: annuaire.detail,
+      };
+
+    default:
+      return {
+        verdict: "passager",
+        portee: null,
+        detail: sondage.message.slice(0, 400),
+        annuaireOk: annuaire.ok,
+        annuaireDetail: annuaire.detail,
+      };
   }
 }

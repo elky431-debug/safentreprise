@@ -13,13 +13,41 @@
 import Link from "next/link";
 import { buttonPrimary } from "@/components/ui";
 import { IconArrowRight, IconEye, IconShieldCheck } from "@/components/icons";
-import { resumeRaccordement } from "@/lib/microsoft/etat";
+import { annuaireCoupe, resumeRaccordement } from "@/lib/microsoft/etat";
 import { lireRaccordement } from "@/lib/microsoft/parcours";
 
 export async function BandeauRaccordement() {
   const etat = await lireRaccordement();
   const resume = resumeRaccordement(etat);
   const enPanne = etat.statut === "revoque" || etat.statut === "erreur";
+  const annuaireKo = annuaireCoupe(etat);
+
+  /* ⚠ L'ANNUAIRE COUPÉ A SON PROPRE BANDEAU, AMBRE, ET IL NE DIT PAS
+     « interrompue ». Les messages sont toujours analysés ; c'est la
+     reconnaissance des dirigeants qui tombe. Le ranger avec les pannes rouges
+     ferait croire à un arrêt, le laisser dans la ligne verte le rendrait
+     invisible. */
+  if (etat.etape === "actif" && !enPanne && annuaireKo) {
+    return (
+      <section className="rounded-xl border border-warning/30 bg-warning-soft px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="flex items-center gap-2 text-[14px] font-semibold text-foreground">
+              <IconEye className="h-4 w-4 shrink-0 text-warning" />
+              Votre protection Microsoft 365 est amoindrie
+            </h2>
+            <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted">
+              {resume}
+            </p>
+          </div>
+          <Link href="/microsoft" className={`${buttonPrimary} shrink-0`}>
+            Voir ce qu&apos;il faut faire
+            <IconArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   /* Tout va bien : une ligne, rien de plus. */
   if (etat.etape === "actif" && !enPanne) {

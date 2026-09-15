@@ -62,6 +62,18 @@ export type Raccordement = {
   sante_verifiee_at: string | null;
   /** Refus d'autorisation consécutifs. Trois font basculer en « revoque ». */
   echecs_sante: number;
+  /**
+   * Laquelle des deux portes a lâché : « courrier » (RBAC Exchange) ou
+   * « tout » (jeton refusé). `null` quand la surveillance tourne.
+   *
+   * ⚠ L'ANNUAIRE N'EST PAS UNE PORTÉE, IL A SON PROPRE AXE. Il ne coupe pas la
+   *   surveillance — il la dégrade — et le confondre avec les deux autres
+   *   ferait afficher « arrêtée » à un client dont les messages sont analysés.
+   */
+  panne_portee: "courrier" | "tout" | null;
+  /** Annuaire Entra inaccessible depuis cette date. N'arrête rien. */
+  annuaire_ko_at: string | null;
+  annuaire_erreur: string | null;
   boites: BoiteEtat[];
 };
 
@@ -85,6 +97,30 @@ export function surveillanceInterrompue(
   r: Pick<Raccordement, "statut">,
 ): boolean {
   return r.statut === "revoque" || r.statut === "erreur";
+}
+
+/**
+ * La surveillance tourne, mais amputée : l'annuaire ne répond plus.
+ *
+ * ⚠ CE N'EST PAS UNE INTERRUPTION, ET LES DEUX NE DOIVENT JAMAIS ÊTRE
+ *   CONFONDUES. Les messages continuent d'être analysés et les bannières de se
+ *   poser ; ce qui tombe, c'est la reconnaissance des dirigeants et des
+ *   collaborateurs — donc l'usurpation d'annuaire, la règle la plus forte du
+ *   moteur. Grave, urgent, mais pas « arrêté ».
+ *
+ * ⚠ ET SURTOUT : CET ÉTAT NE TOUCHE PAS À `statut`. Quarante requêtes exigent
+ *   `statut = 'actif'`, dont le renouvellement des abonnements Graph. Marquer
+ *   un locataire en panne pour un problème d'annuaire ferait expirer ses
+ *   abonnements en moins de sept jours et tuerait la surveillance du courrier,
+ *   qui fonctionnait. Voir `20261008_portee_panne.sql`.
+ */
+export function annuaireCoupe(
+  r: Pick<Raccordement, "annuaire_ko_at" | "statut">,
+): boolean {
+  // Sur une surveillance déjà interrompue, le rouge dit tout : l'ambre ferait
+  // doublon et diluerait le message qui compte.
+  if (surveillanceInterrompue(r)) return false;
+  return r.annuaire_ko_at !== null;
 }
 
 /**
@@ -185,11 +221,32 @@ export function resumeRaccordement(r: Raccordement): string {
   //   minutes, ou en laisserait un autre attendre un rétablissement qui ne
   //   viendra jamais.
   if (r.statut === "revoque") {
+    // ⚠ DEUX COUPURES, DEUX REMÈDES OPPOSÉS. « courrier » se répare en
+    //   réexécutant le script PowerShell ; « tout » demande de reprendre le
+    //   consentement PUIS le script. Dire l'un pour l'autre fait tourner en
+    //   rond un client dont plus rien n'est analysé.
+    if (r.panne_portee === "tout") {
+      return (
+        "Microsoft refuse toute autorisation" +
+        depuisQuand(r.sante_bascule_at) +
+        " : plus aucun message n'est analysé. L'application Safentreprise a " +
+        "probablement été supprimée de votre annuaire."
+      );
+    }
     return (
-      "L'autorisation Microsoft a été retirée" +
+      "L'accès à vos boîtes a été retiré dans Exchange" +
       depuisQuand(r.sante_bascule_at) +
-      " : plus aucun message n'est analysé. Seul un administrateur de votre " +
-      "organisation peut la redonner."
+      " : plus aucun message n'est analysé. C'est le script PowerShell qu'il " +
+      "faut faire réexécuter, pas le consentement."
+    );
+  }
+
+  if (annuaireCoupe(r)) {
+    return (
+      "Vos messages sont toujours analysés, mais l'annuaire Microsoft ne " +
+      "répond plus" +
+      depuisQuand(r.annuaire_ko_at) +
+      " : l'usurpation de vos dirigeants n'est plus détectée."
     );
   }
   if (r.statut === "erreur") {

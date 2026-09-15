@@ -1321,6 +1321,12 @@ async function rafraichirAnnuaires(): Promise<Record<string, unknown>> {
       );
       const r = Array.isArray(bilan) ? bilan[0] : bilan;
       rafraichis += 1;
+      // L'annuaire répond : on baisse le drapeau s'il était levé.
+      await rpc("signaler_annuaire_graph", {
+        p_tenant_uid: l.tenant_uid,
+        p_ok: true,
+        p_detail: null,
+      }).catch(() => {});
       details.push({
         tenant: l.tenant_id,
         etat: "rafraichi",
@@ -1330,6 +1336,27 @@ async function rafraichirAnnuaires(): Promise<Record<string, unknown>> {
     } catch (erreur) {
       const detail = messageDe(erreur);
       console.error(`[maintenance] annuaire ${l.tenant_id} : ${detail}`);
+
+      // ⚠ ON ENREGISTRE L'ÉCHEC, ON NE SE CONTENTE PLUS DE LE JOURNALISER.
+      //   Cette branche faisait un `console.error` puis passait au locataire
+      //   suivant : la détection d'usurpation se dégradait sans que personne
+      //   ne l'apprenne, exactement comme `maj_sante_tenant` jamais appelée.
+      //   La sonde de santé le verrait dans la demi-heure, mais un échec
+      //   survenu entre deux passages était perdu.
+      //
+      // ⚠ ET CELA N'ARRÊTE RIEN. `signaler_annuaire_graph` ne touche pas à
+      //   `statut` : les messages continuent d'être analysés, seule la
+      //   reconnaissance de l'annuaire est signalée en panne.
+      try {
+        await rpc("signaler_annuaire_graph", {
+          p_tenant_uid: l.tenant_uid,
+          p_ok: false,
+          p_detail: detail,
+        });
+      } catch (secondaire) {
+        console.error(`[maintenance] signalement annuaire : ${messageDe(secondaire)}`);
+      }
+
       details.push({ tenant: l.tenant_id, etat: "echec", erreur: detail.slice(0, 200) });
     }
   }
