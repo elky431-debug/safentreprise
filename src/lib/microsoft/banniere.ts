@@ -126,20 +126,16 @@ export type ContenuBanniere = {
   score: number;
   signaux: string[];
   /**
-   * La société destinataire : son nom, et l'URL publique de son logo si elle
-   * en a déposé un.
-   *
-   * ⚠ LE NOM EST OBLIGATOIRE, LE LOGO NE L'EST PAS, ET C'EST L'INVERSE DE CE
-   *   QU'ON CROIT EN LE CONCEVANT. Outlook bloque les images distantes par
-   *   défaut : tant que le salarié n'a pas cliqué sur « Télécharger les
-   *   images », AUCUN des deux logos ne s'affiche. Le nom écrit en toutes
-   *   lettres est donc ce qui porte l'appartenance ; le logo l'appuie quand il
-   *   arrive. Ne jamais remplacer le nom par le logo.
-   */
-  societe?: { nom: string; logo?: string | null } | null;
-  /**
    * URL publique du logo Safentreprise, pour la mention éditeur.
    * Absente : la mention reste, en texte seul.
+   *
+   * ⚠ IL N'Y A PLUS DE LOGO CLIENT, ET C'EST UNE DÉCISION, PAS UN OUBLI.
+   *   Voir la section « La bannière dans Outlook » de
+   *   `docs/DIRECTION-ARTISTIQUE.md` pour le motif complet. En deux lignes :
+   *   Outlook bloque les images distantes par défaut, donc le logo client
+   *   n'arrivait presque jamais ; et quand il arrivait, il ouvrait une colonne
+   *   qui prenait la place du message au profit d'une image décorative. Ne pas
+   *   le réintroduire sans rouvrir cette section.
    */
   logoEditeur?: string | null;
   /**
@@ -311,60 +307,6 @@ function resumerMotif(signal?: string): string {
    -------------------------------------------------------------------------- */
 
 /**
- * Hauteur d'affichage du logo client, en pixels.
- *
- * ⚠ C'EST UNE HAUTEUR, PAS UNE LARGEUR, ET C'EST DÉLIBÉRÉ. Un client dépose
- *   ce qu'il veut : un carré, une bande de 10:1, un fichier de 3000 px. En
- *   fixant la HAUTEUR par l'attribut `height` — que le moteur de Word respecte,
- *   contrairement à `max-width` — l'image se met à l'échelle en gardant ses
- *   proportions, quelle que soit sa taille d'origine.
- *
- * ⚠ CE QUE ÇA NE RÈGLE PAS, ET IL FAUT LE SAVOIR. Un logo très horizontal —
- *   10:1 — fera 320 px de large à 32 px de haut. `max-width` le bride dans les
- *   clients modernes, mais Outlook pour Windows l'ignore : la cellule
- *   s'élargira. Le seul remède complet est de relever les dimensions du fichier
- *   AU MOMENT DU TÉLÉVERSEMENT et d'écrire `width` ET `height` dans la balise.
- *   Tant que ce n'est pas fait, c'est la limite connue de ce composant.
- */
-const HAUTEUR_LOGO_CLIENT = 32;
-const LARGEUR_MAX_LOGO_CLIENT = 150;
-
-/**
- * Le bloc identitaire du client : son logo s'il en a un, son nom toujours.
- *
- * ⚠ `alt` PORTE LE NOM, PAS « logo ». Quand Outlook bloque l'image — c'est
- *   le cas par défaut — c'est le texte de remplacement qui s'affiche à la
- *   place. Écrire `alt="logo"` donnerait un cadre vide portant le mot
- *   « logo » ; écrire le nom de la société fait que le message reste
- *   attribué même sans image.
- */
-function blocSociete(
-  societe: ContenuBanniere["societe"],
-  couleurTexte: string,
-  police: string,
-): string {
-  if (!societe?.nom) return "";
-  const nom = echapper(societe.nom);
-
-  const image = societe.logo
-    ? `<img src="${echapper(societe.logo)}" alt="${nom}" ` +
-      `height="${HAUTEUR_LOGO_CLIENT}" ` +
-      `style="height:${HAUTEUR_LOGO_CLIENT}px;width:auto;` +
-      `max-width:${LARGEUR_MAX_LOGO_CLIENT}px;display:block;` +
-      `margin:0 0 4px auto;border:0;" />`
-    : "";
-
-  return (
-    `<td align="right" valign="top" ` +
-    `style="padding:0 0 0 16px;white-space:nowrap;">` +
-    image +
-    `<span style="${police}font-size:12px;font-weight:600;` +
-    `color:${couleurTexte};">${nom}</span>` +
-    `</td>`
-  );
-}
-
-/**
  * La mention éditeur, en bas à droite.
  *
  * ⚠ LE LOGO EST EN MARINE ET NOIR, DONC INVISIBLE SUR FOND SOMBRE. Deux
@@ -387,7 +329,22 @@ function blocSociete(
  *     styles en ligne pour cette raison ; une règle @media y serait la seule
  *     chose à ne pas fonctionner là où le produit est le plus utilisé.
  */
-const LARGEUR_LOGO_EDITEUR = 120;
+/**
+ * Largeur d'affichage du logo éditeur.
+ *
+ * ⚠ 140 px, PAS 120. Le logo est en 4:1 : à 120 px il ne fait que 30 px de
+ *   haut, et le mot « Safentreprise » — treize lettres sur les trois quarts
+ *   de la largeur, le bouclier occupant le premier quart — tombe à environ
+ *   7 px par lettre. Lisible, mais serré. À 140 px la hauteur passe à 35 px et
+ *   le mot respire, sans que la mention cesse d'être discrète.
+ *
+ * ⚠ `width` ET `height:auto` NE ROGNENT JAMAIS L'IMAGE, ILS LA MISENT À
+ *   L'ÉCHELLE. Si un jour le logo paraît coupé dans un rendu, c'est le
+ *   FICHIER qui est en cause, pas cette balise — c'est exactement ce qui
+ *   s'est produit sur la capture du 16 septembre, où l'image de substitution
+ *   était mal construite.
+ */
+const LARGEUR_LOGO_EDITEUR = 140;
 
 function mentionEditeur(logo: string | null | undefined, police: string): string {
   const texte =
@@ -489,8 +446,6 @@ export function construireBanniere(contenu: ContenuBanniere): string {
   //   défiguré à jamais. Un `<table>` ne pose pas ce problème, et c'est de
   //   toute façon la seule mise en page sur laquelle Outlook pour Windows est
   //   fiable — il n'a ni flexbox ni grille.
-  const celluleSociete = blocSociete(contenu.societe, apparence.texte, police);
-
   const corps =
     ouverture(
       `background:${apparence.fond};` +
@@ -510,11 +465,9 @@ export function construireBanniere(contenu: ContenuBanniere): string {
       ? `<p style="margin:0;font-size:13px;">${echapper(conseil)}</p>`
       : "") +
     `</td>` +
-    celluleSociete +
     `</tr>` +
     `<tr>` +
-    `<td colspan="${celluleSociete ? 2 : 1}" align="right" ` +
-    `style="padding:10px 0 0 0;">` +
+    `<td align="right" style="padding:10px 0 0 0;">` +
     mentionEditeur(contenu.logoEditeur, police) +
     `</td>` +
     `</tr>` +

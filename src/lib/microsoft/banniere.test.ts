@@ -610,79 +610,72 @@ verifier(
 );
 
 /* --------------------------------------------------------------------------
-   Les deux logos — 16 septembre 2026
+   La mention éditeur — 16 septembre 2026
    -------------------------------------------------------------------------- */
 
-console.log("\n  ── Logos ──\n");
+console.log("\n  ── Mention éditeur ──\n");
 
-const AVEC_LOGOS = construireBanniere({
+const AVEC_LOGO = construireBanniere({
   niveau: "eleve",
   score: 88,
   signaux: ["L'adresse ne correspond pas au nom affiché."],
-  societe: { nom: "Cabinet Durand & Associés", logo: "https://exemple/logo.png" },
   logoEditeur: "https://exemple/safentreprise.png",
 });
 
-const SANS_LOGOS = construireBanniere({
+const SANS_LOGO = construireBanniere({
   niveau: "eleve",
   score: 88,
   signaux: ["L'adresse ne correspond pas au nom affiché."],
-  societe: { nom: "Cabinet Durand & Associés" },
 });
 
 verifier(
   "une seule <div> : l'invariant du retrait tient malgré le tableau",
-  (AVEC_LOGOS.match(/<div/g) ?? []).length === 1 &&
-    (AVEC_LOGOS.match(/<\/div>/g) ?? []).length === 1,
-  `${(AVEC_LOGOS.match(/<div/g) ?? []).length} ouvertures`,
+  (AVEC_LOGO.match(/<div/g) ?? []).length === 1 &&
+    (AVEC_LOGO.match(/<\/div>/g) ?? []).length === 1,
+  `${(AVEC_LOGO.match(/<div/g) ?? []).length} ouvertures`,
 );
 
 verifier(
-  "le nom de la société s'affiche MÊME SANS logo",
-  SANS_LOGOS.includes("Cabinet Durand &amp; Associés") &&
-    !SANS_LOGOS.includes("<img"),
-);
-
-verifier(
-  "le `alt` du logo client porte le nom, pas le mot « logo »",
-  AVEC_LOGOS.includes('alt="Cabinet Durand &amp; Associés"'),
-);
-
-verifier(
-  "le logo client est bridé par une HAUTEUR, attribut compris par Word",
-  /<img[^>]+height="32"[^>]*>/.test(AVEC_LOGOS),
-);
-
-verifier(
-  "la mention éditeur reste lisible sans image",
-  SANS_LOGOS.includes("Powered by") && SANS_LOGOS.includes("Safentreprise"),
+  "la mention reste lisible sans image : c'est du texte, pas un dessin",
+  SANS_LOGO.includes("Powered by") &&
+    SANS_LOGO.includes("Safentreprise") &&
+    !SANS_LOGO.includes("<img"),
 );
 
 verifier(
   "le logo éditeur est posé sur une pastille blanche explicite",
-  AVEC_LOGOS.includes('bgcolor="#ffffff"') &&
-    AVEC_LOGOS.includes("background-color:#ffffff"),
+  AVEC_LOGO.includes('bgcolor="#ffffff"') &&
+    AVEC_LOGO.includes("background-color:#ffffff"),
 );
 
 verifier(
-  "le niveau faible ne porte aucun logo : sa discrétion est sa raison d'être",
+  "le logo est mis à l'échelle, jamais rogné : width + height:auto",
+  /<img[^>]+width="140"[^>]*>/.test(AVEC_LOGO) &&
+    AVEC_LOGO.includes("height:auto"),
+);
+
+verifier(
+  "AUCUNE image distante côté client : la bannière ne porte qu'une image",
+  (AVEC_LOGO.match(/<img/g) ?? []).length === 1,
+);
+
+verifier(
+  "le niveau faible ne porte aucune image : sa discrétion est sa raison d'être",
   !construireBanniere({
     niveau: "faible",
     score: 20,
     signaux: ["Expéditeur inhabituel."],
-    societe: { nom: "Cabinet Durand", logo: "https://exemple/logo.png" },
     logoEditeur: "https://exemple/safentreprise.png",
   }).includes("<img"),
 );
 
 verifier(
-  "le nom de société est échappé comme le reste",
-  construireBanniere({
-    niveau: "eleve",
-    score: 88,
-    signaux: ["x"],
-    societe: { nom: '<script>alert(1)</script>' },
-  }).includes("&lt;script&gt;"),
+  "le niveau faible n'a plus de point médian",
+  !construireBanniere({
+    niveau: "faible",
+    score: 20,
+    signaux: ["Le domaine ressemble à celui d'un correspondant connu."],
+  }).includes("·"),
 );
 
 console.log("\n  ── Aperçu d'une conversion ──\n");

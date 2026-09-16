@@ -302,28 +302,77 @@ l'effet, pas l'accumulation.
 
 C'est l'objet le plus vu du produit : chaque salarié la lit dans son courrier.
 
-Ce qu'elle doit porter, dans cet ordre :
+### Le fait qui commande tout le reste
 
-1. **Le logo de l'entreprise cliente**, à droite, avec son nom. Les logos sont
-   déjà stockés dans le seau `branding` et servis par URL publique.
-2. Le titre de l'alerte et son niveau.
-3. Les motifs, en phrases complètes — ce qui a été détecté et pourquoi.
-4. La conduite à tenir, en une phrase impérative.
-5. La mention Safentreprise, discrète, en bas.
+**Outlook bloque les images distantes par défaut.** Tant que le lecteur n'a pas
+cliqué sur « Télécharger les images », aucune image de la bannière ne s'affiche.
 
-Le logo du client change tout : la bannière cesse d'être un avertissement
-extérieur pour devenir un message de sa propre entreprise. C'est ce qui la
-fait lire au lieu d'être ignorée.
+Tout ce qui suit en découle : **la bannière doit être complète sans une seule
+image**, et meilleure avec. Une information qui ne vit que dans une image
+n'existe pas.
 
-Fond : un aplat très clair, lisible en thème sombre comme en thème clair.
-Rayon 12 px. Pas de pictogramme dans un rond.
+### Ce qu'elle porte, dans cet ordre
 
-> **Dépendance à connaître avant l'étape 6.** La bannière lit le logo par
-> l'URL publique du seau `branding`. Ce seau est `public = true`, et il doit le
-> rester : un salarié qui ouvre son courrier n'a pas de session Safentreprise.
-> Voir `docs/SECURITE-RLS.md` — seul l'**énumération** du seau a été fermée,
-> jamais la lecture par URL. Une bascule de `branding` en privé casserait
-> toutes les bannières.
+1. Le titre de l'alerte et son niveau.
+2. Les motifs, en phrases complètes — ce qui a été détecté et pourquoi.
+3. La conduite à tenir, en une phrase impérative.
+4. « Powered by » suivi du logo Safentreprise, en bas à droite.
+
+Fond : un aplat très clair, le ton de l'alerte et non un aplat criard. Rayon
+12 px. Pas de pictogramme dans un rond — voir la règle générale plus haut.
+
+### Pourquoi il n'y a PAS de logo client, ni de nom de client
+
+**Décision du 16 septembre 2026, prise après l'avoir construit et regardé.** La
+version précédente de ce document demandait le logo de l'entreprise cliente en
+haut à droite, avec son nom, au motif que « la bannière cesse d'être un
+avertissement extérieur pour devenir un message de sa propre entreprise ».
+L'idée était bonne ; elle n'a pas résisté à trois constats.
+
+1. **Le logo n'arrivait presque jamais.** Image distante, donc bloquée par
+   défaut. Le salarié voyait le cas dégradé dans la quasi-totalité des cas.
+2. **Quand il arrivait, il coûtait la place du message.** La colonne de droite
+   prenait un tiers de la largeur pour une image décorative, au détriment des
+   motifs — qui sont ce que la bannière existe pour dire.
+3. **Il imposait une contrainte sans fin.** Un client dépose ce qu'il veut :
+   carré, bande de 10:1, fichier de 3000 px. Le brider proprement dans le moteur
+   de rendu de Word aurait supposé de relever les dimensions du fichier au
+   téléversement et d'écrire `width` ET `height` — du travail permanent pour un
+   élément qui ne dit rien sur la fraude.
+
+**Toute la place revient donc au message.** Ne pas réintroduire le logo client
+sans rouvrir ces trois points : le premier ne bougera pas.
+
+### La mention éditeur, et le piège du thème sombre
+
+Le logo Safentreprise est en marine et noir : invisible sur fond sombre. Deux
+précautions, parce qu'aucune ne suffit seule.
+
+**La mention est du texte.** « Powered by Safentreprise » est écrit, pas
+dessiné. Un client de messagerie recolore le texte en thème sombre ; il ne
+recolore jamais l'intérieur d'un PNG.
+
+**Le logo est posé sur une pastille blanche explicite** — `bgcolor` sur
+l'élément, plus `background-color` en ligne. C'est la déclaration que les
+moteurs de thème sombre respectent le mieux.
+
+> **Écarté : la variante claire basculée par `prefers-color-scheme`.** Plus
+> élégante, mais elle suppose un `<style>`, qu'Outlook pour Windows ignore
+> complètement et que Gmail retire dans certains contextes. Toute la bannière
+> est en styles en ligne pour cette raison ; une règle `@media` y serait la
+> seule chose à ne pas fonctionner là où le produit est le plus utilisé.
+
+**Largeur d'affichage : 140 px.** Le logo est en 4:1 ; à 120 px il ne fait que
+30 px de haut et le mot « Safentreprise » tombe à environ 7 px par lettre.
+`width` avec `height:auto` met l'image à l'échelle et ne la rogne jamais : un
+logo qui paraît coupé dans un rendu accuse le fichier, pas la balise.
+
+### Le niveau faible ne porte aucune image
+
+La bannière a trois niveaux, et le faible est la note discrète : une seule
+ligne, sans encadré, sans liste, sans conseil. Y ajouter une mention illustrée
+en ferait un quatrième encadré et effacerait la gradation que ces trois
+variantes existent pour produire.
 
 ---
 
@@ -358,7 +407,7 @@ se lit à voix haute.
 3. Les tableaux.
 4. Les formulaires et les réglages.
 5. La page Connexion Microsoft.
-6. La bannière Outlook, avec le logo client.
+6. La bannière Outlook.
 
 Après chaque étape : une capture avant, une capture après, à 1440 px et à
 390 px.
