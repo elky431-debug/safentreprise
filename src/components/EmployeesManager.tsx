@@ -226,7 +226,7 @@ export function EmployeesManager({ companyId, initialEmployees }: Props) {
                 : "border-border-strong bg-surface-2/40"
             }`}
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-accent-text">
+            <span className="bouton-icone flex h-11 w-11 items-center justify-center border border-border bg-surface text-accent-text">
               <IconUpload />
             </span>
             <p className="mt-3.5 text-[13.5px] text-foreground">

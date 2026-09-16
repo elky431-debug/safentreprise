@@ -87,17 +87,17 @@ export function Releve({
   campagnes,
 }: ReleveProps) {
   return (
-    <div className="mx-auto w-full max-w-[1280px]">
+    /* ⚠ PLUS DE PLAFOND ICI : C'EST LA COQUILLE QUI LE PORTE. `Releve` gardait
+         un `max-w-[1280px]` de la v1, et il aurait annulé le passage à 1680 px
+         sans que rien ne le signale — la page d'aperçu monte ce composant hors
+         de `DashboardShell`, donc la mesure ne pouvait pas le voir. Deux
+         plafonds sur le même contenu, c'est le plus petit qui gagne, toujours
+         en silence. */
+    <div className="w-full">
       <EnteteApp nomSociete={nomSociete} />
 
       {/* Écart entre sections : 32 px, valeur unique du document. */}
       <div className="mt-8 space-y-8">
-        <Exposition
-          scores={scores}
-          boitesSurveillees={boitesSurveillees}
-          employes={employes}
-        />
-
         <section>
           <TitreSection titre="Tentatives dans le temps" />
           <ActiviteProtection menaces={menacesGraphique} />
@@ -116,6 +116,23 @@ export function Releve({
           />
           <ListeCampagnes campagnes={campagnes} />
         </section>
+
+        {/* ⚠ LE TAUX D'EXPOSITION EST EN BAS DE PAGE DEPUIS LE 16 SEPTEMBRE
+            2026, SUR DEMANDE. La v2 du document le plaçait en haut et le
+            nommait « le seul endroit où l'on s'affirme » ; les deux passages
+            ont été corrigés dans le document en même temps que ce déplacement,
+            pour qu'il ne dise pas l'inverse du code.
+
+            ⚠ RÉSERVE POSÉE À L'ÉPOQUE, À RÉÉVALUER SI L'ÉCRAN DÉÇOIT : un chiffre
+              de 56 px qui n'est jamais dans le premier écran n'est plus une
+              affirmation, c'est une conclusion. Ce n'est pas forcément un
+              défaut — on peut vouloir que la page finisse sur le score plutôt
+              qu'elle ne commence par lui — mais c'est un rôle différent. */}
+        <Exposition
+          scores={scores}
+          boitesSurveillees={boitesSurveillees}
+          employes={employes}
+        />
       </div>
     </div>
   );

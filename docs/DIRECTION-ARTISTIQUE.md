@@ -144,6 +144,20 @@ La hiérarchie se lit par la taille du rayon : plus le bloc est grand, plus il
 est arrondi. Un bouton plein arrondi à côté d'une carte à 16 px crée le
 contraste de formes qui manquait.
 
+### Un pictogramme seul ne va jamais dans un cercle
+
+Règle générale, pas une exception locale. Un bouton carré ou un cartouche qui
+ne porte qu'une icône prend le **rayon des blocs internes, 10 px** — jamais le
+plein arrondi, même si c'est un élément de commande.
+
+À 28 px, une pilule est un cercle, et le pictogramme dans un rond est
+exactement le tic générique que cette direction élimine. La règle vaut partout :
+chevrons de dépliage, cartouches d'icône dans les listes, états vides, bandeaux
+d'alerte, et la bannière Outlook.
+
+Un bouton qui porte **une icône ET un mot** reste en plein arrondi : c'est le
+mot qui en fait une commande, pas l'icône.
+
 > **Ne pas réintroduire de règle balai.** La v1 posait
 > `[class*="rounded"] { border-radius: 4px }` sur tout le sous-arbre de
 > l'application. Tant qu'elle tenait, poser `rounded-full` sur un bouton ne
@@ -182,13 +196,23 @@ De haut en bas :
 
 1. Le bandeau d'état du raccordement, s'il y a quelque chose à dire
 2. Le titre et les actions
-3. Le taux d'exposition et son détail
-4. **Le graphique des tentatives dans le temps**
-5. **Le tableau des tentatives récentes**
-6. Le reste
+3. **Le graphique des tentatives dans le temps**
+4. **Le tableau des tentatives récentes**
+5. Les campagnes
+6. **Le taux d'exposition et son détail**, en bas de page
 
 On regarde la forme avant de lire le détail. Le graphique répond à « comment
 ça va », le tableau à « qu'est-ce qui s'est passé ».
+
+> **Le taux d'exposition est descendu en bas le 16 septembre 2026.** Il ouvrait
+> la page ; il la conclut. La page commence donc par ce qui s'est passé et
+> finit par ce que ça vaut.
+>
+> Réserve posée au moment du déplacement, à réévaluer si l'écran déçoit : un
+> chiffre de 56 px qui n'est jamais dans le premier écran n'est plus une
+> affirmation, c'est une conclusion. Ce n'est pas forcément un défaut — on peut
+> vouloir qu'une page finisse sur le score plutôt qu'elle ne commence par lui —
+> mais c'est un rôle différent de celui que décrivait la v2 initiale.
 
 ---
 
@@ -214,7 +238,7 @@ lui-même, qu'il reconnaît sans la déchiffrer.
 
 ## Le seul endroit où l'on s'affirme
 
-**Le chiffre d'exposition**, en haut du tableau de bord. 56 px, graisse 700,
+**Le chiffre d'exposition**, en bas du tableau de bord. 56 px, graisse 700,
 serrage −0.035em, avec sa légende en 13.5 px juste dessous. Rien d'autre sur
 la page ne dépasse 34 px.
 

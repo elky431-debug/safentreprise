@@ -68,7 +68,7 @@ export default async function BillingPage() {
                       {formatMontant(p.montant)}
                     </td>
                     <td className="px-6 py-3.5">
-                      <span className="rounded border border-border bg-surface-2 px-2 py-0.5 text-[11.5px] font-medium text-muted">
+                      <span className="rounded-full border border-border bg-surface-2 px-2.5 py-0.5 text-[11.5px] font-medium text-muted">
                         {STATUT_LABELS[p.statut_stripe] ?? p.statut_stripe}
                       </span>
                     </td>
