@@ -68,6 +68,29 @@ export function DemoRequestForm({ offre }: { offre?: string }) {
   const [envoi, setEnvoi] = useState(false);
   const [envoye, setEnvoye] = useState(false);
 
+  /**
+   * ⚠ LE PIÈGE À ROBOTS. Champ réel, envoyé avec le reste, mais qu'un humain
+   *   ne peut pas remplir : il est hors du flux, hors du parcours de
+   *   tabulation et annoncé comme décoratif aux lecteurs d'écran. Un robot qui
+   *   remplit tout ce qu'il trouve le remplit toujours ; la route répond alors
+   *   201 sans rien écrire.
+   *
+   *   ⚠ PAS DE `display: none`. Certains robots l'inspectent justement pour
+   *     éviter les pièges. On le sort de l'écran, ce qui ne se distingue pas
+   *     d'une mise en page ordinaire.
+   */
+  const [piege, setPiege] = useState("");
+
+  /**
+   * Instant d'affichage du formulaire, pour mesurer la durée de saisie.
+   *
+   * ⚠ CE N'EST PAS UNE MESURE DE SÉCURITÉ. Elle vient du navigateur, donc elle
+   *   se falsifie. Elle n'arrête qu'un robot naïf — c'est-à-dire exactement
+   *   celui qu'on a observé. La signer coûterait un aller-retour serveur pour
+   *   un gain nul face à un attaquant qui, lui, poste directement.
+   */
+  const [ouvertA] = useState(() => Date.now());
+
   /** Met à jour un seul champ sans toucher aux autres. */
   function modifier(champ: keyof Champs, valeur: string) {
     setChamps((precedent) => ({ ...precedent, [champ]: valeur }));
@@ -82,7 +105,11 @@ export function DemoRequestForm({ offre }: { offre?: string }) {
       const reponse = await fetch("/api/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(champs),
+        body: JSON.stringify({
+          ...champs,
+          societe_complement: piege,
+          dureeSaisieMs: Date.now() - ouvertA,
+        }),
       });
 
       const donnees = (await reponse.json()) as { erreur?: string };
@@ -136,6 +163,25 @@ export function DemoRequestForm({ offre }: { offre?: string }) {
           <Alert tone="error">{erreur}</Alert>
         </div>
       )}
+
+      {/* Le piège — voir le commentaire sur `piege` plus haut. */}
+      <div
+        aria-hidden
+        className="absolute left-[-9999px] top-auto h-px w-px overflow-hidden"
+      >
+        <label htmlFor="societe-complement">
+          Ne remplissez pas ce champ
+          <input
+            id="societe-complement"
+            name="societe_complement"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={piege}
+            onChange={(e) => setPiege(e.target.value)}
+          />
+        </label>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">

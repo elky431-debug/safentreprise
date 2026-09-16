@@ -204,8 +204,48 @@ Hors périmètre de cette AIPD mais dans la même base, donc exposées aux même
 risques d'accès : `menaces_detectees` (produit d'extension abandonné, purge
 12 mois), `activations_extension` (adresse professionnelle + identifiant de
 poste, **aucune purge**), `demandes_demo` (nom, entreprise, e-mail, téléphone,
-message libre, **aucune purge**), `score_history` (scores par entreprise, sans
-donnée personnelle), `diagnostics_exposition` (voir ci-dessous).
+message libre, **aucune purge** — plus l'empreinte d'origine décrite
+ci-dessous), `score_history` (scores par entreprise, sans donnée personnelle),
+`diagnostics_exposition` (voir ci-dessous).
+
+#### `demandes_demo.ip_hmac` — empreinte d'origine du formulaire de démo
+
+**Ajouté le 16 septembre 2026.** Un robot a soumis le formulaire cinq fois avec
+des adresses e-mail réelles volées à des tiers. Pour plafonner le débit d'une
+même origine, chaque demande porte désormais une empreinte de l'adresse IP de
+l'appelant.
+
+**Ce n'est pas l'adresse.** C'est un **HMAC-SHA256 salé**, tronqué à
+32 caractères, dont la clé (`IP_HASH_SECRET`, à défaut `WORKER_SECRET`) ne
+quitte pas le serveur. Un simple SHA-256 aurait été insuffisant : l'espace des
+adresses IPv4 fait 2^32, il se parcourt exhaustivement en quelques heures, et le
+hachage se renverserait donc par force brute. Le sel rend cette table de
+correspondance inconstructible. Si le secret manque, **aucune empreinte n'est
+calculée** : le code préfère perdre son compteur plutôt qu'écrire une donnée
+personnelle réversible.
+
+**Finalité unique et minimisée.** L'empreinte ne sert qu'à compter les
+soumissions d'une même origine sur une heure et sur un jour. Elle n'est jamais
+lue par un humain, jamais affichée, jamais transmise à un tiers, et ne permet
+aucun recoupement entre deux traitements — le sel étant propre à ce déploiement.
+
+**Base légale : l'intérêt légitime** (art. 6.1.f). L'intérêt poursuivi est la
+sécurité du service d'envoi et la protection des tiers dont l'adresse a été
+usurpée. L'atteinte est minime — une donnée pseudonymisée, conservée trente
+jours, sans décision individuelle à la clé.
+
+**Conservation : 30 jours, puis remise à NULL.** `purger_empreintes_demo()`
+efface **l'empreinte, pas la demande** : le prospect est une donnée commerciale
+dont la conservation a sa propre base légale, l'empreinte est une donnée de
+sécurité qui n'a plus d'objet passé le délai. Supprimer la ligne entière ferait
+perdre un client pour protéger une donnée qu'il suffit de mettre à NULL.
+
+**Marquage des demandes suspectes.** Les colonnes `suspect` et
+`motifs_suspicion` portent le résultat de contrôles automatiques (casse
+alternée, téléphone sans indicatif, saisie instantanée). **Aucune décision
+automatisée au sens de l'art. 22 n'en découle** : la demande est enregistrée et
+notifiée dans tous les cas, un humain tranche. Le marquage ne fait que
+supprimer l'envoi automatique d'un e-mail et l'en-tête `Reply-To`.
 
 #### `diagnostics_exposition` — questionnaire public /diagnostic
 

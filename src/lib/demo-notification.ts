@@ -44,6 +44,8 @@ export type DemandeDemo = {
   telephone: string;
   microsoft365: string;
   besoin: string;
+  /** Motifs relevés par `@/lib/demo-antirobot`. Vide = rien à signaler. */
+  motifs?: string[];
 };
 
 /**
@@ -81,10 +83,27 @@ export function corpsNotification(d: DemandeDemo): string {
     lignes.push("", "Besoin exprimé :", d.besoin);
   }
 
-  lignes.push(
-    "",
-    "— Répondre à ce message écrit directement au demandeur.",
-  );
+  const suspecte = (d.motifs?.length ?? 0) > 0;
+
+  if (suspecte) {
+    lignes.push(
+      "",
+      "—— DEMANDE SIGNALÉE AUTOMATIQUEMENT ——",
+      `Motifs : ${d.motifs!.join(", ")}`,
+      "",
+      "Elle est conservée telle quelle : on marque, on ne jette pas. Mais",
+      "l'en-tête Répondre-à a été retiré de ce message. Si la demande est",
+      "légitime, recopiez l'adresse ci-dessus à la main.",
+      "",
+      "Ne répondez pas par réflexe : l'adresse peut avoir été volée à un tiers",
+      "qui n'a rien demandé.",
+    );
+  } else {
+    lignes.push(
+      "",
+      "— Répondre à ce message écrit directement au demandeur.",
+    );
+  }
 
   return lignes.join("\n");
 }
@@ -136,13 +155,29 @@ export async function notifierDemande(
     return { interne: { ok: false, erreur }, confirmation: null };
   }
 
+  const suspecte = (d.motifs?.length ?? 0) > 0;
+
+  // ⚠ L'OBJET EST NETTOYÉ DE SES SAUTS DE LIGNE. `entreprise` vient d'un
+  //   inconnu ; un retour chariot dans un en-tête d'email est le vecteur
+  //   classique d'injection d'en-tête. Resend reçoit du JSON et encoderait
+  //   sans doute la valeur, mais on ne fait pas reposer une garde sur un
+  //   « sans doute » qu'on n'a pas vérifié.
+  const entreprise = d.entreprise.replace(/[\r\n]+/g, " ").slice(0, 120);
+
   const interne = await envoyerEmail({
     from: `Safentreprise <${from}>`,
     to: destinataireInterne(),
-    subject: `Nouvelle demande de démo — ${d.entreprise}`,
+    subject: suspecte
+      ? `[suspect] Demande de démo — ${entreprise}`
+      : `Nouvelle demande de démo — ${entreprise}`,
     text: corpsNotification(d),
-    // Répondre à la notification écrit au demandeur, pas à la boîte technique.
-    replyTo: d.email,
+    // ⚠ `Reply-To` CONDITIONNEL, DÉCIDÉ LE 16 SEPTEMBRE 2026. Sur une demande
+    //   saine il fait gagner un geste. Sur une demande signalée il disparaît :
+    //   le danger n'est pas technique, il est réflexe — on répond à un message
+    //   interne sans regarder, et on vient d'écrire à un inconnu dont l'adresse
+    //   a été volée. Sans l'en-tête, répondre demande un copier-coller
+    //   délibéré.
+    replyTo: suspecte ? undefined : d.email,
   });
 
   // ⚠ RIEN NE PART VERS `d.email`. C'est la seule ligne de ce fichier qui

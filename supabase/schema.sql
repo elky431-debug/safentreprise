@@ -355,10 +355,14 @@ CREATE POLICY suppliers_delete_own
   USING (company_id = public.get_my_company_id());
 
 -- ---------- message_templates (lecture seule pour les clients) ----------
-DROP POLICY IF EXISTS message_templates_select_actif ON message_templates;
-CREATE POLICY message_templates_select_actif
+DROP POLICY IF EXISTS message_templates_select_visible ON message_templates;
+CREATE POLICY message_templates_select_visible
   ON message_templates FOR SELECT
-  USING (actif = true);
+  TO authenticated
+  USING (
+    company_id IS NULL
+    OR company_id = public.get_my_company_id()
+  );
 
 -- ---------- campaigns ----------
 DROP POLICY IF EXISTS campaigns_select_own ON campaigns;
@@ -516,13 +520,24 @@ CREATE POLICY risk_assessments_delete_own
   ON risk_assessments FOR DELETE
   USING (company_id = public.get_my_company_id());
 
+-- ⚠ RÈGLE, ARRÊTÉE LE 16/09/2026 — voir docs/SECURITE-RLS.md.
+--   Une politique SANS clause `TO` s'applique à PUBLIC, donc à `anon`. Toute
+--   politique doit NOMMER SON RÔLE et FILTRER SUR LA SOCIÉTÉ. Les deux.
+--   Soixante-quatre des politiques de ce fichier étaient sauvées par accident,
+--   parce que leur condition passait par `get_my_company_id()`, qui rend NULL
+--   pour un visiteur anonyme. Trois ne l'étaient pas, et laissaient énumérer
+--   les attestations de tous les clients.
+
 -- ---------- demandes_demo ----------
 -- Écriture publique : le formulaire est ouvert aux visiteurs non connectés.
-DROP POLICY IF EXISTS demandes_demo_insert_public ON demandes_demo;
-CREATE POLICY demandes_demo_insert_public
-  ON demandes_demo FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (true);
+-- ⚠ AUCUNE POLITIQUE D'INSERTION, ET C'EST VOLONTAIRE DEPUIS LE 16/09/2026.
+--   `demandes_demo_insert_public` disait `TO anon WITH CHECK (true)` : la clé
+--   anonyme étant publique, n'importe qui pouvait écrire dans cette table par
+--   PostgREST sans passer par /api/demo, et toute limitation posée dans la
+--   route se contournait par un `curl`. L'insertion passe désormais par
+--   `enregistrer_demande_demo()`, une fonction SECURITY DEFINER qui compte
+--   avant d'écrire. Voir 20261009_rls_roles_et_stockage.sql.
+REVOKE INSERT ON TABLE demandes_demo FROM anon, authenticated;
 
 -- Aucune politique SELECT / UPDATE / DELETE : les demandes ne sont lisibles
 -- que depuis le back-office Supabase (Table Editor), jamais via l'API publique.
@@ -531,7 +546,11 @@ CREATE POLICY demandes_demo_insert_public
 DROP POLICY IF EXISTS branding_storage_select ON storage.objects;
 CREATE POLICY branding_storage_select
   ON storage.objects FOR SELECT
-  USING (bucket_id = 'branding');
+  TO authenticated
+  USING (
+    bucket_id = 'branding'
+    AND (storage.foldername(name))[1] = public.get_my_company_id()::text
+  );
 
 DROP POLICY IF EXISTS branding_storage_insert ON storage.objects;
 CREATE POLICY branding_storage_insert
@@ -837,30 +856,45 @@ CREATE INDEX IF NOT EXISTS idx_quiz_questions_actif_ordre
 
 ALTER TABLE quiz_questions ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS quiz_questions_select_auth ON quiz_questions;
-CREATE POLICY quiz_questions_select_auth
+DROP POLICY IF EXISTS quiz_questions_select_visible ON quiz_questions;
+CREATE POLICY quiz_questions_select_visible
   ON quiz_questions FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    company_id IS NULL
+    OR company_id = public.get_my_company_id()
+  );
 
-DROP POLICY IF EXISTS quiz_questions_insert_auth ON quiz_questions;
-CREATE POLICY quiz_questions_insert_auth
+DROP POLICY IF EXISTS quiz_questions_insert_own ON quiz_questions;
+CREATE POLICY quiz_questions_insert_own
   ON quiz_questions FOR INSERT
   TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
 
-DROP POLICY IF EXISTS quiz_questions_update_auth ON quiz_questions;
-CREATE POLICY quiz_questions_update_auth
+DROP POLICY IF EXISTS quiz_questions_update_own ON quiz_questions;
+CREATE POLICY quiz_questions_update_own
   ON quiz_questions FOR UPDATE
   TO authenticated
-  USING (true)
-  WITH CHECK (true);
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  )
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
 
-DROP POLICY IF EXISTS quiz_questions_delete_auth ON quiz_questions;
-CREATE POLICY quiz_questions_delete_auth
+DROP POLICY IF EXISTS quiz_questions_delete_own ON quiz_questions;
+CREATE POLICY quiz_questions_delete_own
   ON quiz_questions FOR DELETE
   TO authenticated
-  USING (true);
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
 
 CREATE OR REPLACE FUNCTION public.get_quiz_questions(p_type_fraude TEXT DEFAULT NULL)
 RETURNS TABLE (
@@ -933,18 +967,36 @@ ON CONFLICT (id) DO UPDATE SET
   actif = true;
 
 -- Gabarits : édition pour les utilisateurs authentifiés
-DROP POLICY IF EXISTS message_templates_select_all_auth ON message_templates;
-CREATE POLICY message_templates_select_all_auth
-  ON message_templates FOR SELECT
+DROP POLICY IF EXISTS message_templates_insert_own ON message_templates;
+CREATE POLICY message_templates_insert_own
+  ON message_templates FOR INSERT
   TO authenticated
-  USING (true);
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
 
-DROP POLICY IF EXISTS message_templates_update_auth ON message_templates;
-CREATE POLICY message_templates_update_auth
+DROP POLICY IF EXISTS message_templates_update_own ON message_templates;
+CREATE POLICY message_templates_update_own
   ON message_templates FOR UPDATE
   TO authenticated
-  USING (true)
-  WITH CHECK (true);
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  )
+  WITH CHECK (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
+
+DROP POLICY IF EXISTS message_templates_delete_own ON message_templates;
+CREATE POLICY message_templates_delete_own
+  ON message_templates FOR DELETE
+  TO authenticated
+  USING (
+    company_id IS NOT NULL
+    AND company_id = public.get_my_company_id()
+  );
 
 -- Storage PDF certificats
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -963,7 +1015,11 @@ ON CONFLICT (id) DO UPDATE SET
 DROP POLICY IF EXISTS certificates_storage_select ON storage.objects;
 CREATE POLICY certificates_storage_select
   ON storage.objects FOR SELECT
-  USING (bucket_id = 'certificates');
+  TO authenticated
+  USING (
+    bucket_id = 'certificates'
+    AND (storage.foldername(name))[1] = public.get_my_company_id()::text
+  );
 
 DROP POLICY IF EXISTS certificates_storage_insert ON storage.objects;
 CREATE POLICY certificates_storage_insert

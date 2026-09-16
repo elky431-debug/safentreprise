@@ -37,6 +37,11 @@ import { createClient } from "@/lib/supabase/server";
 import { EFFECTIFS, REPONSES_MICROSOFT } from "@/lib/demo";
 import { notifierDemande, type DemandeDemo } from "@/lib/demo-notification";
 import { EMAIL_CONTACT, TELEPHONE_AFFICHE } from "@/lib/contact";
+import {
+  empreinteOrigine,
+  origineRequete,
+  signauxAutomatiques,
+} from "@/lib/demo-antirobot";
 
 type Corps = {
   entreprise?: string;
@@ -47,6 +52,14 @@ type Corps = {
   telephone?: string;
   microsoft365?: string;
   besoin?: string;
+  /**
+   * ⚠ LE PIÈGE. Champ caché du formulaire, invisible à l'œil et hors du
+   *   parcours de tabulation. Un humain ne peut pas le remplir ; un robot qui
+   *   remplit tout ce qu'il trouve le remplit toujours.
+   */
+  societe_complement?: string;
+  /** Millisecondes entre l'affichage du formulaire et l'envoi. */
+  dureeSaisieMs?: number;
 };
 
 /**
@@ -153,6 +166,15 @@ export async function POST(request: Request) {
   const microsoft365 = corps.microsoft365?.trim() ?? "";
   const besoin = corps.besoin?.trim() ?? "";
 
+  // ⚠ LE PIÈGE RÉPOND 201, COMME UN SUCCÈS, ET N'ÉCRIT RIEN. Un 400 apprend au
+  //   robot ce qu'il doit changer ; un faux succès le laisse continuer à parler
+  //   dans le vide. C'est le seul endroit du dispositif qui JETTE une demande,
+  //   et il le peut parce qu'un champ invisible rempli n'est pas un signal
+  //   parmi d'autres : c'est une certitude.
+  if (corps.societe_complement?.trim()) {
+    return Response.json({ ok: true }, { status: 201 });
+  }
+
   if (!entreprise || !prenom || !nom || !email || !telephone) {
     return Response.json(
       {
@@ -204,6 +226,16 @@ export async function POST(request: Request) {
     );
   }
 
+  // ⚠ ON MARQUE, ON NE JETTE PAS. Ces motifs ne refusent rien : ils sont
+  //   enregistrés avec la demande, marquent l'objet du mail interne et retirent
+  //   l'en-tête `Reply-To`. Un faux positif coûte un objet marqué « suspect »,
+  //   jamais un prospect perdu.
+  const motifs = signauxAutomatiques({
+    entreprise,
+    telephone,
+    dureeSaisieMs: corps.dureeSaisieMs,
+  });
+
   const demande: DemandeDemo = {
     entreprise,
     effectif,
@@ -213,6 +245,7 @@ export async function POST(request: Request) {
     telephone,
     microsoft365,
     besoin,
+    motifs,
   };
 
   // Sans configuration Supabase (ex. environnement de démo), createClient lève.
@@ -223,10 +256,23 @@ export async function POST(request: Request) {
     return Response.json({ erreur: MESSAGE_PANNE }, { status: 503 });
   }
 
-  const erreur = await enregistrer(supabase, demande);
+  const resultat = await enregistrer(supabase, demande, request.headers);
 
-  if (erreur) {
-    console.error("Insertion demandes_demo :", erreur);
+  if (resultat === "limite") {
+    // Seuils larges (10/heure, 30/jour) : un humain n'y arrive pas. On le dit
+    // quand même en français lisible plutôt qu'avec un code nu.
+    return Response.json(
+      {
+        erreur:
+          `Trop de demandes envoyées depuis cette connexion. Réessayez plus ` +
+          `tard, ou joignez-nous directement : ${TELEPHONE_AFFICHE} ou ${EMAIL_CONTACT}.`,
+      },
+      { status: 429 },
+    );
+  }
+
+  if (resultat !== "ok") {
+    console.error("Insertion demandes_demo :", resultat);
     return Response.json(
       { erreur: "Enregistrement impossible pour le moment. Réessayez." },
       { status: 500 },
@@ -253,59 +299,63 @@ export async function POST(request: Request) {
 }
 
 /**
- * Insertion, avec repli sur l'ancien format si les colonnes manquent.
+ * L'enregistrement, par la fonction `enregistrer_demande_demo`.
  *
- * ⚠ LE REPLI NE SE DÉCLENCHE QUE SUR « COLONNE INCONNUE ». PostgREST répond
- *   PGRST204 — ou le code Postgres 42703 — quand une colonne citée n'existe
- *   pas. Toute autre erreur remonte telle quelle : masquer une panne de
- *   permission ou de réseau derrière un second essai rendrait le diagnostic
- *   impossible.
+ * ⚠ PLUS D'INSERT DIRECT, ET LA POLITIQUE QUI L'AUTORISAIT A ÉTÉ RETIRÉE.
+ *   `demandes_demo_insert_public` disait `TO anon WITH CHECK (true)` : la clé
+ *   anonyme étant publique — elle est dans le bundle du navigateur — n'importe
+ *   qui pouvait écrire dans la table par PostgREST, sans passer par cette
+ *   route. Toute limitation posée ici se contournait donc par un `curl`.
+ *   Voir `supabase/migrations/20261009_rls_roles_et_stockage.sql`.
  *
- * ⚠ CE REPLI EST TRANSITOIRE. Il disparaîtra une fois la migration 20260917
- *   appliquée partout. Tant qu'il sert, l'effectif et la réponse Microsoft 365
- *   repartent en texte libre — et une erreur est écrite dans les logs pour
- *   qu'on ne l'oublie pas.
+ * ⚠ LE COMPTEUR EST DANS POSTGRES, ET IL NE PEUT PAS ÊTRE AILLEURS. Les
+ *   fonctions Netlify sont sans état et démultipliées : un compteur en mémoire
+ *   ne compte rien. La base est la seule mémoire partagée.
  */
 async function enregistrer(
   // Le type générique du client varie avec la génération des types de base.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   d: DemandeDemo,
-): Promise<unknown | null> {
-  const base = {
-    nom: `${d.prenom} ${d.nom}`,
-    entreprise: d.entreprise,
-    email: d.email,
-    telephone: d.telephone,
-  };
-
-  const { error } = await supabase.from("demandes_demo").insert({
-    ...base,
-    effectif: d.effectif,
-    microsoft_365: d.microsoft365,
-    message: d.besoin || null,
-  });
-
-  if (!error) return null;
-
-  const code = String((error as { code?: string }).code ?? "");
-  if (code !== "PGRST204" && code !== "42703") return error;
-
-  console.error(
-    "demandes_demo : colonnes effectif / microsoft_365 absentes — " +
-      "appliquer la migration 20260917. Repli sur le champ message.",
+  entetes: Headers,
+): Promise<"ok" | "limite" | unknown> {
+  const origine = origineRequete(entetes);
+  const empreinte = empreinteOrigine(
+    origine.ip,
+    process.env.IP_HASH_SECRET ?? process.env.WORKER_SECRET,
   );
 
-  const { error: erreurRepli } = await supabase.from("demandes_demo").insert({
-    ...base,
-    message: [
-      `Effectif : ${d.effectif}`,
-      `Microsoft 365 : ${d.microsoft365}`,
-      d.besoin ? `\n${d.besoin}` : null,
-    ]
-      .filter(Boolean)
-      .join("\n"),
+  // ⚠ SANS EMPREINTE, IL N'Y A PLUS AUCUN PLAFOND, ET IL FAUT QUE ÇA SE VOIE.
+  //   Vérifié sur Postgres : quinze appels sans empreinte passent tous. Deux
+  //   causes possibles, et aucune n'est visible autrement qu'ici — l'en-tête
+  //   d'origine n'est pas celui qu'on croit, ou le secret de hachage manque.
+  //   Le nom de l'en-tête qui a répondu est journalisé à chaque demande, une
+  //   seule ligne, pour qu'on sache lequel sert réellement chez Netlify.
+  if (!empreinte) {
+    console.error(
+      "demandes_demo : AUCUNE EMPREINTE D'ORIGINE, la limitation de débit est " +
+        `inopérante pour cette demande. En-tête trouvé : ${origine.entete ?? "aucun"}. ` +
+        `Secret de hachage : ${process.env.IP_HASH_SECRET || process.env.WORKER_SECRET ? "présent" : "MANQUANT"}.`,
+    );
+  } else {
+    console.info(`demandes_demo : origine lue via ${origine.entete}`);
+  }
+
+  const { data, error } = await supabase.rpc("enregistrer_demande_demo", {
+    p_nom: `${d.prenom} ${d.nom}`,
+    p_entreprise: d.entreprise,
+    p_email: d.email,
+    p_telephone: d.telephone,
+    p_effectif: d.effectif,
+    p_microsoft_365: d.microsoft365,
+    p_message: d.besoin || null,
+    p_ip_hmac: empreinte,
+    p_suspect: (d.motifs?.length ?? 0) > 0,
+    p_motifs: d.motifs ?? [],
   });
 
-  return erreurRepli ?? null;
+  if (error) return error;
+  if (data === "limite_heure" || data === "limite_jour") return "limite";
+  if (data !== "ok") return new Error(`réponse inattendue : ${String(data)}`);
+  return "ok";
 }
