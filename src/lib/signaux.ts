@@ -39,7 +39,10 @@ export const RESUMES_SIGNAUX: {
   { motif: /messagerie grand public/i, label: "Messagerie perso", ton: "canal" },
   { motif: /typosquatting|ressemble fortement/i, label: "Domaine sosie", ton: "canal" },
   { motif: /action sensible/i, label: "Demande sensible", ton: "action" },
-  { motif: /urgence|secret|indisponibilit/i, label: "Urgence · secret", ton: "action" },
+  // ⚠ « Urgence et secret », pas « Urgence · secret ». Le point médian figure
+  // dans les suppressions du document ; entre deux mots, une conjonction dit la
+  // même chose et se lit à voix haute.
+  { motif: /urgence|secret|indisponibilit/i, label: "Urgence et secret", ton: "action" },
 ];
 
 export function resumerSignal(signal: string): {

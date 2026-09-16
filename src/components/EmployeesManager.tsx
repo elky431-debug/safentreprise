@@ -320,7 +320,9 @@ export function EmployeesManager({ companyId, initialEmployees }: Props) {
                           >
                             Confirmer
                           </button>
-                          <span className="text-faint">·</span>
+                          {/* ⚠ PLUS DE POINT MÉDIAN. Deux boutons consécutifs
+                              se distinguent par leur libellé et leur graisse ;
+                              le séparateur ne séparait rien qui ne le fût déjà. */}
                           <button
                             type="button"
                             onClick={() => setPendingDelete(null)}
@@ -361,7 +363,7 @@ function Th({
   return (
     <th
       scope="col"
-      className={`px-5 py-2.5 text-[11.5px] font-medium uppercase tracking-wider text-faint ${className}`}
+      className={`entete-tableau px-5 py-2.5 ${className}`}
     >
       {children}
     </th>

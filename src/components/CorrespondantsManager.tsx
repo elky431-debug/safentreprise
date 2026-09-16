@@ -513,7 +513,7 @@ export function CorrespondantsManager({ companyId, initiaux }: Props) {
               </p>
               <table className="w-full text-[13px]">
                 <thead>
-                  <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-faint">
+                  <tr className="entete-tableau border-b border-border text-left">
                     <th className="py-2 pr-4">Nom</th>
                     <th className="py-2">Email ou domaine</th>
                   </tr>
@@ -579,7 +579,7 @@ export function CorrespondantsManager({ companyId, initiaux }: Props) {
           <div className="overflow-x-auto px-6 py-5">
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-faint">
+                <tr className="entete-tableau border-b border-border text-left">
                   <th className="py-2 pr-4">Correspondant</th>
                   <th className="py-2 pr-4">Domaines retenus</th>
                   <th className="py-2">État</th>

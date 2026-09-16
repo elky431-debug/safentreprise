@@ -86,7 +86,7 @@ function SignalBadge({ signal }: { signal: string }) {
   return (
     <li
       title={signal}
-      className={`rounded-full border px-2 py-[3px] text-[11px] font-medium leading-none transition-colors duration-150 ${
+      className={`rounded border px-2 py-[3px] text-[11px] font-medium leading-none ${
         ton ? TONS_SIGNAL[ton] : "border-border bg-surface-2 text-muted"
       }`}
     >
@@ -258,16 +258,36 @@ export function MenacesTable({
       />
 
       {visibles.length === 0 ? (
-        <div className="px-6 py-14 text-center">
-          <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-2 text-faint">
-            <IconShieldCheck />
-          </span>
-          <p className="mt-4 text-[13.5px] text-muted">
-            Aucune tentative pour ce niveau de risque.
+        /* ⚠ PLUS D'ICÔNE DANS UN ROND, ET PLUS DE CENTRAGE. « Pas d'icônes
+           dans des ronds » est dans les suppressions, et le centrage était un
+           reste de la mise en page précédente : tout le reste de l'écran est
+           aligné à gauche. */
+        <div className="px-5 py-10">
+          <p className="titre-bloc text-foreground">
+            <IconShieldCheck className="mr-2 inline h-4 w-4 align-[-2px] text-muted" />
+            Aucune tentative pour ce niveau de risque
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        /* ⚠ `relative` N'EST PAS DÉCORATIF : C'EST LUI QUI CONTIENT LE
+             DÉBORDEMENT. Mesuré à 390 px de large, la PAGE ENTIÈRE défilait de
+             470 px vers la droite alors que le tableau avait bien son propre
+             défilement interne. La cause n'était pas la largeur du tableau :
+             `overflow: hidden` sur cette enveloppe ne changeait rien, ce qui
+             excluait un débordement de mise en page.
+
+             Ce sont les sept `span.sr-only` — le libellé « Détails » de
+             l'en-tête et le « Afficher le détail » de chaque chevron. Tailwind
+             les pose en `position: absolute` ; l'enveloppe étant `static`, leur
+             bloc conteneur était la page, ils échappaient donc à son
+             `overflow` et étendaient la zone défilable du document jusqu'à
+             860 px. En rendant l'enveloppe positionnée, elle redevient leur
+             bloc conteneur et les clippe.
+
+             ⚠ NE PAS RETIRER `relative` EN CROYANT À UNE CLASSE INUTILE : rien
+               n'est positionné VISIBLEMENT à l'intérieur, et le défaut ne se
+               voit qu'en mesurant le défilement horizontal sur un téléphone. */
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[880px] border-collapse text-left">
             <thead>
               <tr className="border-b border-border bg-surface-2/40">
@@ -333,7 +353,12 @@ export function MenacesTable({
                           )}
                         </p>
                         <p
-                          className="mt-1 truncate font-mono text-[11.5px] text-muted"
+                          /* ⚠ PAS DE `.adresse` ICI. L'exception monospace est
+                             bornée par écrit à l'adresse de l'EXPÉDITEUR, celle
+                             qu'on demande au lecteur d'épeler. La boîte
+                             surveillée est la sienne : il la reconnaît, il ne
+                             la déchiffre pas. */
+                          className="mt-1 truncate text-[11.5px] text-muted"
                           title={menace.boite ?? undefined}
                         >
                           {menace.boite || "—"}
@@ -372,7 +397,11 @@ export function MenacesTable({
                         </p>
                         {menace.nom_signe && (
                           <p className="mt-2 flex items-baseline gap-1.5 truncate">
-                            <span className="shrink-0 font-mono text-[9.5px] uppercase tracking-[0.12em] text-faint">
+                            {/* ⚠ NI MONOSPACE, NI CAPITALES, NI 0,12 em
+                                D'INTERLETTRAGE. C'était le marqueur le plus
+                                dense de l'écran : trois signaux typographiques
+                                pour un mot de cinq lettres. */}
+                            <span className="shrink-0 text-[11.5px] text-faint">
                               signé
                             </span>
                             <span className="truncate text-[11.5px] text-muted">
@@ -466,7 +495,7 @@ function Th({
   return (
     <th
       scope="col"
-      className={`px-3 py-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-faint ${className}`}
+      className={`entete-tableau px-3 py-2.5 ${className}`}
     >
       {children}
     </th>
@@ -508,11 +537,9 @@ function Chevron({ ouvert }: { ouvert: boolean }) {
  */
 function DetailMenace({ menace }: { menace: AlerteGraph }) {
   return (
-    <div className="grid gap-6 rounded-xl border border-border bg-surface px-5 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div className="grid gap-6 rounded border border-border bg-surface px-5 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">
-          Signaux relevés
-        </p>
+        <p className="entete-tableau">Signaux relevés</p>
         {menace.signaux.length === 0 ? (
           <p className="mt-3 text-[13px] text-muted">
             Aucun signal détaillé n&apos;a été transmis.
@@ -567,9 +594,7 @@ function LigneDetail({
 }) {
   return (
     <div>
-      <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">
-        {label}
-      </dt>
+      <dt className="entete-tableau">{label}</dt>
       <dd
         className={`mt-1 break-words text-[12.5px] text-foreground ${
           mono ? "font-mono text-[12px]" : ""

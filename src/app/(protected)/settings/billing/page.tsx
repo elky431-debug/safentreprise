@@ -52,7 +52,7 @@ export default async function BillingPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-left text-[13.5px]">
               <thead>
-                <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.08em] text-faint">
+                <tr className="entete-tableau border-b border-border">
                   <th className="px-6 py-3 font-medium">Date</th>
                   <th className="px-6 py-3 font-medium">Montant</th>
                   <th className="px-6 py-3 font-medium">Statut</th>

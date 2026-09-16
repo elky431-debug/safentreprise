@@ -90,8 +90,15 @@ type PanelProps = {
 /** Bloc de contenu sur fond légèrement surélevé. */
 export function Panel({ children, className = "" }: PanelProps) {
   return (
+    /* ⚠ `min-w-0` N'EST PAS DU CONFORT, C'EST CE QUI CONTIENT LE DÉBORDEMENT.
+         Un enfant de conteneur flexible vaut `min-width: auto` par défaut : il
+         refuse donc de rétrécir sous la largeur de son contenu. Le tableau des
+         menaces fait `min-w-[880px]` dans un `overflow-x-auto` ; sans cette
+         ligne, la largeur traversait le panneau et poussait la PAGE ENTIÈRE —
+         470 px de débordement horizontal mesurés à 390 px de large. Le
+         défilement doit rester dans le tableau, pas dans le document. */
     <section
-      className={`rounded-2xl border border-border bg-surface ${className}`}
+      className={`min-w-0 rounded-2xl border border-border bg-surface ${className}`}
     >
       {children}
     </section>
