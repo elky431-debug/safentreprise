@@ -35,11 +35,18 @@ export type Motif =
 /**
  * En-têtes consultés, dans l'ordre, pour l'adresse d'origine.
  *
- * ⚠ LE PREMIER EST CELUI DE NETLIFY, ET JE NE L'AI PAS VÉRIFIÉ SUR PLACE.
- *   La documentation n'était pas joignable depuis l'environnement où ce code
- *   a été écrit. D'où deux précautions : on lit les deux, et
- *   `origineRequete` REND LE NOM de celui qui a répondu, pour que la route
- *   puisse le journaliser et qu'on sache lequel sert réellement.
+ * ⚠ `x-nf-client-connection-ip` EST CONFIRMÉ EN PRODUCTION, LE 16 SEPTEMBRE
+ *   2026. C'est bien lui que Netlify renseigne : relevé dans les logs de
+ *   fonction, « demandes_demo : origine lue via x-nf-client-connection-ip ».
+ *   Le code a d'abord été écrit sans pouvoir le vérifier — la documentation
+ *   n'était pas joignable depuis l'environnement de développement — d'où la
+ *   lecture des trois et la journalisation du nom trouvé.
+ *
+ * ⚠ LES DEUX REPLIS RESTENT, ET LA JOURNALISATION AUSSI. Ce n'est pas de la
+ *   prudence périmée : l'en-tête dépend de l'hébergeur, et une bascule
+ *   d'infrastructure le changerait sans rien casser de visible — la
+ *   limitation de débit deviendrait simplement inopérante, en silence. La
+ *   ligne de journal est le témoin qui le dirait.
  */
 const ENTETES_IP = [
   "x-nf-client-connection-ip",

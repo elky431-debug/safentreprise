@@ -327,10 +327,11 @@ async function enregistrer(
 
   // ⚠ SANS EMPREINTE, IL N'Y A PLUS AUCUN PLAFOND, ET IL FAUT QUE ÇA SE VOIE.
   //   Vérifié sur Postgres : quinze appels sans empreinte passent tous. Deux
-  //   causes possibles, et aucune n'est visible autrement qu'ici — l'en-tête
-  //   d'origine n'est pas celui qu'on croit, ou le secret de hachage manque.
-  //   Le nom de l'en-tête qui a répondu est journalisé à chaque demande, une
-  //   seule ligne, pour qu'on sache lequel sert réellement chez Netlify.
+  //   causes possibles — le secret de hachage manque, ou l'en-tête d'origine
+  //   a changé. Le second est confirmé depuis le 16 septembre 2026 :
+  //   `x-nf-client-connection-ip` chez Netlify. La ligne de journal reste
+  //   néanmoins écrite à chaque demande, parce qu'une bascule d'hébergeur
+  //   changerait l'en-tête sans rien casser de visible.
   if (!empreinte) {
     console.error(
       "demandes_demo : AUCUNE EMPREINTE D'ORIGINE, la limitation de débit est " +

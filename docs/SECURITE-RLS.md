@@ -77,13 +77,25 @@ reconduit par habitude.
    acceptable tant qu'aucun dirigeant n'en a mis un en favori — donc c'est
    d'autant plus simple que c'est fait tôt.
 
-**Vérification faite le 16 septembre.** Les Edge Logs sur 24 h ne montrent
-aucune requête de listage : uniquement du trafic interne Supabase sur
-`/tenants` et `/health` depuis des adresses privées `10.113.x.x`. Aucune IP
-externe, aucun `POST /storage/v1/object/list`. **La rétention est de 24 h en
-offre gratuite** : cette absence ne vaut que pour la fenêtre visible, et ne dit
-rien de ce qui a pu se produire avant. Ce n'est pas une preuve que rien n'est
-sorti, c'est l'absence de preuve que quelque chose est sorti.
+**Ce qui a été regardé le 16 septembre, et ce que ça vaut.** Les Edge Logs sur
+24 h ne montrent aucune requête de listage : uniquement du trafic interne
+Supabase sur `/tenants` et `/health` depuis des adresses privées `10.113.x.x`.
+Aucune IP externe, aucun `POST /storage/v1/object/list`.
+
+**Deux limites, à ne pas oublier en relisant ce constat :**
+
+1. **La rétention est de 24 h en offre gratuite.** L'absence ne vaut que pour la
+   fenêtre visible et ne dit rien de ce qui a pu se produire avant.
+2. **L'instrument lui-même n'a pas été validé.** Le contrôle qui l'aurait fait —
+   retrouver dans les mêmes logs les `POST /rest/v1/demandes_demo` des
+   soumissions du robot, dont on sait qu'elles ont eu lieu dans la fenêtre —
+   n'a pas été passé. Rien ne garantit donc que le filtre utilisé voyait bien
+   le trafic externe.
+
+Ce constat n'est donc **pas** ce qui fonde l'arbitrage, et il ne faut pas s'en
+servir comme tel. L'arbitrage tient à une seule chose : **il n'y a aucune
+attestation réelle dans le bucket.** Le jour où il y en aura une, c'est cette
+raison-là qui tombera, et aucun relevé de logs ne la remplacera.
 
 ## Le piège qui m'a fait rendre un faux diagnostic
 
