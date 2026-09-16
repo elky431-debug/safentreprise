@@ -105,7 +105,7 @@ export function Panel({ children, className = "" }: PanelProps) {
          470 px de débordement horizontal mesurés à 390 px de large. Le
          défilement doit rester dans le tableau, pas dans le document. */
     <section
-      className={`min-w-0 rounded-2xl border border-border bg-surface ${className}`}
+      className={`min-w-0 rounded-[16px] border border-border bg-surface ${className}`}
     >
       {children}
     </section>

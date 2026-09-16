@@ -64,9 +64,17 @@ export type ReleveProps = {
  *   haut. C'est le seul endroit où l'interface s'affirme, et c'est le CONTRASTE
  *   avec le reste qui produit l'effet. Grossir un second chiffre le détruirait.
  *
- * ⚠ LE TABLEAU PASSE AVANT LE GRAPHIQUE. C'est là que le dirigeant travaille ;
- *   la courbe est un contexte, pas le sujet. L'ordre précédent — courbe, puis
- *   tableau — en faisait un élément secondaire.
+ * ⚠ LE GRAPHIQUE PASSE AVANT LE TABLEAU. ON REGARDE LA FORME AVANT DE LIRE LE
+ *   DÉTAIL. La courbe répond à « comment ça va », le tableau à « qu'est-ce
+ *   qui s'est passé » — et la première question précède la seconde quand on
+ *   ouvre son tableau de bord le matin.
+ *
+ *   ⚠ CE COMMENTAIRE DISAIT L'INVERSE, ET IL FAUT SAVOIR POURQUOI. La v1 du
+ *     document mettait le tableau devant, au motif que c'est là que le
+ *     dirigeant travaille. À l'écran, ça ouvrait la page sur une liste dense
+ *     sans qu'on sache d'abord si la semaine était calme ou chargée. La v2
+ *     tranche dans l'autre sens ; ne pas rétablir l'ancien ordre sans revenir
+ *     au document.
  * ─────────────────────────────────────────────────────────────────────────
  */
 export function Releve({
@@ -91,14 +99,14 @@ export function Releve({
         />
 
         <section>
-          <TitreSection titre="Tentatives récentes" />
-          <ListeMenaces menaces={menaces.slice(0, LIGNES_AFFICHEES)} />
-          {menaces.length > 0 && <PiedListeMenaces total={menaces.length} />}
+          <TitreSection titre="Tentatives dans le temps" />
+          <ActiviteProtection menaces={menacesGraphique} />
         </section>
 
         <section>
-          <TitreSection titre="Tentatives dans le temps" />
-          <ActiviteProtection menaces={menacesGraphique} />
+          <TitreSection titre="Tentatives récentes" />
+          <ListeMenaces menaces={menaces.slice(0, LIGNES_AFFICHEES)} />
+          {menaces.length > 0 && <PiedListeMenaces total={menaces.length} />}
         </section>
 
         <section>
@@ -210,7 +218,7 @@ function Exposition({
 }) {
   if (!scores) {
     return (
-      <section className="bloc-app p-5">
+      <section className="bloc-app p-6">
         <p className="texte-courant text-muted">
           Complétez le questionnaire de risque pour afficher votre taux
           d&apos;exposition.
@@ -241,7 +249,7 @@ function Exposition({
   };
 
   return (
-    <section className="bloc-app grid gap-x-12 gap-y-6 p-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+    <section className="bloc-app grid gap-x-12 gap-y-6 p-6 lg:grid-cols-[240px_minmax(0,1fr)]">
       <div>
         <p className="flex items-baseline gap-3">
           <span className="chiffre-accroche text-foreground">
@@ -313,7 +321,7 @@ export function PastilleNiveau({
 function ListeCampagnes({ campagnes }: { campagnes: CampagneListe[] }) {
   if (campagnes.length === 0) {
     return (
-      <div className="bloc-app p-5">
+      <div className="bloc-app p-6">
         <p className="texte-courant text-foreground">
           Aucune campagne pour l&apos;instant.
         </p>
@@ -326,7 +334,7 @@ function ListeCampagnes({ campagnes }: { campagnes: CampagneListe[] }) {
   }
 
   return (
-    <div className="bloc-app overflow-hidden">
+    <div className="bloc-tableau">
       <ul>
         {campagnes.slice(0, 5).map((campagne) => {
           const envoyes =

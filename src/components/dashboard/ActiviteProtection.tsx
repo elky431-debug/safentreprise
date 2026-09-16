@@ -272,7 +272,7 @@ function SelecteurPeriode({
       /* ⚠ LE SEGMENT ACTIF EST EN ENCRE, PLUS EN BLEU. Un contrôle teinté en
          couleur de marque ferait croire que la couleur signifie quelque
          chose ; dans cet écran elle ne signifie qu'un niveau de risque. */
-      className="inline-flex items-center gap-0.5 rounded border border-border bg-surface p-0.5"
+      className="groupe-segments inline-flex items-center gap-0.5 border border-border bg-surface p-0.5"
     >
       {PERIODES.map((p) => {
         const actif = periode === p.cle;

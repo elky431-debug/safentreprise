@@ -42,14 +42,20 @@ import type { AlerteGraph } from "@/lib/types";
  *   signal vaut moins que pas de colonne du tout. 252 px laissent passer une
  *   adresse de 34 caractères en 11,5 px de corps ; au-delà l'attribut `title`
  *   et le détail prennent le relais.
+ *
+ * ⚠ LA COLONNE MOTIF EST ÉLASTIQUE DEPUIS LA LARGEUR v2. Figée à 158 px, elle
+ *   coupait « Adresse ↔ nom affiché » en « Adresse ↔ nom affich… » alors que
+ *   la page était passée de 1280 à 1680 px : le motif est la raison de
+ *   l'alerte, le tronquer vide la colonne de son sens. Elle prend maintenant
+ *   entre 158 et 220 px selon la place disponible.
  */
 const COLONNES =
-  "grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 lg:grid-cols-[76px_112px_minmax(0,1fr)_252px_158px] lg:gap-y-0";
+  "grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 lg:grid-cols-[76px_112px_minmax(0,1fr)_252px_minmax(158px,220px)] lg:gap-y-0";
 
 export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
   if (menaces.length === 0) {
     return (
-      <div className="bloc-app px-5 py-10">
+      <div className="bloc-tableau px-6 py-10">
         {/* ⚠ UN ÉCRAN VIDE EST UNE INVITATION À AGIR, PAS UN CONSTAT DE VIDE.
             Et il est aligné à gauche comme le reste : le centrage était un
             reste de la mise en page précédente. */}
@@ -66,7 +72,7 @@ export function ListeMenaces({ menaces }: { menaces: AlerteGraph[] }) {
   }
 
   return (
-    <div className="bloc-app overflow-hidden">
+    <div className="bloc-tableau">
       {/* En-tête de colonnes — masqué en mobile, où les lignes s'empilent et
           où des titres de colonnes ne correspondraient plus à rien. */}
       <div

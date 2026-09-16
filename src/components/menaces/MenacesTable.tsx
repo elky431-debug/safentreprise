@@ -86,7 +86,7 @@ function SignalBadge({ signal }: { signal: string }) {
   return (
     <li
       title={signal}
-      className={`rounded border px-2 py-[3px] text-[11px] font-medium leading-none ${
+      className={`rounded-full border px-2.5 py-[3px] text-[11px] font-medium leading-none ${
         ton ? TONS_SIGNAL[ton] : "border-border bg-surface-2 text-muted"
       }`}
     >
@@ -444,7 +444,7 @@ export function MenacesTable({
                           }
                           aria-expanded={estOuverte}
                           aria-controls={idDetail}
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-[background-color,border-color,color,opacity] duration-200 focus-visible:opacity-100 ${
+                          className={`bouton-icone inline-flex h-7 w-7 items-center justify-center rounded-md border transition-[background-color,border-color,color,opacity] duration-200 focus-visible:opacity-100 ${
                             estOuverte
                               ? "border-border-strong bg-surface-3 text-foreground"
                               : "border-transparent text-faint opacity-45 hover:border-border hover:bg-surface-2 hover:text-foreground group-hover:opacity-100"
@@ -537,7 +537,7 @@ function Chevron({ ouvert }: { ouvert: boolean }) {
  */
 function DetailMenace({ menace }: { menace: AlerteGraph }) {
   return (
-    <div className="grid gap-6 rounded border border-border bg-surface px-5 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div className="grid gap-6 rounded-[10px] border border-border bg-surface px-6 py-6 lg:grid-cols-[minmax(0,1fr)_260px]">
       <div>
         <p className="entete-tableau">Signaux relevés</p>
         {menace.signaux.length === 0 ? (

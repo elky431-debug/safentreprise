@@ -635,9 +635,47 @@ body {
 /* Le bloc de l'application : un cadre net, sans ombre, rembourrage de 20 px. */
 .canevas-app .bloc-app {
   border: 1px solid var(--trait);
-  border-radius: 4px;
+  border-radius: var(--rayon-carte);
   background: var(--surface);
   box-shadow: none;
+}
+
+/* Conteneur de tableau : 14 px, un cran sous la carte. C'est ce qui distingue
+   une grille de données d'un panneau de contenu quand les deux se suivent. */
+.canevas-app .bloc-tableau {
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-tableau);
+  background: var(--surface);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+/* ⚠ LES ÉLÉMENTS DE COMMANDE PASSENT EN PLEIN ARRONDI, ET C'EST LE CONTRASTE
+   QUI FAIT L'IDENTITÉ. Un bouton pilule à côté d'une carte à 16 px se voit
+   comme une commande ; le même bouton à 4 px se fondait dans la grille. On
+   vise les classes utilitaires plutôt que chaque composant : les boutons
+   partagés de `ui.tsx` servent aussi la vitrine, qui garde ses rayons. */
+.canevas-app button[class*="rounded"]:not(.bouton-icone),
+.canevas-app a[class*="rounded"][class*="inline-flex"],
+.canevas-app .groupe-segments {
+  border-radius: var(--rayon-pastille);
+}
+
+/* ⚠ UN BOUTON CARRÉ PORTANT UNE SEULE ICÔNE RESTE UN CARRÉ ADOUCI, PAS UN
+   ROND. Le plein arrondi sur un bouton de 28 px donne un cercle, et « pas de
+   pictogramme dans un rond » est un interdit du document. La règle ne vaut
+   pour l'instant que pour la banière Outlook, mais elle dit quelque chose de
+   vrai partout : un rond autour d'une icône est un ornement, pas une
+   information. Ces boutons prennent donc le rayon des blocs internes. */
+.canevas-app .bouton-icone {
+  border-radius: var(--rayon-bloc);
+}
+
+/* Champs de saisie : 12 px. */
+.canevas-app input[class*="rounded"],
+.canevas-app select[class*="rounded"],
+.canevas-app textarea[class*="rounded"] {
+  border-radius: var(--rayon-champ);
 }
 
 /* Ligne de tableau — 44 px de haut, séparée par un filet, pas par une carte. */

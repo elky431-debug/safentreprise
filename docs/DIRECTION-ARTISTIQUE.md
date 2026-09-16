@@ -1,233 +1,262 @@
 # Direction artistique — Safentreprise
 
-**Document de référence, arrêté le 15 septembre 2026.** Toute page, existante ou
-nouvelle, s'y conforme. Rien n'est laissé au jugement du moment : si un choix
-n'est pas écrit ici, demander avant de décider.
-
-> **Portée d'application, arbitrée le 15 septembre 2026.** Les jetons sont posés
-> sur l'ESPACE CONNECTÉ d'abord ; la vitrine publique garde Bricolage Grotesque
-> et Source Serif 4 jusqu'à une passe dédiée. L'ordre d'application ci-dessous ne
-> liste que des écrans de l'application, et le hero de la landing venait d'être
-> validé sur planche comparative. La vitrine s'y conformera ensuite — ce n'est
-> pas une exemption, c'est un séquencement.
+Version 2. Remplace intégralement la précédente.
+Document de référence : toute page, existante ou nouvelle, s'y conforme.
+Si un choix n'est pas écrit ici, demander avant de décider.
 
 ---
 
-## Le problème actuel, nommé
+## Ce qui change par rapport à la version 1, et pourquoi
 
-L'interface porte la signature du design généré automatiquement : titres en
-serif, micro-libellés en capitales espacées, filets d'un pixel partout, chiffres
-en serif coloré, beaucoup d'air et peu de densité. Chaque choix isolé se
-défend. Ensemble, ils forment un cliché reconnaissable au premier coup d'œil,
-et un dirigeant de PME qui achète de la sécurité n'y lit aucune autorité.
+Trois décisions de la version 1 étaient mauvaises. Elles sont annulées.
 
-La correction ne consiste pas à ajouter du style. Elle consiste à retirer les
-marques génériques et à concentrer l'affirmation sur un seul endroit.
+**Le rayon unique à 4 px.** Je l'avais justifié par la discipline. À l'écran,
+ça donne une grille de rectangles qui ressemble à un tableur, pas à un
+produit. Le rayon fait partie de l'identité, pas du bruit.
+
+**La largeur maximale à 1280 px.** Sur un écran ordinaire, ça laisse deux
+bandes vides à gauche et à droite, et le contenu semble flotter au milieu.
+Un outil de travail occupe l'espace qu'on lui donne.
+
+**L'ordre du tableau de bord.** Le graphique doit venir avant le tableau des
+tentatives : on regarde la forme avant de lire le détail.
+
+Ce qui ne change pas : la typographie d'EtSmart, le monochrome avec le risque
+en valeurs d'encre, la couleur réservée aux pannes produit, l'absence de
+capitales intégrales et de points médians.
 
 ---
 
 ## Typographie
 
-**Une seule famille : Archivo.** Variable, disponible sur Google Fonts, chiffres
-tabulaires. Grotesque large, à forte hauteur d'x, qui supporte les graisses
-lourdes sans devenir bavarde.
+**Une seule famille, celle d'EtSmart : Sora.**
 
-Aucune serif nulle part. Aucune monospace — **sauf une exception, arrêtée le
-15 septembre 2026 : la colonne « Expéditeur ».**
+> **Relevée dans le dépôt le 16 septembre 2026, pas devinée — et le dépôt
+> piégeait la lecture.** `src/app/globals.css` d'EtSmart déclare
+> `body { font-family: 'Inter', 'SF Pro Display', … }`. C'est faux deux fois :
+> `layout.tsx` applique Sora en **style en ligne** sur `<body>`, ce qui
+> l'emporte sur la feuille de style ; et Inter n'est importée nulle part, donc
+> la déclaration retomberait de toute façon sur une police système. Seules
+> `Sora` et `DM_Sans` sont chargées par `next/font/google`, et `--font-dm`
+> n'est référencée nulle part.
 
-### L'exception monospace, et sa mesure
+```css
+font-family: 'Sora', system-ui, -apple-system, sans-serif;
+```
 
-L'adresse de l'expéditeur est le seul texte de l'application que le lecteur
-doit épeler. Tout le produit consiste à lui faire repérer qu'un domaine
-ressemble à un autre sans l'être — `cabinet-durand.fr.co` contre
-`cabinet-durand.fr`.
+Chargée en **variable**, sans liste de graisses : l'axe couvre 300–700 en un
+seul fichier, et le 700 du titre de page est un vrai dessin plutôt qu'un gras
+synthétique.
 
-Une mesure, et une seule, fonde l'exception. En Archivo 13 px, `rn` fait
-11,64 px et `m` 11,18 px : 0,46 px d'écart, autant dire la même largeur, donc
-`cabinet-durand.fr` et `cabinet-dumnd.fr` occupent la même place sur la ligne.
-En JetBrains Mono, la chasse fixe sépare le même couple de 7,80 px.
-
-Portée de l'exception, à ne pas élargir :
-
-- **l'adresse** de l'expéditeur, partout où elle s'affiche — tableau de bord,
-  page Menaces, dépliant de détail ;
-- **pas** le nom affiché qui l'accompagne, qui est du texte ordinaire ;
-- **pas** les objets, les motifs, les dates, ni aucun autre champ.
-
-L'argument ne s'étend pas aux autres homoglyphes. Pour `l` / `I` ou `0` / `O`,
-la largeur ne prouve rien : c'est la forme du glyphe qui compte, et elle n'a pas
-été mesurée. L'exception tient sur le seul couple mesuré, et sur le fait que
-cette colonne porte la fraude.
+Aucune serif nulle part.
 
 ### Échelle
 
 | Rôle | Taille | Graisse | Interlettrage | Interligne |
 |---|---|---|---|---|
-| Titre de page | 34 px | 800 | −0.035em | 1.05 |
-| Titre de section | 21 px | 700 | −0.02em | 1.2 |
+| Titre de page | 34 px | 700 | −0.03em | 1.05 |
+| Titre de section | 21 px | 600 | −0.015em | 1.2 |
 | Titre de bloc | 16 px | 600 | −0.01em | 1.3 |
 | Texte courant | 15 px | 400 | 0 | 1.55 |
 | Texte secondaire | 13.5 px | 400 | 0 | 1.5 |
 | En-tête de tableau | 12.5 px | 600 | 0 | 1.2 |
-| Chiffre de données | 15 px | 600 | 0 | 1 · tabulaire |
-| Chiffre d'accroche | 56 px | 800 | −0.04em | 1 · tabulaire |
+| Chiffre de données | 15 px | 600 | 0 | 1 · `tabular-nums` |
+| Chiffre d'accroche | 56 px | 700 | −0.035em | 1 · tabulaire |
 
 Le serrage négatif sur les gros titres est la signature. Il doit se voir.
-Longueur de ligne : 70 caractères maximum sur le texte courant.
+Texte courant : 70 caractères par ligne au maximum.
+
+> **`tabular-nums` est obligatoire avec Sora, pas décoratif.** Mesuré sur le
+> fichier de police réel, à 40 px :
+>
+> | | sans `tabular-nums` | avec |
+> |---|---|---|
+> | dix « 1 » | 168,00 px | 270,41 px |
+> | dix « 0 » | 297,20 px | 270,41 px |
+>
+> Les chiffres de Sora sont **proportionnels par défaut** : le « 1 » est 43 %
+> plus étroit que le « 0 ». La fonction `tnum` existe et fonctionne, mais il
+> faut la demander. Sans elle, le compteur animé du tableau de bord saute à
+> chaque incrément et aucune colonne chiffrée ne s'aligne. **Partout où un
+> chiffre change ou s'aligne, la propriété est exigée.**
 
 ### Capitalisation
 
-Phrase capitalisée partout — titres, boutons, en-têtes de tableau, étiquettes.
-**Aucune capitale intégrale, nulle part, sans exception.** Les en-têtes de
-tableau se distinguent par la graisse et la valeur d'encre, pas par la casse.
+Phrase capitalisée partout, sans exception. Aucune capitale intégrale, nulle
+part — pas même sur une étiquette de trois lettres.
 
 ---
 
 ## Couleur
 
-Le parti est strict : l'interface est en encre sur papier, et **la couleur ne
-subsiste que sur une panne réelle du produit, jamais sur une donnée**. Un aplat
-coloré veut dire qu'il y a quelque chose à réparer. Nulle part ailleurs.
+L'interface est en encre sur papier. **La couleur ne signale qu'une panne
+réelle du produit, jamais une donnée.**
 
 ```css
---encre:        #0D1F3C;  /* marine profond — texte, surfaces sombres, boutons */
+--encre:        #0D1F3C;  /* marine profond — texte, boutons, surfaces sombres */
 --encre-douce:  #5A6B84;  /* texte secondaire, en-têtes de tableau */
 --trait:        #DDE2E9;  /* séparateurs, bordures */
 --papier:       #F4F6F9;  /* fond de page */
 --surface:      #FFFFFF;  /* cartes, tableaux, panneaux */
 
-/* Le niveau de risque : trois valeurs d'une seule teinte, aucune couleur. */
---eleve:        #0D1F3C;  /* risque élevé  — fond de pastille, texte blanc */
---modere:       #5A6B84;  /* risque modéré — fond de pastille, texte blanc */
---faible:       #E7ECF3;  /* risque faible — fond de pastille, texte encre douce */
-
-/* La panne, et elle seule. Ces trois-là ne sont PAS des alias des précédents. */
---danger:       #C8102E;  /* surveillance interrompue */
---warning:      #B5670A;  /* une porte sur deux fermée */
---success:      #5A6B84;  /* état sain — encre douce, aucun vert */
+--danger:       #C8102E;  /* panne produit uniquement */
+--warning:      #B5670A;  /* panne produit uniquement */
 ```
 
-Le marine change : `#0D1F3C` remplace `#0f2444`. Plus profond, plus froid, il
-tient le rôle du noir sans être noir.
+### Le niveau de risque se dit en valeurs d'encre
 
-Interdits : fond crème ou beige, dégradés, ombres portées douces, aplats
-colorés décoratifs, couleur d'accent sur les boutons.
+| Niveau | Fond | Texte |
+|---|---|---|
+| Élevé | `#0D1F3C` | blanc |
+| Modéré | `#5A6B84` | blanc |
+| Faible | `#E7ECF3` | `#5A6B84` |
 
-### Le niveau de risque se dit en valeurs d'encre, pas en couleur
+La ligne la plus grave est la plus sombre, donc la plus lourde à l'œil, donc
+triable d'un coup d'œil sans tache colorée.
 
-Les niveaux s'affichent en pastille pleine, rayon 3 px, 12 px de graisse 600.
-Pas de pastille cerclée avec un point coloré à l'intérieur : c'est deux signaux
-pour une seule information.
+⚠ `--faible` est un fond, jamais une couleur de texte : sur du blanc il tombe
+à 1,19:1.
 
-**Le feu tricolore rouge / ambre / vert est supprimé.** Il était la dernière
-chose qui faisait ressembler l'écran à n'importe quel logiciel de gestion.
-Trois valeurs d'une seule teinte disent la même hiérarchie : la ligne la plus
-grave est la plus sombre, donc la plus lourde à l'œil, et le tri d'un coup
-d'œil reste possible sans lire les mots.
+### La règle qui décide
 
-| Niveau | Fond | Texte | Contraste |
-|---|---|---|---|
-| Élevé | `#0D1F3C` | blanc | 16,43:1 |
-| Modéré | `#5A6B84` | blanc | 5,42:1 |
-| Faible | `#E7ECF3` | `#5A6B84` | 4,57:1 |
+Une donnée porte une valeur d'encre. Une panne du produit porte `--danger` ou
+`--warning`. Un état sain ne porte rien.
 
-`--faible` est un **fond**, jamais une couleur de texte : sur du blanc il tombe
-à 1,19:1. La pastille faible est aussi le texte le moins contrasté de l'écran,
-à 4,57:1 pour un seuil AA de 4,5:1 — c'est cohérent, c'est le niveau le moins
-important, mais on ne l'éclaircit pas davantage sans redescendre le texte avec.
-
-### La couleur ne subsiste que sur une panne réelle du produit
-
-`--danger`, `--warning` et `--success` étaient des alias de `--eleve`,
-`--modere` et `--faible`. **Ils ne le sont plus, et ils ne doivent pas le
-redevenir.**
-
-Un niveau de risque se hiérarchise, une panne s'annonce : ce ne sont pas les
-mêmes objets. Les faire basculer à l'encre avec les niveaux aurait rendu « la
-surveillance de vos boîtes est interrompue » identique à un bloc ordinaire.
-
-La règle qui en découle, et qui s'applique à toute page nouvelle :
-
-- une **donnée** — un niveau, un compteur, un motif, un filtre, un segment
-  actif — ne porte jamais de couleur. Elle porte une valeur d'encre ;
-- une **panne du produit** — accès révoqué, jeton expiré, boîtes non
-  analysées — porte `--danger` ou `--warning`, et c'est le seul endroit ;
-- un **état sain** ne porte rien du tout. Il n'a rien à signaler : il se dit en
-  encre douce. Le vert a disparu de l'application, y compris sur les coches.
-
-Corollaire pratique : si vous hésitez à colorer quelque chose, demandez-vous
-s'il y a un geste technique à faire pour que ça redevienne normal. Si la
-réponse est non, c'est une donnée, et elle reste en encre.
+Le test, pour une page qu'on n'a pas encore vue : **s'il n'y a pas de geste
+technique à faire pour que ça redevienne normal, c'est une donnée, et elle
+reste en encre.**
 
 ---
 
-## Densité et espacement
+## Formes et rayons
 
-L'interface actuelle est trop aérée pour un outil de travail. Un dirigeant
-doit voir beaucoup d'un coup d'œil.
+C'est la correction principale. L'interface doit avoir des courbes.
 
-Base de 4 px. Valeurs autorisées : 4, 8, 12, 16, 24, 32, 48.
+| Élément | Rayon |
+|---|---|
+| Boutons, pastilles, étiquettes | plein arrondi (`9999px`) |
+| Cartes, panneaux, encadrés | 16 px |
+| Conteneurs de tableau | 14 px |
+| Champs de formulaire, sélecteurs | 12 px |
+| Blocs internes, dépliants | 10 px |
+
+La hiérarchie se lit par la taille du rayon : plus le bloc est grand, plus il
+est arrondi. Un bouton plein arrondi à côté d'une carte à 16 px crée le
+contraste de formes qui manquait.
+
+> **Ne pas réintroduire de règle balai.** La v1 posait
+> `[class*="rounded"] { border-radius: 4px }` sur tout le sous-arbre de
+> l'application. Tant qu'elle tenait, poser `rounded-full` sur un bouton ne
+> changeait rien. Elle est retirée ; chaque composant porte désormais son
+> rayon, pris dans les cinq jetons `--rayon-*`.
+
+Pas d'ombres portées douces. Une bordure `1px --trait` sépare, un fond blanc
+sur papier gris suffit à détacher.
+
+---
+
+## Largeur et espacement
+
+**Le contenu occupe l'espace disponible.** Pas de colonne étroite au milieu
+d'un écran large.
 
 | Élément | Valeur |
 |---|---|
-| Hauteur de ligne de tableau | 44 px |
-| Rembourrage interne des cartes | 20 px |
+| Largeur maximale du contenu | 1680 px |
+| Marge latérale, ordinateur | 40 px |
+| Marge latérale, téléphone | 20 px |
+| Rembourrage interne des cartes | 24 px |
 | Écart entre sections | 32 px |
-| Largeur maximale du contenu | 1280 px |
-| Rayon des angles | 4 px sur tout, 3 px sur les pastilles. Jamais plus. |
+| Hauteur de ligne de tableau | 44 px |
 
-Le rayon unique est délibéré : la hiérarchie se lit par la valeur d'encre et
-la graisse, pas par l'arrondi — ni par la couleur, qui ne dit plus que la
-panne.
+Base d'espacement de 4 px. Valeurs autorisées : 4, 8, 12, 16, 24, 32, 40, 48.
+
+La densité reste haute à l'intérieur des blocs — c'est un outil de travail.
+Ce qui change, c'est que les blocs eux-mêmes vont chercher les bords.
+
+---
+
+## L'ordre du tableau de bord
+
+De haut en bas :
+
+1. Le bandeau d'état du raccordement, s'il y a quelque chose à dire
+2. Le titre et les actions
+3. Le taux d'exposition et son détail
+4. **Le graphique des tentatives dans le temps**
+5. **Le tableau des tentatives récentes**
+6. Le reste
+
+On regarde la forme avant de lire le détail. Le graphique répond à « comment
+ça va », le tableau à « qu'est-ce qui s'est passé ».
 
 ---
 
 ## Structure
 
-**Les bordures encodent une information, elles ne décorent pas.** Une bordure
-sépare deux natures de contenu. Deux blocs de même nature se séparent par
-l'espace.
+**Les bordures encodent une information.** Une bordure sépare deux natures de
+contenu. Deux blocs de même nature se séparent par l'espace.
 
-Supprimer : les filets horizontaux sous chaque titre, les cadres autour de
-chaque groupe, les séparateurs verticaux entre colonnes.
+Supprimer : les filets sous chaque titre, les cadres autour de chaque groupe,
+les séparateurs verticaux entre colonnes.
 
-**Alignement à gauche partout.** Sauf les colonnes numériques d'un tableau,
-alignées à droite pour que les ordres de grandeur se comparent à l'œil.
+**Alignement à gauche partout**, sauf les colonnes numériques d'un tableau,
+alignées à droite pour comparer les ordres de grandeur à l'œil.
 
-**Le tableau est la pièce maîtresse**, pas un élément secondaire sous les
-graphiques. C'est là que le dirigeant travaille.
-
----
-
-## Ce qu'on supprime du tableau de bord
-
-1. Le fil d'ariane `SAFENTREPRISE · SURVEILLANCE DE LA MESSAGERIE`.
-2. L'étiquette `ACTIVITÉ DE LA PROTECTION` au-dessus du graphique.
-3. Le titre `Safentreprise` répété alors que le logo est déjà dans la barre.
-   À la place : le nom de l'entreprise cliente.
-4. La flèche `→` accolée à « Voir le détail ».
-5. Le chiffre en serif rouge. Il devient un chiffre Archivo 800, en encre, avec
-   la pastille rouge à côté seulement si le niveau l'exige.
-6. Le remplissage dégradé sous la courbe.
+**Le monospace, une seule exception** : l'adresse de l'expéditeur dans les
+tableaux de menaces, parce que c'est la chaîne qu'on demande au lecteur
+d'épeler caractère par caractère. Mesure : en grotesque 13 px, `rn` et `m`
+diffèrent de 0,46 px ; en JetBrains Mono, de 7,80 px. Nulle part ailleurs —
+pas le nom affiché, pas les objets, pas les dates, pas la boîte du client
+lui-même, qu'il reconnaît sans la déchiffrer.
 
 ---
 
 ## Le seul endroit où l'on s'affirme
 
-**Le chiffre d'exposition, en haut du tableau de bord.** Un nombre en Archivo
-800, 56 px, serrage −0.04em, avec une légende courte en 13.5 px juste dessous.
-Rien d'autre sur la page ne dépasse 34 px.
+**Le chiffre d'exposition**, en haut du tableau de bord. 56 px, graisse 700,
+serrage −0.035em, avec sa légende en 13.5 px juste dessous. Rien d'autre sur
+la page ne dépasse 34 px.
 
-Tout le reste — tableaux, cartes, navigation — reste discipliné et silencieux.
-C'est le contraste qui produit l'effet, pas l'accumulation.
+Tout le reste reste discipliné et silencieux. C'est le contraste qui produit
+l'effet, pas l'accumulation.
+
+---
+
+## La bannière dans Outlook
+
+C'est l'objet le plus vu du produit : chaque salarié la lit dans son courrier.
+
+Ce qu'elle doit porter, dans cet ordre :
+
+1. **Le logo de l'entreprise cliente**, à droite, avec son nom. Les logos sont
+   déjà stockés dans le seau `branding` et servis par URL publique.
+2. Le titre de l'alerte et son niveau.
+3. Les motifs, en phrases complètes — ce qui a été détecté et pourquoi.
+4. La conduite à tenir, en une phrase impérative.
+5. La mention Safentreprise, discrète, en bas.
+
+Le logo du client change tout : la bannière cesse d'être un avertissement
+extérieur pour devenir un message de sa propre entreprise. C'est ce qui la
+fait lire au lieu d'être ignorée.
+
+Fond : un aplat très clair, lisible en thème sombre comme en thème clair.
+Rayon 12 px. Pas de pictogramme dans un rond.
+
+> **Dépendance à connaître avant l'étape 6.** La bannière lit le logo par
+> l'URL publique du seau `branding`. Ce seau est `public = true`, et il doit le
+> rester : un salarié qui ouvre son courrier n'a pas de session Safentreprise.
+> Voir `docs/SECURITE-RLS.md` — seul l'**énumération** du seau a été fermée,
+> jamais la lecture par URL. Une bascule de `branding` en privé casserait
+> toutes les bannières.
 
 ---
 
 ## Mouvement
 
 Aucune animation d'entrée. Aucun effet au survol des cartes. Les transitions
-existent uniquement pour montrer ce qui vient de changer : un panneau qui
-s'ouvre, une ligne qui se déplie, une confirmation. 120 ms, `ease-out`.
+existent pour montrer ce qui vient de changer : un panneau qui s'ouvre, une
+ligne qui se déplie, une confirmation. 120 ms, `ease-out`.
 
 `prefers-reduced-motion` respecté.
 
@@ -240,39 +269,30 @@ exacte qu'il déclenche, et le message qui suit reprend le même mot :
 « Démarrer la surveillance » produit « Surveillance démarrée ».
 
 Les états d'erreur disent ce qui s'est passé et quoi faire. Ils ne s'excusent
-pas et ne restent jamais vagues. Un écran vide est une invitation à agir, pas
-un constat de vide.
+pas et ne restent jamais vagues. Un écran vide est une invitation à agir.
+
+Jamais de point médian entre deux mots : une conjonction dit la même chose et
+se lit à voix haute.
 
 ---
 
 ## Ordre d'application
 
-1. Les jetons — typographie et couleur — dans le fichier de configuration.
-2. Le tableau de bord, y compris les suppressions listées plus haut.
-3. Les tableaux : Menaces, Collaborateurs.
+1. Les jetons — typographie, couleur, rayons, largeurs.
+2. Le tableau de bord : nouvelle largeur, nouveaux rayons, nouvel ordre.
+3. Les tableaux.
 4. Les formulaires et les réglages.
-5. La page Connexion Microsoft, une fois sa refonte décidée.
-6. La vitrine publique (ajout du 15 septembre — voir la portée en tête).
+5. La page Connexion Microsoft.
+6. La bannière Outlook, avec le logo client.
 
-Après chaque étape : une capture avant, une capture après.
+Après chaque étape : une capture avant, une capture après, à 1440 px et à
+390 px.
 
 ---
 
 ## Contrôle final
 
 Si le résultat pourrait servir de capture d'écran à n'importe quel autre
-logiciel de gestion, c'est raté. Une page de Safentreprise doit se reconnaître
-à trois choses : le serrage des titres, la discipline monochrome, et la
-couleur qui n'apparaît que là où il y a un risque.
-
----
-
-## Décisions prises en application, et leur motif
-
-**Les blocs de code gardent une police à chasse fixe.** La règle « aucune
-monospace, y compris pour les données et les identifiants » est appliquée aux
-adresses e-mail, aux UPN et aux identifiants. Elle ne l'est PAS au script
-PowerShell que l'administrateur copie dans sa console : un script dont
-l'indentation ne s'aligne plus devient plus difficile à relire et à vérifier, et
-c'est un texte destiné à sortir de l'interface. Seul `<pre>` de script est
-concerné.
+logiciel de gestion, c'est raté. Une page de Safentreprise se reconnaît à
+quatre choses : le serrage des titres, les formes arrondies, la discipline
+monochrome, et la couleur qui n'apparaît que là où il y a une panne.

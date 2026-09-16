@@ -120,17 +120,27 @@ export function AppShell({ companyName, userEmail, children }: AppShellProps) {
         <Header companyName={companyName} />
         <MobileNav />
 
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 lg:px-6 lg:py-6">
-          {children}
+        {/* ⚠ MARGES 20 px / 40 px, ET PLAFOND À 1680 px — DOCUMENT v2. La v1
+            plafonnait à 1280, ce qui laissait deux bandes vides sur un écran
+            ordinaire et faisait flotter le contenu au milieu. Un outil de
+            travail occupe l'espace qu'on lui donne.
 
-          {/* Pied de page minimal : les liens légaux doivent rester
+            ⚠ LE PLAFOND EST SUR UN CONTENEUR INTÉRIEUR, PAS SUR `main`. `main`
+              porte le défilement ; y mettre `max-w` centrerait aussi la barre
+              de défilement, qui doit rester au bord de la fenêtre. */}
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-[1680px] flex-1 flex-col px-5 py-5 lg:px-10 lg:py-6">
+            {children}
+
+            {/* Pied de page minimal : les liens légaux doivent rester
               atteignables depuis l'espace connecté, pas seulement du site
               public. « mt-auto » le colle en bas quand la page est courte. */}
-          <footer className="mt-auto pt-10">
-            <div className="border-t border-border pt-4">
-              <LegalLinks />
-            </div>
-          </footer>
+            <footer className="mt-auto pt-10">
+              <div className="border-t border-border pt-4">
+                <LegalLinks />
+              </div>
+            </footer>
+          </div>
         </main>
       </div>
     </div>
