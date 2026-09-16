@@ -5,6 +5,25 @@
  *   l'email n'en est que l'écho. Un échec Resend est consigné et rendu, jamais
  *   propagé — voir l'ordre imposé dans /api/demo : enregistrer, puis notifier.
  *
+ * ⚠ LA CONFIRMATION AUTOMATIQUE EST SUSPENDUE DEPUIS LE 16 SEPTEMBRE 2026.
+ *   NE PAS LA RÉTABLIR SANS LE FILTRE ANTI-ROBOT.
+ *
+ *   Un robot a soumis le formulaire cinq fois avec des adresses réelles volées
+ *   à des tiers (waldner.de, trekronormedia.se, …). Chaque soumission
+ *   déclenchait un vrai message, depuis notre domaine, vers quelqu'un qui
+ *   n'avait rien demandé : c'est la définition du spam, et c'est ce qui fait
+ *   signaler un domaine chez Resend. La notification interne, elle, part vers
+ *   notre propre boîte et ne pose aucun problème.
+ *
+ *   Écrire à une adresse que PERSONNE N'A VÉRIFIÉE est le défaut de conception ;
+ *   le volume n'en était que le révélateur. La confirmation ne reviendra donc
+ *   pas « quand le robot sera parti », mais quand une demande aura franchi le
+ *   piège à robots, la limitation de débit et la validation de saisie — et
+ *   seulement pour celles-là.
+ *
+ *   `corpsConfirmation` est conservée telle quelle : c'est le texte qui
+ *   reviendra, pas du code mort à supprimer.
+ *
  * ⚠ L'EXPÉDITEUR NE PEUT PAS ÊTRE UNE ADRESSE GRAND PUBLIC. Resend refuse
  *   d'expédier depuis un domaine non vérifié, et un envoi « de » gmail.com
  *   serait de toute façon rejeté par la plupart des serveurs destinataires au
@@ -88,7 +107,15 @@ export function corpsConfirmation(d: DemandeDemo): string {
 
 export type ResultatNotification = {
   interne: ResultatEnvoiEmail;
-  confirmation: ResultatEnvoiEmail;
+  /**
+   * `null` = aucune confirmation n'a été TENTÉE, volontairement.
+   *
+   * ⚠ CE N'EST PAS UN ÉCHEC, ET L'APPELANT NE DOIT PAS LE JOURNALISER COMME
+   *   TEL. Un `{ ok: false }` dit « Resend a refusé » et appelle un diagnostic ;
+   *   `null` dit « on a choisi de ne pas écrire ». Les confondre ferait
+   *   chercher une panne là où il y a une décision.
+   */
+  confirmation: ResultatEnvoiEmail | null;
 };
 
 /**
@@ -106,10 +133,7 @@ export async function notifierDemande(
 
   if (!from) {
     const erreur = erreurExpediteur(VARIABLES_EXPEDITEUR);
-    return {
-      interne: { ok: false, erreur },
-      confirmation: { ok: false, erreur },
-    };
+    return { interne: { ok: false, erreur }, confirmation: null };
   }
 
   const interne = await envoyerEmail({
@@ -121,13 +145,7 @@ export async function notifierDemande(
     replyTo: d.email,
   });
 
-  const confirmation = await envoyerEmail({
-    from: `Safentreprise <${from}>`,
-    to: d.email,
-    subject: "Votre demande de démonstration Safentreprise",
-    text: corpsConfirmation(d),
-    replyTo: EMAIL_CONTACT,
-  });
-
-  return { interne, confirmation };
+  // ⚠ RIEN NE PART VERS `d.email`. C'est la seule ligne de ce fichier qui
+  //   écrivait à une adresse fournie par un inconnu ; voir l'en-tête.
+  return { interne, confirmation: null };
 }

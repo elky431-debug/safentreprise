@@ -467,6 +467,27 @@ message n'était analysé. Une vérification toutes les trente minutes
 (`/api/microsoft/sante`) constate désormais l'état réel, et le dirigeant en est
 informé — parce que lui seul, par son administrateur, peut y remédier.
 
+**Délai entre la coupure réelle et l'avis : jusqu'à deux heures.** Mesuré le
+15 septembre 2026 sur le locataire Safentreprise, pas estimé. Il se décompose :
+
+| Étape | Moment |
+|---|---|
+| Révocation du rôle Exchange par l'administrateur | T |
+| Exchange cesse effectivement d'honorer l'accès | ~ T + 30 min |
+| Première vérification en échec | T + 30 à 60 min |
+| Bascule et envoi de l'avis, au 3ᵉ échec consécutif | T + 90 à 120 min |
+
+Les trente premières minutes ne relèvent pas de Safentreprise : Microsoft
+continue de servir l'accès après le retrait du rôle. Le reste tient à deux
+choix délibérés — une passe toutes les trente minutes, et trois échecs
+consécutifs exigés avant de déclarer une révocation. Basculer au premier échec
+ferait gagner une heure au prix de fausses alertes au premier incident réseau
+de Microsoft.
+
+**Ce délai est opposable.** C'est la durée pendant laquelle un client peut se
+croire surveillé alors qu'il ne l'est plus. Il doit être annoncé tel quel —
+« jusqu'à deux heures » — et non arrondi à la baisse.
+
 **Ce qui transite, et c'est peu.** Le corps du message ne contient **aucune
 donnée personnelle** : un constat d'arrêt, une date, et la marche à suivre. La
 seule donnée nominative est **l'adresse du destinataire** — `email_responsable`

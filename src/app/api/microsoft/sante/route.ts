@@ -22,6 +22,27 @@
  *   regroupement « pour optimiser » enverrait une rafale de mails de
  *   révocation à chaque passage.
  *
+ * ⚠ DÉLAI RÉEL ENTRE LA COUPURE ET L'AFFICHAGE : JUSQU'À DEUX HEURES. MESURÉ,
+ *   PAS ESTIMÉ. C'est un engagement commercial — ne pas l'arrondir à la baisse
+ *   en le récitant, et ne pas le recalculer de tête : il se décompose ainsi.
+ *
+ *     révocation réelle du rôle Exchange       T
+ *     Exchange cesse d'honorer l'accès        ~ T + 30 min
+ *     première sonde en échec                  T + 30 à 60 min
+ *     bascule, au 3ᵉ échec consécutif          T + 90 à 120 min
+ *
+ *   Les 30 premières minutes ne sont PAS de notre fait : Exchange continue de
+ *   servir l'accès après `Remove-ManagementRoleAssignment`. Mesuré sur le
+ *   locataire Safentreprise le 15 septembre 2026 — le dépôt annonçait déjà
+ *   « jusqu'à une heure de propagation » dans `restriction.ts`, ce qui est
+ *   cohérent. Le reste vient de nous : une passe toutes les 30 minutes, et
+ *   trois échecs consécutifs exigés avant de basculer.
+ *
+ *   ⚠ LES TROIS ÉCHECS NE SONT PAS NÉGOCIABLES CONTRE CE DÉLAI. Descendre à un
+ *     seul échec ferait gagner une heure et annoncerait « surveillance
+ *     interrompue » à un client au premier incident réseau de Microsoft. Une
+ *     fausse alerte coûte plus cher que soixante minutes.
+ *
  * ⚠ LA SONDE PASSE AVANT TOUTE ÉCRITURE. On sonde tout le parc, PUIS on écrit.
  *   C'est ce qui permet de reconnaître une panne générale — secret expiré,
  *   variable perdue au déploiement — avant d'avoir marqué le premier client.

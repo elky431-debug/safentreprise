@@ -24,7 +24,13 @@
  *   les quelques minutes d'un déploiement mal ordonné, pas pour dispenser
  *   d'appliquer la migration.
  *
- * ⚠ POST /api/demo?verifier=1 — essai des deux emails, sans rien enregistrer.
+ * ⚠ UN SEUL EMAIL PART DÉSORMAIS : LA NOTIFICATION INTERNE. La confirmation
+ *   automatique au demandeur est suspendue depuis le 16 septembre 2026 — un
+ *   robot s'en servait pour faire écrire notre domaine à des tiers dont les
+ *   adresses avaient été volées. Le motif complet et la condition de retour
+ *   sont en tête de `@/lib/demo-notification`.
+ *
+ * ⚠ POST /api/demo?verifier=1 — essai de l'email interne, sans rien enregistrer.
  *   Protégé par WORKER_SECRET, comme /api/veille.
  */
 import { createClient } from "@/lib/supabase/server";
@@ -106,7 +112,10 @@ async function essai(): Promise<Response> {
       process.env.VEILLE_FROM_EMAIL?.trim() ||
       `contact@safentreprise.com (défaut du code)`,
     notification: envois.interne,
-    confirmation: envois.confirmation,
+    confirmation:
+      envois.confirmation ??
+      "suspendue — aucune confirmation automatique n'est envoyée au demandeur " +
+        "tant que le filtre anti-robot n'est pas en place",
   });
 }
 
@@ -231,7 +240,9 @@ export async function POST(request: Request) {
     if (!envois.interne.ok) {
       console.error("Notification interne (démo) :", envois.interne.erreur);
     }
-    if (!envois.confirmation.ok) {
+    // ⚠ PAS DE BRANCHE D'ERREUR SUR LA CONFIRMATION. Elle vaut `null` :
+    //   suspendue, pas en panne. Voir l'en-tête de `@/lib/demo-notification`.
+    if (envois.confirmation && !envois.confirmation.ok) {
       console.error("Confirmation demandeur (démo) :", envois.confirmation.erreur);
     }
   } catch (e) {
