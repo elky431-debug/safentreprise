@@ -173,12 +173,29 @@ export function estSurveillee(
  *   ces lignes ferait afficher « actif » à un client qui ne l'est pas.
  */
 export function deduireEtape(
-  tenant: Pick<Raccordement, "statut" | "restriction_verifiee_at">,
+  tenant: Pick<Raccordement, "statut" | "restriction_verifiee_at" | "panne_portee">,
   toutes: Pick<BoiteEtat, "choisie" | "abonnee">[],
 ): EtapeRaccordement {
   // Une boîte retirée ne compte pour rien ici : elle n'est plus surveillée, et
   // son abonnement résiduel ne doit surtout pas faire dire « actif ».
   const boites = toutes.filter((b) => b.choisie);
+
+  // ⚠ UNE PANNE DE COURRIER NE RAMÈNE PAS À L'ÉTAPE 1, ET C'EST LA CORRECTION
+  //   D'UN DÉFAUT GRAVE DU 16 SEPTEMBRE 2026. Le parcours retombait à
+  //   « Autoriser » dès que `statut = revoque`, sans regarder QUELLE PORTE
+  //   avait lâché. Or `panne_portee = 'courrier'` veut dire que l'accord Entra
+  //   est intact et que c'est le rôle Exchange qui manque : l'écran envoyait
+  //   donc le client redonner un consentement qui n'avait jamais été retiré.
+  //
+  //   Le geste était non seulement inutile, il ÉTEIGNAIT L'ALERTE — voir la
+  //   correction jumelle dans `valider_consentement_graph`. L'interface
+  //   invitait donc elle-même au geste qui la faisait mentir.
+  //
+  //   La bonne étape est la 3 : c'est le script de restriction qui repose le
+  //   rôle Exchange.
+  if (tenant.statut === "revoque" && tenant.panne_portee === "courrier") {
+    return "restriction";
+  }
 
   // Un accord retiré ramène au départ : il faut le redonner, rien d'autre ne
   // débloquera la suite.

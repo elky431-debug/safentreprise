@@ -518,3 +518,66 @@ test("la délégation Organization Management est vérifiée avant toute modific
     "une ignorance ne doit pas être traitée comme une absence",
   );
 });
+
+/* --------------------------------------------------------------------------
+   Le nom du périmètre, et la reprise de l'existant — 16 septembre 2026
+   -------------------------------------------------------------------------- */
+
+test("renommer la société ne change plus le nom du périmètre", () => {
+  const id = "3f7a1c22-9b4e-4d61-8a05-77c1e2b9d044";
+  const avant = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "jobump",
+    { etat: "aucun" },
+    null,
+    id,
+  );
+  const apres = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Safentreprise",
+    { etat: "aucun" },
+    null,
+    id,
+  );
+
+  // C'est exactement le défaut du 16 septembre : deux noms pour un seul
+  // périmètre, donc un script qui ne retrouve pas ce qu'il a créé.
+  assert.equal(avant.nomPerimetre, apres.nomPerimetre);
+  assert.equal(avant.nomPerimetre, "Safentreprise-3f7a1c22");
+});
+
+test("le script reprend le périmètre déjà attribué, quel que soit son nom", () => {
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Safentreprise",
+    { etat: "aucun" },
+    null,
+    "3f7a1c22-9b4e-4d61-8a05-77c1e2b9d044",
+  );
+
+  // Il interroge les attributions du principal de service AVANT de nommer…
+  assert.match(script, /Get-ManagementRoleAssignment -RoleAssignee \$Sp\.ObjectId/);
+  // …et reprend le périmètre trouvé plutôt que le nom calculé.
+  assert.match(script, /\$NomPerimetre = \$Existante\[0\]\.CustomResourceScope/);
+  assert.match(script, /\$NomAttribution = \$Existante\[0\]\.Name/);
+  // Un périmètre créé mais jamais attribué est repris lui aussi.
+  assert.match(script, /Safentreprise-\*/);
+  // Et le filtre est mis à jour sur l'existant, jamais dupliqué.
+  assert.match(script, /Set-ManagementScope -Identity \$NomPerimetre/);
+});
+
+test("sans identifiant, le repli sur la raison sociale reste sûr", () => {
+  const { nomPerimetre } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Éts. Léon & Fils'; Remove-Mailbox *",
+  );
+  assert.match(nomPerimetre, /^Safentreprise-[A-Za-z0-9]*$/);
+});

@@ -156,6 +156,11 @@ export function construireScript(
   nomSociete: string,
   temoin: EtatTemoin = { etat: "aucun" },
   domaine: string | null = null,
+  /**
+   * Identifiant IMMUABLE de la société (`companies.id`). Voir le commentaire
+   * sur `suffixe` : c'est lui qui nomme le périmètre, plus la raison sociale.
+   */
+  identifiantSociete: string | null = null,
 ): ScriptRestriction {
   const retenues = boites.filter((b) => adressePlausible(b.upn));
   const ignorees = boites
@@ -163,11 +168,34 @@ export function construireScript(
     .map((b) => b.upn);
 
   const adresses = retenues.map((b) => b.upn.trim().toLowerCase());
-  const suffixe = nomSociete
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^A-Za-z0-9]+/g, "")
-    .slice(0, 20) || "Client";
+  /**
+   * ⚠ LE NOM DU PÉRIMÈTRE NE DÉRIVE PLUS DE LA RAISON SOCIALE, ET C'EST UNE
+   *   CORRECTION DE CAUSE RACINE. Il en dérivait, et `companies.nom` est un
+   *   champ libre que le client modifie dans ses paramètres. Cas réel du
+   *   16 septembre 2026 : le périmètre avait été créé sous
+   *   `Safentreprise-jobump`, la société a été renommée, et le script
+   *   régénéré visait `Safentreprise-Safentreprise`. Il ne retrouvait donc
+   *   plus ce qu'il avait lui-même créé, échouait sur « l'étendue possède les
+   *   mêmes valeurs », puis sur « étendue introuvable » — c'est-à-dire
+   *   précisément au moment où le client en avait besoin, en panne.
+   *
+   *   L'identifiant de la société ne change jamais. Le repli sur la raison
+   *   sociale n'existe que pour les appels où l'identifiant n'est pas fourni
+   *   (les tests) ; il ne doit pas revenir dans le chemin réel.
+   *
+   * ⚠ ET CE NOM N'EST QU'UN DÉFAUT. Le script commence par CHERCHER le
+   *   périmètre déjà attribué au principal de service et le réutilise quel que
+   *   soit son nom — sans quoi tous les raccordements antérieurs à cette
+   *   correction resteraient orphelins. Voir la section 8 du script.
+   */
+  const suffixe =
+    identifiantSociete?.replace(/[^A-Za-z0-9]/g, "").slice(0, 8) ||
+    nomSociete
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^A-Za-z0-9]+/g, "")
+      .slice(0, 20) ||
+    "Client";
   const nomPerimetre = `Safentreprise-${suffixe}`;
 
   const filtre = adresses
@@ -456,20 +484,50 @@ if (-not $Sp) {
 # ------------------------------------------------------------
 # 8. Créer le périmètre : les boîtes choisies, et elles seules
 # ------------------------------------------------------------
+# Ce nom n'est qu'un DEFAUT : il ne sert que si aucun perimetre n'existe deja.
 $NomPerimetre = '${doublerApostrophes(nomPerimetre)}'
 $Filtre = "${filtre}"
 
+# ATTENTION : ce qui fait autorite, c'est le perimetre DEJA attribue a ce
+# principal de service, quel que soit son nom. Une version precedente de ce
+# script nommait le perimetre d'apres la raison sociale ; renommer la societe
+# suffisait alors a lui faire chercher un perimetre qui n'existait pas, et a
+# echouer sur "l'etendue possede les memes valeurs" puis "etendue introuvable".
+$Existante = @(
+    Get-ManagementRoleAssignment -RoleAssignee $Sp.ObjectId -ErrorAction SilentlyContinue |
+        Where-Object { $_.Role -eq $RoleAttendu -and $_.CustomResourceScope }
+)
+
+if ($Existante.Count -gt 0) {
+    $NomPerimetre = $Existante[0].CustomResourceScope
+    $NomAttribution = $Existante[0].Name
+    Write-Host "Perimetre existant reutilise : $NomPerimetre" -ForegroundColor Cyan
+} else {
+    # Aucune attribution : un perimetre Safentreprise a-t-il ete cree sans
+    # etre attribue ? On le reprend plutot que d'en creer un second.
+    $Orphelin = @(
+        Get-ManagementScope -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'Safentreprise-*' }
+    )
+    if ($Orphelin.Count -gt 0) {
+        $NomPerimetre = $Orphelin[0].Name
+        Write-Host "Perimetre orphelin repris : $NomPerimetre" -ForegroundColor Cyan
+    }
+    $NomAttribution = "$NomPerimetre-MailReadWrite"
+}
+
 $Perimetre = Get-ManagementScope -Identity $NomPerimetre -ErrorAction SilentlyContinue
 if ($Perimetre) {
+    # Le filtre est remis a jour : c'est ce qui suit l'ajout ou le retrait
+    # d'une boite surveillee, sans jamais creer un second perimetre.
     Set-ManagementScope -Identity $NomPerimetre -RecipientRestrictionFilter $Filtre
 } else {
     $Perimetre = New-ManagementScope -Name $NomPerimetre -RecipientRestrictionFilter $Filtre
 }
 
 # ------------------------------------------------------------
-# 9. Attribuer le rôle, limité à ce périmètre
+# 9. Attribuer le role, limite a ce perimetre
 # ------------------------------------------------------------
-$NomAttribution = "$NomPerimetre-MailReadWrite"
 if (-not (Get-ManagementRoleAssignment -Identity $NomAttribution -ErrorAction SilentlyContinue)) {
     New-ManagementRoleAssignment -Name $NomAttribution \`
         -App $Sp.ObjectId \`

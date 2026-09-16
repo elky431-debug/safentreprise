@@ -59,7 +59,13 @@ function messageDe(erreur: unknown): string {
 }
 
 async function contexte(requete: Request): Promise<
-  | { ok: true; locataire: Locataire; choisies: Choisie[]; societe: string }
+  | {
+      ok: true;
+      locataire: Locataire;
+      choisies: Choisie[];
+      societe: string;
+      societeId: string | null;
+    }
   | { ok: false; statut: number; erreur: string }
 > {
   const tenantUid = new URL(requete.url).searchParams.get("tenant");
@@ -100,7 +106,7 @@ async function contexte(requete: Request): Promise<
 
   const { data: societe } = await supabase
     .from("companies")
-    .select("nom")
+    .select("id, nom")
     .maybeSingle();
 
   return {
@@ -108,6 +114,10 @@ async function contexte(requete: Request): Promise<
     locataire: locataire as Locataire,
     choisies: liste,
     societe: (societe as { nom?: string } | null)?.nom ?? "Client",
+    // ⚠ L'IDENTIFIANT, PAS LE NOM, NOMME LE PÉRIMÈTRE. `nom` est un champ libre
+    //   que le client modifie dans ses paramètres ; le renommer faisait chercher
+    //   au script un périmètre qui n'existait pas. Voir `construireScript`.
+    societeId: (societe as { id?: string } | null)?.id ?? null,
   };
 }
 
@@ -202,6 +212,7 @@ async function getInterne(requete: Request) {
       ctx.societe,
       etat,
       domaineDe(ctx.choisies),
+      ctx.societeId,
     );
 
   return Response.json({
