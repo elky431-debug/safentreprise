@@ -44,7 +44,14 @@ type FieldProps = {
 export function Field({ label, hint, children, ...inputProps }: FieldProps) {
   return (
     <label className="block">
-      <span className="mb-1.5 flex items-baseline justify-between gap-3">
+      {/* ⚠ L'INDICATION SUIT LE LIBELLÉ, ELLE N'EST PLUS POUSSÉE À L'AUTRE BOUT.
+          `justify-between` la collait au bord droit du champ : sur « SIREN »
+          dans une colonne étroite, « 9 chiffres » se retrouvait à mi-chemin du
+          champ voisin et se lisait comme son étiquette. Sur un champ pleine
+          largeur, elle partait à huit centimètres du mot qu'elle qualifie.
+          C'est aussi le motif du document : aligné à gauche partout, sauf les
+          colonnes numériques d'un tableau. */}
+      <span className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-[12.5px] font-medium text-muted">{label}</span>
         {hint && <span className="text-[11.5px] text-faint">{hint}</span>}
       </span>
@@ -115,9 +122,8 @@ export function PanelHeader({ title, description, action }: PanelHeaderProps) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
       <div className="min-w-0">
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-foreground">
-          {title}
-        </h2>
+        {/* Échelle du document : titre de bloc — 16 px, graisse 600. */}
+        <h2 className="titre-bloc text-foreground">{title}</h2>
         {description && (
           <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-muted">
             {description}

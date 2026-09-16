@@ -209,7 +209,7 @@ export function FormationsManager({ initial, companyId }: Props) {
                         {q.ordre}. {q.question}
                       </span>
                       <span
-                        className={`rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${
+                        className={`rounded border px-1.5 py-0.5 text-[11.5px] font-medium ${
                           systeme
                             ? "border-border-strong bg-surface-2 text-muted"
                             : "border-accent-line bg-accent-soft text-accent-text"
@@ -222,7 +222,11 @@ export function FormationsManager({ initial, companyId }: Props) {
                       {q.type_fraude
                         ? TYPE_FRAUDE_LABELS[q.type_fraude]
                         : "Tous scénarios"}{" "}
-                      · {q.actif ? "Actif" : "Inactif"} · bonne = option #
+                      {/* ⚠ DES VIRGULES, PAS DES POINTS MÉDIANS. Trois
+                          informations à la suite se séparent comme dans une
+                          phrase ; le point médian figure dans les
+                          suppressions du document. */}
+                      , {q.actif ? "actif" : "inactif"}, bonne réponse : option{" "}
                       {q.bonne_reponse}
                     </p>
                   </div>

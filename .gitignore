@@ -43,10 +43,10 @@ next-env.d.ts
 
 # Route d'aperçu de la direction artistique — jamais versionnée.
 #
-# `src/app/apercu-releve/page.tsx` rend le tableau de bord avec un jeu de
+# `src/app/apercu-*/page.tsx` rend le tableau de bord avec un jeu de
 # données entièrement fabriqué, sans session ni base, pour la relecture
 # visuelle de chaque étape de docs/DIRECTION-ARTISTIQUE.md. Elle n'a rien à
 # faire dans le dépôt : elle deviendrait une route publique de l'application,
 # et elle divergerait du vrai écran dès la première modification. La source
 # est conservée hors du dépôt et recopiée ici au besoin.
-src/app/apercu-releve/
+src/app/apercu-*/

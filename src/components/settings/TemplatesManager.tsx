@@ -207,7 +207,7 @@ export function TemplatesManager({ initial, companyId }: Props) {
       {editionId && enCours ? (
         <Panel>
           <PanelHeader
-            title={`Édition — ${TYPE_FRAUDE_LABELS[enCours.type_fraude]} · ${CANAL_LABELS[enCours.canal]}`}
+            title={`Édition : ${TYPE_FRAUDE_LABELS[enCours.type_fraude]}, ${CANAL_LABELS[enCours.canal].toLowerCase()}`}
             action={
               <button
                 type="button"
@@ -278,10 +278,10 @@ export function TemplatesManager({ initial, companyId }: Props) {
                 >
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 text-[14px] font-medium text-foreground">
-                      {TYPE_FRAUDE_LABELS[t.type_fraude]} ·{" "}
-                      {CANAL_LABELS[t.canal]}
+                      {TYPE_FRAUDE_LABELS[t.type_fraude]},{" "}
+                      {CANAL_LABELS[t.canal].toLowerCase()}
                       <span
-                        className={`rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${
+                        className={`rounded border px-1.5 py-0.5 text-[11.5px] font-medium ${
                           systeme
                             ? "border-border-strong bg-surface-2 text-muted"
                             : "border-accent-line bg-accent-soft text-accent-text"
