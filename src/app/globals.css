@@ -351,18 +351,31 @@ body {
   --trait: #dde2e9;
   --papier: #f4f6f9;
 
-  /* ⚠ LE NIVEAU DE RISQUE N'EST PLUS EN ROUGE, AMBRE ET VERT. Le feu tricolore
-     était la dernière chose qui faisait ressembler l'écran à n'importe quel
-     logiciel de gestion. Trois valeurs d'une seule teinte disent la même
-     hiérarchie : la ligne la plus grave est la plus sombre, donc la plus lourde
-     à l'œil, et le tri d'un coup d'œil reste possible sans lire les mots.
+  /* ⚠ LE NIVEAU DE RISQUE EST À NOUVEAU COLORÉ, MAIS EN SOURDINE. Décision du
+     16 septembre 2026, qui annule le monochrome intégral pris le matin même.
+     Le tri par la teinte redevient instantané ; ce qui est écarté, c'est le
+     feu tricolore saturé, pas la couleur.
 
-     ⚠ `--faible` EST UN FOND, PAS UNE COULEUR DE TEXTE. Il est trop clair pour
-       porter du blanc : la pastille faible reprend l'encre douce en texte, voir
-       `.pastille-faible` plus bas. Ne pas l'employer en `text-*`. */
-  --eleve: #0d1f3c;
-  --modere: #5a6b84;
-  --faible: #e7ecf3;
+     ⚠ C'EST LA SATURATION QUI SÉPARE UNE DONNÉE D'UNE PANNE, PAS LA TEINTE.
+       `--eleve` et `--danger` sont tous deux rouges — l'un dit « cette
+       tentative est grave », l'autre « la surveillance est interrompue ». À
+       teinte égale, seule l'intensité les distingue :
+
+         --eleve   60 % de saturation   une donnée
+         --danger  92 % de saturation   un geste technique à faire
+
+       Ne pas saturer `--eleve` pour « qu'il se voie mieux » : il se confondrait
+       avec le bandeau de panne, qui est le seul état de l'écran exigeant une
+       action immédiate.
+
+     ⚠ CONTRASTES MESURÉS, ET L'AMBRE SOURD EST PLUS LISIBLE QUE LE VIF. Sur
+       blanc : élevé 6,48:1, modéré 4,63:1, faible 5,10:1. L'ancien ambre vif
+       `#b5670a` tombait à 4,28:1, donc SOUS le seuil AA de 4,5:1 — la version
+       assourdie corrige un défaut d'accessibilité qui traînait. */
+  --eleve: #9d3f49;
+  --modere: #9a6b39;
+  --faible: #e3ede6;
+  --faible-texte: #3f6b52;
 
   /* ---- Branchement sur les jetons partagés ---- */
   --background: var(--papier);
@@ -589,14 +602,12 @@ body {
 .canevas-app .pastille-eleve { background: var(--eleve); }
 .canevas-app .pastille-modere { background: var(--modere); }
 
-/* Le fond le plus clair de la gamme ne peut pas porter du blanc : 1,19:1, soit
-   un texte illisible. La pastille faible reprend donc l'encre douce, qui donne
-   4,57:1 — au-dessus du seuil AA de 4,5:1, mais c'est le texte le moins
-   contrasté de l'écran, et c'est cohérent : c'est aussi le moins important.
-   Ne pas éclaircir `--faible` davantage sans redescendre le texte avec. */
+/* Le fond le plus clair de la gamme ne peut pas porter du blanc. La pastille
+   faible prend donc un vert sombre assorti à son fond : 5,10:1, au-dessus du
+   seuil AA. Ne pas éclaircir `--faible` sans redescendre `--faible-texte`. */
 .canevas-app .pastille-faible {
   background: var(--faible);
-  color: var(--encre-douce);
+  color: var(--faible-texte);
 }
 .canevas-app .pastille-neutre {
   background: transparent;

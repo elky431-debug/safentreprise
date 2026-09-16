@@ -21,9 +21,15 @@ Un outil de travail occupe l'espace qu'on lui donne.
 **L'ordre du tableau de bord.** Le graphique doit venir avant le tableau des
 tentatives : on regarde la forme avant de lire le détail.
 
-Ce qui ne change pas : la typographie d'EtSmart, le monochrome avec le risque
-en valeurs d'encre, la couleur réservée aux pannes produit, l'absence de
-capitales intégrales et de points médians.
+Ce qui ne change pas : la typographie d'EtSmart, l'absence de capitales
+intégrales et de points médians, et le fait que la couleur reste rare et
+justifiée.
+
+> **Quatrième correction, ajoutée le soir du 16 septembre.** Le monochrome
+> intégral — niveaux de risque en valeurs d'encre — avait été décidé le matin
+> même et appliqué. À l'écran, il rendait le tri plus lent : il fallait lire les
+> mots. La couleur revient sur le niveau de risque, assourdie. Voir la section
+> Couleur.
 
 ---
 
@@ -89,8 +95,10 @@ part — pas même sur une étiquette de trois lettres.
 
 ## Couleur
 
-L'interface est en encre sur papier. **La couleur ne signale qu'une panne
-réelle du produit, jamais une donnée.**
+L'interface est en encre sur papier, et la couleur y est rare. **Deux emplois,
+deux seulement : le niveau de risque, et la panne du produit.** Ce qui les
+sépare n'est pas la teinte — les deux tirent vers le rouge — c'est
+**l'intensité**.
 
 ```css
 --encre:        #0D1F3C;  /* marine profond — texte, boutons, surfaces sombres */
@@ -103,28 +111,57 @@ réelle du produit, jamais une donnée.**
 --warning:      #B5670A;  /* panne produit uniquement */
 ```
 
-### Le niveau de risque se dit en valeurs d'encre
+### Le niveau de risque est coloré, mais en sourdine
 
-| Niveau | Fond | Texte |
-|---|---|---|
-| Élevé | `#0D1F3C` | blanc |
-| Modéré | `#5A6B84` | blanc |
-| Faible | `#E7ECF3` | `#5A6B84` |
+**Décision du 16 septembre 2026, qui annule le monochrome intégral pris le matin
+même.** Le tri par la teinte redevient instantané. Ce qui reste écarté, c'est le
+feu tricolore saturé, pas la couleur.
 
-La ligne la plus grave est la plus sombre, donc la plus lourde à l'œil, donc
-triable d'un coup d'œil sans tache colorée.
+| Niveau | Fond | Texte | Contraste | Saturation |
+|---|---|---|---|---|
+| Élevé | `#9D3F49` | blanc | 6,48:1 | 60 % |
+| Modéré | `#9A6B39` | blanc | 4,63:1 | 63 % |
+| Faible | `#E3EDE6` | `#3F6B52` | 5,10:1 | 4 % |
+
+> **L'ambre assourdi corrige un défaut d'accessibilité qui traînait.** L'ancien
+> ambre vif `#B5670A` donnait **4,28:1** sur blanc, donc **sous le seuil AA de
+> 4,5:1**. La version sourde passe à 4,63:1. Assourdir n'a pas coûté en
+> lisibilité : ça en a rendu.
 
 ⚠ `--faible` est un fond, jamais une couleur de texte : sur du blanc il tombe
-à 1,19:1.
+à 1,19:1. Son texte est `--faible-texte`, et les deux se déplacent ensemble.
+
+### La saturation sépare une donnée d'une panne
+
+`--eleve` et `--danger` sont tous deux rouges. L'un dit « cette tentative est
+grave », l'autre « la surveillance est interrompue ». À teinte proche, seule
+l'intensité les distingue :
+
+```
+--eleve    60 % de saturation    une donnée
+--danger   92 % de saturation    un geste technique à faire
+```
+
+**Ne jamais saturer `--eleve` pour « qu'il se voie mieux ».** Il se confondrait
+avec le bandeau de panne, qui est le seul état de l'écran exigeant une action
+immédiate. Une page peut porter dix pastilles « élevé » sans que rien ne soit
+cassé ; elle ne porte le bandeau rouge vif que si le produit ne fonctionne
+plus.
 
 ### La règle qui décide
 
-Une donnée porte une valeur d'encre. Une panne du produit porte `--danger` ou
-`--warning`. Un état sain ne porte rien.
+Trois cas, et rien d'autre ne porte de couleur :
 
-Le test, pour une page qu'on n'a pas encore vue : **s'il n'y a pas de geste
-technique à faire pour que ça redevienne normal, c'est une donnée, et elle
-reste en encre.**
+- un **niveau de risque** porte sa teinte sourde ;
+- une **panne du produit** porte `--danger` ou `--warning`, saturés ;
+- **tout le reste** — compteurs, motifs, filtres, segments actifs, états sains,
+  navigation — reste en valeur d'encre.
+
+Le test, pour une page qu'on n'a pas encore vue : **est-ce que cet objet dit une
+gravité, ou un geste technique à faire ? Si ni l'un ni l'autre, il reste en
+encre.** Un motif de détection n'est pas une gravité : il dit pourquoi le moteur
+a alerté, pas à quel point c'est grave. Un filtre actif n'en est pas une non
+plus : c'est une commande de navigation.
 
 ---
 
@@ -318,5 +355,6 @@ Après chaque étape : une capture avant, une capture après, à 1440 px et à
 
 Si le résultat pourrait servir de capture d'écran à n'importe quel autre
 logiciel de gestion, c'est raté. Une page de Safentreprise se reconnaît à
-quatre choses : le serrage des titres, les formes arrondies, la discipline
-monochrome, et la couleur qui n'apparaît que là où il y a une panne.
+quatre choses : le serrage des titres, les formes arrondies, la sobriété de la
+palette, et une couleur qui ne dit jamais que deux choses — la gravité d'une
+tentative, ou une panne à réparer.
