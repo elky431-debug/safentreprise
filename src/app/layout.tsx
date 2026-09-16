@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {
+  Sora,
   Archivo,
   Bricolage_Grotesque,
   Instrument_Serif,
@@ -79,6 +80,31 @@ const archivo = Archivo({
   display: "swap",
 });
 
+/**
+ * Sora — la police de l'espace connecté depuis le document v2.
+ *
+ * ⚠ RELEVÉE DANS LE DÉPÔT ETSMART, PAS DEVINÉE. Le document l'interdisait
+ *   expressément, et il avait raison de le faire : `src/app/globals.css`
+ *   d'EtSmart déclare `body { font-family: 'Inter', … }`, ce qui aurait donné
+ *   une réponse fausse à la lecture. C'est le style EN LIGNE de `layout.tsx`
+ *   — `style={{ fontFamily: 'var(--font-sora), …' }}` — qui l'emporte sur la
+ *   feuille de style, et Inter n'est importée nulle part : la ligne du CSS est
+ *   doublement morte.
+ *
+ * ⚠ VARIABLE, SANS `weight`. EtSmart la charge en cinq graisses figées
+ *   (300–700) ; l'axe variable couvre la même plage en un seul fichier et
+ *   évite que le 700 du titre de page soit un gras synthétique.
+ *
+ * ⚠ ARCHIVO RESTE DÉCLARÉE, ET CE N'EST PAS UN OUBLI : la vitrine ne bascule
+ *   qu'à l'étape 6 du document. La retirer maintenant casserait les pages
+ *   publiques.
+ */
+const sora = Sora({
+  variable: "--font-sora",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono-stack",
   subsets: ["latin"],
@@ -122,7 +148,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${jakarta.variable} ${inter.variable} ${sourceSerif.variable} ${instrumentSerif.variable} ${bricolage.variable} ${archivo.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
+      className={`${jakarta.variable} ${inter.variable} ${sourceSerif.variable} ${instrumentSerif.variable} ${bricolage.variable} ${archivo.variable} ${sora.variable} ${jetbrainsMono.variable} ${sacramento.variable} h-full`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         {children}

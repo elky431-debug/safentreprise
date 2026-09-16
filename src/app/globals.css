@@ -409,22 +409,34 @@ body {
   --relief: none;
   --relief-haut: none;
 
-  font-family: var(--font-archivo), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sora), system-ui, -apple-system, sans-serif;
   background: var(--background);
   color: var(--foreground);
 }
 
-/* ⚠ RAYON UNIQUE : 4 px PARTOUT, 3 px SUR LES PASTILLES, JAMAIS PLUS. La
-   hiérarchie se lit par la couleur et la graisse, pas par l'arrondi. Cette
-   règle écrase les utilitaires `rounded-*` du sous-arbre plutôt que de les
-   traquer un par un — il y en a plusieurs centaines. */
-.canevas-app [class*="rounded"] {
-  border-radius: 4px;
+/* ⚠ LE RAYON UNIQUE À 4 px EST ANNULÉ (document v2, 16 septembre 2026). La
+   v1 l'imposait au nom de la discipline ; à l'écran il donnait une grille de
+   rectangles qui ressemblait à un tableur. Le rayon fait partie de
+   l'identité, pas du bruit.
+
+   ⚠ ET LA RÈGLE BALAI `[class*="rounded"] { border-radius: 4px }` A DISPARU
+     AVEC LUI. Elle écrasait tous les utilitaires du sous-arbre : tant qu'elle
+     tenait, poser `rounded-full` sur un bouton ne changeait rien. Ne pas la
+     réintroduire pour « harmoniser » — c'est elle qu'on retire.
+
+   La hiérarchie se lit désormais par la TAILLE du rayon : plus le bloc est
+   grand, plus il est arrondi. Un bouton plein arrondi à côté d'une carte à
+   16 px crée le contraste de formes qui manquait. */
+.canevas-app {
+  --rayon-pastille: 9999px;   /* boutons, pastilles, étiquettes */
+  --rayon-carte: 16px;        /* cartes, panneaux, encadrés */
+  --rayon-tableau: 14px;      /* conteneurs de tableau */
+  --rayon-champ: 12px;        /* champs de formulaire, sélecteurs */
+  --rayon-bloc: 10px;         /* blocs internes, dépliants */
 }
 
-.canevas-app .pastille,
-.canevas-app [class*="rounded-full"].pastille {
-  border-radius: 3px;
+.canevas-app .pastille {
+  border-radius: var(--rayon-pastille);
 }
 
 /* ⚠ AUCUNE SERIF, AUCUNE MONOSPACE — Y COMPRIS SUR LES CLASSES HÉRITÉES.
@@ -442,7 +454,7 @@ body {
 .canevas-app .font-display,
 .canevas-app .font-mono,
 .canevas-app [class*="font-mono"] {
-  font-family: var(--font-archivo), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sora), system-ui, -apple-system, sans-serif;
   letter-spacing: 0;
 }
 
@@ -451,8 +463,8 @@ body {
 }
 
 /* ⚠ LA SEULE MONOSPACE DE L'APPLICATION : L'ADRESSE DE L'EXPÉDITEUR. Le
-   document la nomme comme une exception arrêtée, avec sa mesure : en Archivo
-   13 px, `rn` fait 11,64 px et `m` 11,18 px — 0,46 px d'écart, donc
+   document la nomme comme une exception arrêtée, avec sa mesure : en grotesque
+   13 px, `rn` et `m` diffèrent de 0,46 px, donc
    `cabinet-durand.fr` et `cabinet-dumnd.fr` occupent la même place sur la
    ligne. La chasse fixe sépare le même couple de 7,80 px, et c'est précisément
    ce que le produit demande au lecteur de repérer.
@@ -473,7 +485,7 @@ body {
    que dans la vitrine, qui la garde ; l'annuler ici empêche qu'un composant
    partagé la réintroduise dans l'application sans que personne le voie. */
 .canevas-app .eyebrow {
-  font-family: var(--font-archivo), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sora), system-ui, -apple-system, sans-serif;
   font-size: 11px;
   letter-spacing: 0;
   text-transform: none;
@@ -484,15 +496,15 @@ body {
 
 .canevas-app .titre-page-da {
   font-size: 34px;
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   line-height: 1.05;
 }
 
 .canevas-app .titre-section {
   font-size: 21px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   line-height: 1.2;
 }
 
@@ -538,10 +550,17 @@ body {
 }
 
 /* Le seul endroit où l'on s'affirme. Rien d'autre sur la page ne dépasse 34 px. */
+/* ⚠ `tabular-nums` N'EST PAS UN RAFFINEMENT AVEC SORA, C'EST UNE NÉCESSITÉ.
+   Mesuré sur le fichier de police réel : sans la propriété, dix « 1 » font
+   168 px et dix « 0 » en font 297 — les chiffres de Sora sont proportionnels,
+   et le « 1 » est 43 % plus étroit que le « 0 ». Avec, les deux font
+   270,41 px. Sans elle, le compteur animé du tableau de bord sauterait à
+   chaque incrément et les colonnes chiffrées ne s'aligneraient pas.
+   Partout où un chiffre change ou s'aligne, la propriété est obligatoire. */
 .canevas-app .chiffre-accroche {
   font-size: 56px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 700;
+  letter-spacing: -0.035em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -553,7 +572,11 @@ body {
 .canevas-app .pastille {
   display: inline-flex;
   align-items: center;
-  border-radius: 3px;
+  /* ⚠ PLEIN ARROND, PAS 3 px. La v1 imposait 3 px ; la v2 met les pastilles,
+     les boutons et les étiquettes en plein arrondi, et c'est ce contraste avec
+     les cartes à 16 px qui fait l'identité. Deux règles définissaient ce rayon
+     dans ce fichier — celle-ci gagnait par l'ordre d'écriture. */
+  border-radius: var(--rayon-pastille);
   padding: 2px 8px;
   font-size: 12px;
   font-weight: 600;
