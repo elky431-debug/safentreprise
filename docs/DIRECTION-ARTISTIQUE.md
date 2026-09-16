@@ -264,8 +264,22 @@ les séparateurs verticaux entre colonnes.
 **Alignement à gauche partout**, sauf les colonnes numériques d'un tableau,
 alignées à droite pour comparer les ordres de grandeur à l'œil.
 
-**Le monospace, une seule exception** : l'adresse de l'expéditeur dans les
-tableaux de menaces, parce que c'est la chaîne qu'on demande au lecteur
+**Le monospace, deux exceptions, et deux seulement.**
+
+**La première : le script PowerShell** que l'administrateur copie dans sa
+console, sur la page Connexion Microsoft. Un script dont l'indentation ne
+s'aligne plus est plus difficile à relire, et c'est un texte destiné à SORTIR
+de l'interface pour être collé ailleurs. Tout `<pre>` de cet écran porte la
+classe `script`.
+
+> La v1 du document portait cette exception ; la v2 l'avait perdue. Le
+> 16 septembre 2026, les dix blocs `<pre>` de la page Microsoft ont été
+> retrouvés **sans la classe** : ils portaient `font-mono`, que
+> `.canevas-app` neutralise en Sora. Les scripts rendaient donc en police
+> proportionnelle depuis le 15 septembre, avec une indentation qui ne
+> s'alignait plus. Corrigé en même temps que l'exception a été réécrite ici.
+
+**La seconde : l'adresse de l'expéditeur** dans les tableaux de menaces, parce que c'est la chaîne qu'on demande au lecteur
 d'épeler caractère par caractère. Mesure : en grotesque 13 px, `rn` et `m`
 diffèrent de 0,46 px ; en JetBrains Mono, de 7,80 px. Nulle part ailleurs —
 pas le nom affiché, pas les objets, pas les dates, pas la boîte du client
@@ -348,6 +362,18 @@ se lit à voix haute.
 
 Après chaque étape : une capture avant, une capture après, à 1440 px et à
 390 px.
+
+> **Ce qu'une capture prise sur la route d'aperçu ne prouve pas.** Cette route
+> monte les composants **hors de `DashboardShell`**. Elle ne voit donc ni la
+> largeur maximale, ni les marges latérales, ni le défilement, ni la barre de
+> navigation — tout ce qui vient de la coquille.
+>
+> Cas réel : `Releve.tsx` gardait un `max-w-[1280px]` qui aurait annulé le
+> passage à 1680 px de toute l'application, et la mesure ne pouvait pas le voir.
+>
+> Elle prouve les polices, les couleurs, les rayons, la casse, les séparateurs —
+> tout ce qui tient dans le composant. Elle ne prouve pas la mise en page une
+> fois insérée. Pour ce qui vient de la coquille, lire le code des deux côtés.
 
 ---
 

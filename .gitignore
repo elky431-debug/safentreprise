@@ -43,7 +43,22 @@ next-env.d.ts
 
 # Route d'aperçu de la direction artistique — jamais versionnée.
 #
-# `src/app/apercu-*/page.tsx` rend le tableau de bord avec un jeu de
+# `#
+# ⚠ CE QU'UNE MESURE PASSÉE SUR CETTE ROUTE NE PROUVE PAS. La page d'aperçu
+#   monte les composants HORS de `DashboardShell` : elle ne voit donc ni la
+#   largeur maximale, ni les marges latérales, ni le défilement, ni la barre
+#   de navigation, qui viennent tous de la coquille.
+#
+#   Cas réel du 16 septembre 2026 : `Releve.tsx` gardait un `max-w-[1280px]`
+#   qui aurait annulé le passage à 1680 px de toute l'application. La mesure
+#   sur la route d'aperçu ne pouvait pas le voir — la largeur relevée était
+#   celle du conteneur d'aperçu, pas celle de la vraie page.
+#
+#   Ce qu'elle prouve : polices, couleurs, rayons, casse, séparateurs, tout ce
+#   qui tient dans le composant lui-même. Ce qu'elle ne prouve pas : la mise
+#   en page une fois insérée. Pour ce qui vient de la coquille, il faut lire
+#   le code des deux côtés, ou mesurer sur la vraie page avec une session.
+src/app/apercu-*/page.tsx` rend le tableau de bord avec un jeu de
 # données entièrement fabriqué, sans session ni base, pour la relecture
 # visuelle de chaque étape de docs/DIRECTION-ARTISTIQUE.md. Elle n'a rien à
 # faire dans le dépôt : elle deviendrait une route publique de l'application,

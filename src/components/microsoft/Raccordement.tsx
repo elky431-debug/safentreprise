@@ -173,7 +173,7 @@ function EtapeAutoriser({ etat }: { etat: Etat }) {
         </p>
       </Encadre>
 
-      <section className="rounded-xl border border-border bg-surface px-5 py-4">
+      <section className="rounded-[16px] border border-border bg-surface px-5 py-4">
         <h3 className="text-[14px] font-semibold text-foreground">
           Ce dont vous avez besoin
         </h3>
@@ -268,7 +268,7 @@ function EtapeDemarrer({
         dans ces boîtes.
       </Encadre>
 
-      <section className="rounded-xl border border-border bg-surface px-5 py-4">
+      <section className="rounded-[16px] border border-border bg-surface px-5 py-4">
         <h3 className="text-[14px] font-semibold text-foreground">
           Ce que fait ce dernier geste
         </h3>
@@ -306,7 +306,7 @@ function EtapeDemarrer({
             <ul className="mt-2 space-y-1.5">
               {echecs.map((d, i) => (
                 <li key={`${d.upn}-${i}`} className="text-[12.5px]">
-                  <span className="font-mono text-foreground">{d.upn}</span> —{" "}
+                  <span className="text-foreground">{d.upn}</span> —{" "}
                   {d.erreur}
                 </li>
               ))}

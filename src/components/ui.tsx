@@ -78,7 +78,9 @@ export function Alert({ tone, children }: AlertProps) {
   return (
     <p
       role={tone === "error" ? "alert" : "status"}
-      className={`rounded-lg border px-3.5 py-2.5 text-[13px] ${styles}`}
+      /* Un bandeau d'état est un encadré : 16 px, comme une carte. Il n'est ni
+         une commande ni un champ. */
+      className={`rounded-[16px] border px-4 py-3 text-[13px] ${styles}`}
     >
       {children}
     </p>

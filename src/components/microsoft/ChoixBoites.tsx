@@ -158,7 +158,7 @@ export function ChoixBoites({
         <Encadre ton="danger" titre="La liste n'a pas pu être obtenue">
           <p>{erreur}</p>
           {detail && (
-            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-[11.5px] text-muted">
+            <pre className="script mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-[11.5px] text-muted">
               {detail}
             </pre>
           )}
@@ -189,7 +189,7 @@ export function ChoixBoites({
 
       {boites && boites.length > 0 && (
         <>
-          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          <div className="overflow-hidden rounded-[16px] border border-border bg-surface">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
               <div>
                 <h3 className="text-[14px] font-semibold text-foreground">
@@ -244,7 +244,7 @@ export function ChoixBoites({
                             <Etiquette ton="attention">Boîte de contrôle</Etiquette>
                           )}
                         </span>
-                        <span className="mt-0.5 block truncate font-mono text-[12px] text-muted">
+                        <span className="mt-0.5 block truncate text-[12px] text-muted">
                           {b.upn}
                         </span>
                         {estTemoin && (
@@ -263,9 +263,9 @@ export function ChoixBoites({
           </div>
 
           <Encadre ton="neutre">
-            Les boîtes partagées — <span className="font-mono">compta@</span>,{" "}
-            <span className="font-mono">facturation@</span>,{" "}
-            <span className="font-mono">achats@</span> — sont les cibles
+            Les boîtes partagées — <span>compta@</span>,{" "}
+            <span>facturation@</span>,{" "}
+            <span>achats@</span> — sont les cibles
             habituelles de la fraude au fournisseur. Elles apparaissent dans
             cette liste comme les autres.
           </Encadre>

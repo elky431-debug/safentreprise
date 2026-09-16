@@ -249,7 +249,7 @@ export function EcranRestriction({
 
       {script && (
         <>
-          <section className="overflow-hidden rounded-xl border border-border bg-surface">
+          <section className="overflow-hidden rounded-[16px] border border-border bg-surface">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-3.5">
               <div className="min-w-0">
                 <h3 className="text-[14px] font-semibold text-foreground">
@@ -282,25 +282,25 @@ export function EcranRestriction({
 
             <div className="grid gap-4 border-b border-border px-5 py-4 sm:grid-cols-2">
               <div>
-                <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-faint">
+                <p className="entete-tableau">
                   Boîtes que le script autorise
                 </p>
                 <ul className="mt-2 space-y-1">
                   {script.boites.map((a) => (
-                    <li key={a} className="font-mono text-[12.5px] text-foreground">
+                    <li key={a} className="text-[12.5px] text-foreground">
                       {a}
                     </li>
                   ))}
                 </ul>
               </div>
               <div>
-                <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-faint">
+                <p className="entete-tableau">
                   Boîte de contrôle
                 </p>
                 <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
                   {script.temoin_existant ? (
                     <>
-                      <span className="font-mono text-foreground">
+                      <span className="text-foreground">
                         {script.temoin_existant}
                       </span>{" "}
                       — elle existe déjà et restera hors surveillance. Le script
@@ -311,7 +311,7 @@ export function EcranRestriction({
                       Toutes vos boîtes sont surveillées : il n&apos;en reste
                       aucune pour vérifier la restriction. Le script créera une
                       boîte partagée vide,{" "}
-                      <span className="font-mono text-foreground">
+                      <span className="text-foreground">
                         {script.temoin_a_creer}
                       </span>
                       , qui ne servira qu&apos;à ce contrôle.
@@ -338,7 +338,7 @@ export function EcranRestriction({
                   . Signalez-les au support.
                   <ul className="mt-2 space-y-1">
                     {script.adresses_ignorees.map((a) => (
-                      <li key={a} className="font-mono text-[12.5px]">
+                      <li key={a} className="text-[12.5px]">
                         {a}
                       </li>
                     ))}
@@ -347,7 +347,7 @@ export function EcranRestriction({
               </div>
             )}
 
-            <pre className="max-h-[420px] overflow-auto bg-surface-2 px-5 py-4 font-mono text-[11.5px] leading-relaxed text-foreground">
+            <pre className="script max-h-[420px] overflow-auto bg-surface-2 px-5 py-4 text-[11.5px] leading-relaxed text-foreground">
               {script.script}
             </pre>
           </section>
@@ -396,7 +396,7 @@ export function EcranRestriction({
  */
 function Prerequis() {
   return (
-    <section className="overflow-hidden rounded-xl border border-warning/30 bg-warning-soft">
+    <section className="overflow-hidden rounded-[16px] border border-warning/30 bg-warning-soft">
       <div className="border-b border-warning/25 px-5 py-3.5">
         <h3 className="text-[14px] font-semibold text-foreground">
           À vérifier avant de transmettre le script
@@ -453,7 +453,7 @@ function Prerequis() {
             Une seule commande, une seule fois. Le script s&apos;arrête de
             lui-même en l&apos;affichant si le module manque.
           </p>
-          <pre className="mt-2 overflow-x-auto rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-foreground">
+          <pre className="script mt-2 overflow-x-auto rounded-[10px] border border-border bg-surface px-3 py-2 text-[11.5px] text-foreground">
             Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force
           </pre>
           <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
@@ -541,7 +541,7 @@ function ResultatVerification({
           {resultat.issues.map((issue, index) => (
             <li
               key={issue.titre}
-              className="rounded-lg border border-border bg-surface px-3.5 py-3"
+              className="rounded-[10px] border border-border bg-surface px-3.5 py-3"
             >
               <p className="text-[13px] font-semibold text-foreground">
                 {index + 1}. {issue.titre}
@@ -576,7 +576,7 @@ function ResultatVerification({
           <summary className="cursor-pointer text-[12.5px] text-muted hover:text-foreground">
             Voir la réponse de Microsoft
           </summary>
-          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
+          <pre className="script mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-surface px-3 py-2 text-[11.5px] text-muted">
             {resultat.detail}
           </pre>
         </details>
@@ -602,7 +602,7 @@ function Commande({ texte }: { texte: string }) {
 
   return (
     <div className="mt-2">
-      <pre className="overflow-x-auto rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-[11.5px] text-foreground">
+      <pre className="script overflow-x-auto rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-[11.5px] text-foreground">
         {texte}
       </pre>
       <button

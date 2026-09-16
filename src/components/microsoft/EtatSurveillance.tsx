@@ -74,7 +74,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
               <summary className="cursor-pointer text-[12.5px] hover:text-foreground">
                 Voir la réponse de Microsoft
               </summary>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
+              <pre className="script mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-surface px-3 py-2 text-[11.5px] text-muted">
                 {etat.derniere_erreur}
               </pre>
             </details>
@@ -129,7 +129,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
               <summary className="cursor-pointer text-[12.5px] hover:text-foreground">
                 Voir la réponse de Microsoft
               </summary>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
+              <pre className="script mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-surface px-3 py-2 text-[11.5px] text-muted">
                 {etat.derniere_erreur}
               </pre>
             </details>
@@ -184,7 +184,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
               <summary className="cursor-pointer text-[12.5px] hover:text-foreground">
                 Voir la réponse de Microsoft
               </summary>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
+              <pre className="script mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-surface px-3 py-2 text-[11.5px] text-muted">
                 {etat.annuaire_erreur}
               </pre>
             </details>
@@ -236,7 +236,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
               <summary className="cursor-pointer text-[12.5px] hover:text-foreground">
                 Voir la réponse de Microsoft
               </summary>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 font-mono text-[11.5px] text-muted">
+              <pre className="script mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-surface px-3 py-2 text-[11.5px] text-muted">
                 {etat.derniere_erreur}
               </pre>
             </details>
@@ -246,7 +246,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
 
       {/* --- Les boîtes ---------------------------------------------------- */}
 
-      <section className="overflow-hidden rounded-xl border border-border bg-surface">
+      <section className="overflow-hidden rounded-[16px] border border-border bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div>
             <h3 className="text-[14px] font-semibold text-foreground">
@@ -280,7 +280,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
                 key={b.id}
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3"
               >
-                <span className="min-w-[200px] flex-1 truncate font-mono text-[12.5px] text-foreground">
+                <span className="min-w-[200px] flex-1 truncate text-[12.5px] text-foreground">
                   {b.upn}
                 </span>
 
@@ -324,7 +324,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
             </p>
             <ul className="mt-2 space-y-1">
               {retirees.map((b) => (
-                <li key={b.id} className="font-mono text-[12px] text-muted">
+                <li key={b.id} className="text-[12px] text-muted">
                   {b.upn}
                 </li>
               ))}
@@ -343,7 +343,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
 
       {/* --- La preuve ----------------------------------------------------- */}
 
-      <section className="overflow-hidden rounded-xl border border-border bg-surface">
+      <section className="overflow-hidden rounded-[16px] border border-border bg-surface">
         <div className="border-b border-border px-5 py-3.5">
           <h3 className="text-[14px] font-semibold text-foreground">
             Preuve de la restriction d&apos;accès
@@ -364,7 +364,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
                 </span>
                 , nous avons essayé de lire{" "}
                 {etat.temoin_upn ? (
-                  <span className="font-mono text-foreground">
+                  <span className="text-foreground">
                     {etat.temoin_upn}
                   </span>
                 ) : (
@@ -394,7 +394,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
                   <summary className="cursor-pointer text-[12.5px] text-muted hover:text-foreground">
                     Voir la réponse exacte de Microsoft
                   </summary>
-                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-[11.5px] text-muted">
+                  <pre className="script mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-[11.5px] text-muted">
                     {etat.restriction_preuve}
                   </pre>
                 </details>
@@ -413,7 +413,7 @@ export function EtatSurveillance({ etat }: { etat: Raccordement }) {
 
       {/* --- L'autorisation ------------------------------------------------ */}
 
-      <section className="overflow-hidden rounded-xl border border-border bg-surface">
+      <section className="overflow-hidden rounded-[16px] border border-border bg-surface">
         <div className="border-b border-border px-5 py-3.5">
           <h3 className="text-[14px] font-semibold text-foreground">
             Autorisation Microsoft
@@ -450,7 +450,7 @@ function Ligne({
       <dt className="text-[12px] text-muted">{label}</dt>
       <dd
         className={`min-w-0 break-all text-right text-[13px] text-foreground ${
-          mono ? "font-mono text-[12px]" : ""
+          mono ? "text-[12px]" : ""
         }`}
       >
         {valeur}
