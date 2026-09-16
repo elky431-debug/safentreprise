@@ -49,6 +49,42 @@ Conséquences, à connaître avant de raisonner sur ces deux buckets :
   par une route authentifiée qui délivre une URL signée. C'est une décision
   produit, pas une migration.
 
+### Décision du 16 septembre 2026 : le bucket reste public, À REVOIR AVANT LE PREMIER CLIENT
+
+**Arbitrage pris, et sa date de péremption.** Le listage est fermé ; le bucket
+`certificates` reste public en lecture par URL. La bascule en bucket privé —
+seule fermeture complète — est **reportée**, pour une raison qui cessera d'être
+vraie :
+
+> À cette date, Safentreprise n'a **aucun client**, donc **aucune attestation
+> réelle**. Le bucket ne contient que des documents d'essai portant le nom de
+> l'éditeur. Il n'y a rien à faire fuiter.
+
+**Ce qui déclenche la revue : le premier client réel.** À partir du moment où une
+attestation porte le nom d'une société tierce, son taux de clic et son effectif,
+le raisonnement ci-dessus tombe, et l'arbitrage doit être repris — pas
+reconduit par habitude.
+
+**Ce qu'il faudra faire ce jour-là**, pour ne pas avoir à le redécouvrir :
+
+1. Passer `certificates` en `public = false`.
+2. Remplacer `getPublicUrl` par `createSignedUrl` dans
+   `src/app/api/campaigns/[id]/certificate/route.ts`, ou servir le PDF par une
+   route authentifiée qui vérifie la société avant de rediriger.
+3. Traiter `certificates.url_pdf`, qui porte des URL publiques devenues
+   caduques : soit les régénérer, soit ne plus stocker que le chemin.
+4. Prévenir que les liens déjà distribués cesseront de fonctionner. C'est
+   acceptable tant qu'aucun dirigeant n'en a mis un en favori — donc c'est
+   d'autant plus simple que c'est fait tôt.
+
+**Vérification faite le 16 septembre.** Les Edge Logs sur 24 h ne montrent
+aucune requête de listage : uniquement du trafic interne Supabase sur
+`/tenants` et `/health` depuis des adresses privées `10.113.x.x`. Aucune IP
+externe, aucun `POST /storage/v1/object/list`. **La rétention est de 24 h en
+offre gratuite** : cette absence ne vaut que pour la fenêtre visible, et ne dit
+rien de ce qui a pu se produire avant. Ce n'est pas une preuve que rien n'est
+sorti, c'est l'absence de preuve que quelque chose est sorti.
+
 ## Le piège qui m'a fait rendre un faux diagnostic
 
 Le 16 septembre, j'ai signalé que `message_templates` et `quiz_questions`
