@@ -609,6 +609,82 @@ verifier(
   })(),
 );
 
+/* --------------------------------------------------------------------------
+   Les deux logos — 16 septembre 2026
+   -------------------------------------------------------------------------- */
+
+console.log("\n  ── Logos ──\n");
+
+const AVEC_LOGOS = construireBanniere({
+  niveau: "eleve",
+  score: 88,
+  signaux: ["L'adresse ne correspond pas au nom affiché."],
+  societe: { nom: "Cabinet Durand & Associés", logo: "https://exemple/logo.png" },
+  logoEditeur: "https://exemple/safentreprise.png",
+});
+
+const SANS_LOGOS = construireBanniere({
+  niveau: "eleve",
+  score: 88,
+  signaux: ["L'adresse ne correspond pas au nom affiché."],
+  societe: { nom: "Cabinet Durand & Associés" },
+});
+
+verifier(
+  "une seule <div> : l'invariant du retrait tient malgré le tableau",
+  (AVEC_LOGOS.match(/<div/g) ?? []).length === 1 &&
+    (AVEC_LOGOS.match(/<\/div>/g) ?? []).length === 1,
+  `${(AVEC_LOGOS.match(/<div/g) ?? []).length} ouvertures`,
+);
+
+verifier(
+  "le nom de la société s'affiche MÊME SANS logo",
+  SANS_LOGOS.includes("Cabinet Durand &amp; Associés") &&
+    !SANS_LOGOS.includes("<img"),
+);
+
+verifier(
+  "le `alt` du logo client porte le nom, pas le mot « logo »",
+  AVEC_LOGOS.includes('alt="Cabinet Durand &amp; Associés"'),
+);
+
+verifier(
+  "le logo client est bridé par une HAUTEUR, attribut compris par Word",
+  /<img[^>]+height="32"[^>]*>/.test(AVEC_LOGOS),
+);
+
+verifier(
+  "la mention éditeur reste lisible sans image",
+  SANS_LOGOS.includes("Powered by") && SANS_LOGOS.includes("Safentreprise"),
+);
+
+verifier(
+  "le logo éditeur est posé sur une pastille blanche explicite",
+  AVEC_LOGOS.includes('bgcolor="#ffffff"') &&
+    AVEC_LOGOS.includes("background-color:#ffffff"),
+);
+
+verifier(
+  "le niveau faible ne porte aucun logo : sa discrétion est sa raison d'être",
+  !construireBanniere({
+    niveau: "faible",
+    score: 20,
+    signaux: ["Expéditeur inhabituel."],
+    societe: { nom: "Cabinet Durand", logo: "https://exemple/logo.png" },
+    logoEditeur: "https://exemple/safentreprise.png",
+  }).includes("<img"),
+);
+
+verifier(
+  "le nom de société est échappé comme le reste",
+  construireBanniere({
+    niveau: "eleve",
+    score: 88,
+    signaux: ["x"],
+    societe: { nom: '<script>alert(1)</script>' },
+  }).includes("&lt;script&gt;"),
+);
+
 console.log("\n  ── Aperçu d'une conversion ──\n");
 console.log(
   texteVersHtml("Bonjour,\n\nMerci de régler la facture\n    1 200 EUR < 2 000.\n\nYacine")

@@ -126,6 +126,23 @@ export type ContenuBanniere = {
   score: number;
   signaux: string[];
   /**
+   * La société destinataire : son nom, et l'URL publique de son logo si elle
+   * en a déposé un.
+   *
+   * ⚠ LE NOM EST OBLIGATOIRE, LE LOGO NE L'EST PAS, ET C'EST L'INVERSE DE CE
+   *   QU'ON CROIT EN LE CONCEVANT. Outlook bloque les images distantes par
+   *   défaut : tant que le salarié n'a pas cliqué sur « Télécharger les
+   *   images », AUCUN des deux logos ne s'affiche. Le nom écrit en toutes
+   *   lettres est donc ce qui porte l'appartenance ; le logo l'appuie quand il
+   *   arrive. Ne jamais remplacer le nom par le logo.
+   */
+  societe?: { nom: string; logo?: string | null } | null;
+  /**
+   * URL publique du logo Safentreprise, pour la mention éditeur.
+   * Absente : la mention reste, en texte seul.
+   */
+  logoEditeur?: string | null;
+  /**
    * Identifiant de la ligne `graph_analyses` qui pose cette bannière.
    *
    * ⚠ C'EST CE QUI PERMET DE RETROUVER UN MESSAGE DONT L'IDENTIFIANT A CHANGÉ.
@@ -289,6 +306,115 @@ function resumerMotif(signal?: string): string {
   return (espace > 40 ? coupe.slice(0, espace) : coupe).replace(/[ ,;:.]+$/, "") + "…";
 }
 
+/* --------------------------------------------------------------------------
+   Les deux logos
+   -------------------------------------------------------------------------- */
+
+/**
+ * Hauteur d'affichage du logo client, en pixels.
+ *
+ * ⚠ C'EST UNE HAUTEUR, PAS UNE LARGEUR, ET C'EST DÉLIBÉRÉ. Un client dépose
+ *   ce qu'il veut : un carré, une bande de 10:1, un fichier de 3000 px. En
+ *   fixant la HAUTEUR par l'attribut `height` — que le moteur de Word respecte,
+ *   contrairement à `max-width` — l'image se met à l'échelle en gardant ses
+ *   proportions, quelle que soit sa taille d'origine.
+ *
+ * ⚠ CE QUE ÇA NE RÈGLE PAS, ET IL FAUT LE SAVOIR. Un logo très horizontal —
+ *   10:1 — fera 320 px de large à 32 px de haut. `max-width` le bride dans les
+ *   clients modernes, mais Outlook pour Windows l'ignore : la cellule
+ *   s'élargira. Le seul remède complet est de relever les dimensions du fichier
+ *   AU MOMENT DU TÉLÉVERSEMENT et d'écrire `width` ET `height` dans la balise.
+ *   Tant que ce n'est pas fait, c'est la limite connue de ce composant.
+ */
+const HAUTEUR_LOGO_CLIENT = 32;
+const LARGEUR_MAX_LOGO_CLIENT = 150;
+
+/**
+ * Le bloc identitaire du client : son logo s'il en a un, son nom toujours.
+ *
+ * ⚠ `alt` PORTE LE NOM, PAS « logo ». Quand Outlook bloque l'image — c'est
+ *   le cas par défaut — c'est le texte de remplacement qui s'affiche à la
+ *   place. Écrire `alt="logo"` donnerait un cadre vide portant le mot
+ *   « logo » ; écrire le nom de la société fait que le message reste
+ *   attribué même sans image.
+ */
+function blocSociete(
+  societe: ContenuBanniere["societe"],
+  couleurTexte: string,
+  police: string,
+): string {
+  if (!societe?.nom) return "";
+  const nom = echapper(societe.nom);
+
+  const image = societe.logo
+    ? `<img src="${echapper(societe.logo)}" alt="${nom}" ` +
+      `height="${HAUTEUR_LOGO_CLIENT}" ` +
+      `style="height:${HAUTEUR_LOGO_CLIENT}px;width:auto;` +
+      `max-width:${LARGEUR_MAX_LOGO_CLIENT}px;display:block;` +
+      `margin:0 0 4px auto;border:0;" />`
+    : "";
+
+  return (
+    `<td align="right" valign="top" ` +
+    `style="padding:0 0 0 16px;white-space:nowrap;">` +
+    image +
+    `<span style="${police}font-size:12px;font-weight:600;` +
+    `color:${couleurTexte};">${nom}</span>` +
+    `</td>`
+  );
+}
+
+/**
+ * La mention éditeur, en bas à droite.
+ *
+ * ⚠ LE LOGO EST EN MARINE ET NOIR, DONC INVISIBLE SUR FOND SOMBRE. Deux
+ *   précautions, parce qu'aucune ne suffit seule :
+ *
+ *     1. LA MENTION EST DU TEXTE. « Powered by Safentreprise » est écrit, pas
+ *        dessiné. Un client de messagerie recolore le texte intelligemment en
+ *        thème sombre ; il ne recolore jamais l'intérieur d'un PNG. Si l'image
+ *        ne s'affiche pas — bloquée, sombre, cassée — la mention tient.
+ *
+ *     2. LE LOGO EST POSÉ SUR UNE PASTILLE BLANCHE EXPLICITE. `bgcolor` sur la
+ *        cellule, plus `background-color` en ligne : c'est la déclaration que
+ *        les moteurs de thème sombre respectent le mieux. Un fond forcé sous
+ *        le logo garde le marine lisible même si la bannière est assombrie.
+ *
+ *   ⚠ CE QU'ON N'A PAS FAIT, ET POURQUOI. Une variante claire du logo
+ *     basculée par `prefers-color-scheme` aurait été plus élégante. Elle
+ *     suppose un `<style>`, qu'Outlook pour Windows ignore complètement et
+ *     que Gmail retire dans certains contextes. Toute cette bannière est en
+ *     styles en ligne pour cette raison ; une règle @media y serait la seule
+ *     chose à ne pas fonctionner là où le produit est le plus utilisé.
+ */
+const LARGEUR_LOGO_EDITEUR = 120;
+
+function mentionEditeur(logo: string | null | undefined, police: string): string {
+  const texte =
+    `<span style="${police}font-size:11px;color:#8a94a6;` +
+    `vertical-align:middle;">Powered by</span>`;
+
+  if (!logo) {
+    return (
+      texte +
+      ` <span style="${police}font-size:11px;font-weight:600;` +
+      `color:#8a94a6;vertical-align:middle;">Safentreprise</span>`
+    );
+  }
+
+  return (
+    texte +
+    ` <span bgcolor="#ffffff" style="background-color:#ffffff;` +
+    `border-radius:10px;padding:3px 8px;display:inline-block;` +
+    `vertical-align:middle;">` +
+    `<img src="${echapper(logo)}" alt="Safentreprise" ` +
+    `width="${LARGEUR_LOGO_EDITEUR}" ` +
+    `style="width:${LARGEUR_LOGO_EDITEUR}px;height:auto;display:block;` +
+    `border:0;" />` +
+    `</span>`
+  );
+}
+
 export function construireBanniere(contenu: ContenuBanniere): string {
   const apparence = APPARENCE[contenu.niveau] ?? APPARENCE.faible;
   const police =
@@ -339,7 +465,10 @@ export function construireBanniere(contenu: ContenuBanniere): string {
       ) +
       `<p style="margin:0;">` +
       `${apparence.picto} Safentreprise — ${echapper(apparence.titre)}` +
-      (motif ? ` · ${echapper(motif)}` : "") +
+      // ⚠ DEUX-POINTS, PAS UN POINT MÉDIAN. Le document l'interdit entre deux
+      //   mots, et la règle vaut ici comme ailleurs : ce qui suit le titre
+      //   n'est pas un élément de liste, c'est son motif.
+      (motif ? ` : ${echapper(motif)}` : "") +
       `</p>` +
       `</div>`;
 
@@ -354,6 +483,14 @@ export function construireBanniere(contenu: ContenuBanniere): string {
 
   const conseil = CONSEIL[contenu.niveau];
 
+  // ⚠ UN TABLEAU, PAS DES <div> IMBRIQUÉES. L'invariant du retrait coupe du
+  //   `<div data-safentreprise` jusqu'au PREMIER `</div>` : une seule div
+  //   imbriquée rendrait la restauration fausse, donc un faux positif
+  //   défiguré à jamais. Un `<table>` ne pose pas ce problème, et c'est de
+  //   toute façon la seule mise en page sur laquelle Outlook pour Windows est
+  //   fiable — il n'a ni flexbox ni grille.
+  const celluleSociete = blocSociete(contenu.societe, apparence.texte, police);
+
   const corps =
     ouverture(
       `background:${apparence.fond};` +
@@ -361,6 +498,10 @@ export function construireBanniere(contenu: ContenuBanniere): string {
         `color:${apparence.texte};` +
         `padding:12px 16px;margin:0 0 16px 0;font-size:14px;${police}`,
     ) +
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" ` +
+    `width="100%" style="width:100%;border-collapse:collapse;">` +
+    `<tr>` +
+    `<td valign="top" style="color:${apparence.texte};font-size:14px;${police}">` +
     `<p style="margin:0 0 8px 0;font-weight:600;font-size:15px;">` +
     `${apparence.picto} Safentreprise — ${echapper(apparence.titre)}` +
     `</p>` +
@@ -368,6 +509,16 @@ export function construireBanniere(contenu: ContenuBanniere): string {
     (conseil
       ? `<p style="margin:0;font-size:13px;">${echapper(conseil)}</p>`
       : "") +
+    `</td>` +
+    celluleSociete +
+    `</tr>` +
+    `<tr>` +
+    `<td colspan="${celluleSociete ? 2 : 1}" align="right" ` +
+    `style="padding:10px 0 0 0;">` +
+    mentionEditeur(contenu.logoEditeur, police) +
+    `</td>` +
+    `</tr>` +
+    `</table>` +
     `</div>`;
 
   return MARQUEUR_DEBUT + corps + MARQUEUR_FIN;
