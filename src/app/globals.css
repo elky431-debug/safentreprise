@@ -213,8 +213,9 @@
 
    ⚠ LES QUATRE POLICES DE LA VITRINE ONT DISPARU LE 17 SEPTEMBRE 2026, et ce
      bloc est ce qui reste après. Ce fichier portait ici Inter pour le texte,
-     Source Serif pour les h1/h2, Bricolage Grotesque pour le titre du hero, et
-     `.serif-vitrine` pour les h3 qui voulaient du serif. Mesuré sur la
+     Source Serif pour les h1/h2, et `.serif-vitrine` pour les h3 qui voulaient
+     du serif. (Bricolage Grotesque, elle, est REVENUE le soir même sur le seul
+     titre du hero — exception cadrée, voir plus bas et dans le document.) Mesuré sur la
      construction de production, `/` servait quatre familles et Sora n'y
      apparaissait pas une seule fois.
 
@@ -227,10 +228,9 @@
      chaleureuse que l'outil est un décalage de promesse.
 
    ⚠ CE QUI EST TOMBÉ AVEC ELLES, POUR NE PAS LE RECHERCHER. La règle du titre
-     de hero en Bricolage portait quatre avertissements et un réglage à trois
-     valeurs (600 / -0.03em / la hauteur du pli) : tout cela visait à faire
-     tenir une police que la vitrine n'utilise plus. `.serif-vitrine` n'a plus
-     d'objet non plus, puisqu'il n'y a plus de serif à atteindre. Les deux sont
+     `.serif-vitrine` n'a plus d'objet, puisqu'il n'y a plus de serif à
+     atteindre. Le réglage à trois valeurs du titre de hero (600 / -0.03em / la
+     hauteur du pli), lui, a été repris tel quel quand la police est revenue. Les deux sont
      neutralisées dans `.canevas-app` depuis la v2 ; elles n'ont simplement
      plus rien à neutraliser ici.
 
@@ -680,6 +680,64 @@ body {
 .canevas-app.vitrine {
   --respiration-section: 96px;
   --respiration-bloc: 32px;
+}
+
+/* ⚠ L'ACCENT DE TEXTE REVIENT SUR LA VITRINE, ET LUI SEUL.
+     `.canevas-app` pose `--accent-text: var(--encre)` : c'est la règle « un
+     bouton principal est un aplat d'encre, pas un aplat de marque », et elle
+     ne bouge pas. Mais elle a emporté avec elle les 13 endroits où la vitrine
+     colorait du TEXTE — dont deux titres : « boîte mail » dans le hero et
+     « protéger durablement » dans le triptyque. Une landing qui met en
+     couleur la moitié d'une promesse ne fait pas de la décoration, elle rend
+     la phrase lisible d'un coup d'œil.
+
+   ⚠ `--accent` N'EST PAS RESTAURÉ, SEULEMENT `--accent-text`. Les boutons
+     restent en encre des deux côtés de la connexion. Ce sont deux jetons
+     distincts précisément pour permettre ça.
+
+   ⚠ ET L'EFFET EST PLUS FAIBLE QU'AVANT LA BASCULE, C'EST MESURÉ. L'accent
+     `#17356B` ressortait contre l'ancienne encre `#101828`, presque neutre :
+     1,49:1 de luminance et 22 points de saturation d'écart. La nouvelle encre
+     `#0D1F3C` est elle-même un marine saturé — même teinte à 2° près, même
+     saturation — et il ne reste que 1,38:1 d'écart de CLARTÉ. L'accent n'a pas
+     disparu du code, c'est l'encre qui est venue à sa rencontre.
+
+     Aucun autre jeton du système ne fait mieux : `--marine` est encore plus
+     proche (1,06:1), `--encre-douce` recule au lieu d'avancer, et les trois
+     couleurs de risque sont réservées au risque. Le jour où cet accent devra
+     vraiment porter, il faudra une valeur nouvelle et une décision — pas un
+     jeton détourné. */
+.canevas-app.vitrine {
+  --accent-text: var(--clair-accent-text);
+}
+
+/* ⚠ LA SEULE SECONDE FAMILLE DU PRODUIT, ET ELLE TIENT SUR UN SÉLECTEUR.
+     Bricolage Grotesque est autorisée sur `h1.titre-hero`, c'est-à-dire le
+     titre du hero de la page d'accueil, et nulle part ailleurs. Le motif est
+     dans le document, section « La vitrine suit la direction » : c'est le
+     premier élément qu'un prospect voit, et il a le droit d'avoir une voix à
+     lui. Ce motif ne vaut pour AUCUN autre titre.
+
+   ⚠ NE PAS ÉLARGIR LE SÉLECTEUR. `h1.titre-hero` exige la balise ET la classe,
+     et la classe n'est posée qu'une fois dans tout `src/`. Passer à
+     `.titre-hero` seul, ou poser la classe sur un second titre, rouvrirait la
+     règle d'une seule famille sans que personne ait à la rouvrir.
+
+   ⚠ POURQUOI UNE RÈGLE PLUTÔT QU'UN UTILITAIRE. `.canevas-app` pose sa police
+     sur le conteneur, donc par HÉRITAGE ; une règle qui vise directement
+     l'élément l'emporte, quelle que soit la profondeur. C'est ce qui permet à
+     cette exception de tenir sans `!important`.
+
+   ⚠ LES TROIS VALEURS VONT ENSEMBLE, comme dans la version d'avant la bascule.
+     Le 600 donne la présence que la taille seule ne donne pas à une grotesque ;
+     l'approche serrée à -0.03em resserre un dessin naturellement large, sans
+     quoi le titre gagne une ligne et le hero repasse sous le pli. Changer
+     l'une sans revérifier la hauteur du hero défait le réglage du pli. */
+h1.titre-hero,
+.canevas-app h1.titre-hero {
+  font-family: var(--font-bricolage), system-ui, "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 /* ---- La pastille de risque ---- */

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Bricolage_Grotesque } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { LandingHero } from "@/components/LandingHero";
 import { BandeMotifs } from "@/components/BandeMotifs";
@@ -28,6 +29,30 @@ const METRICS = [
 ];
 
 /** Page d'accueil publique. */
+/**
+ * Bricolage Grotesque — le titre du hero de la page d'accueil, et rien d'autre.
+ *
+ * ⚠ C'EST UNE EXCEPTION À LA RÈGLE D'UNE SEULE FAMILLE, ET ELLE EST CADRÉE.
+ *   Le document la borne à `h1.titre-hero` sur `/`. Partout ailleurs, des deux
+ *   côtés de la connexion, c'est Sora. Le motif : c'est le premier élément
+ *   qu'un prospect voit, et il a le droit d'avoir une voix à lui. Ce motif ne
+ *   vaut pour aucun autre titre — un deuxième usage rouvrirait la règle.
+ *
+ * ⚠ `weight: "600"` : UN FICHIER STATIQUE, PAS L'AXE VARIABLE. Sans cette clé,
+ *   `next/font` sert le fichier variable, qui couvre 200 à 800 pour un seul
+ *   titre qui n'en demande qu'une. Le 600 reste un vrai dessin de la fonte,
+ *   pas un gras synthétique. Le relevé de poids est dans le document.
+ *
+ * ⚠ LES AXES `opsz` ET `wdth` NE SONT PAS DEMANDÉS — sans objet sur un
+ *   statique, et c'est une raison de plus de le préférer ici.
+ */
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin"],
+  weight: "600",
+  display: "swap",
+});
+
 export default async function HomePage() {
   // Ne pas faire planter la landing si Supabase n'est pas configuré (Netlify).
   let user: { id: string } | null = null;
@@ -45,8 +70,17 @@ export default async function HomePage() {
     // `theme-clair` est resté sur la vitrine par cohérence de lecture, mais
     // il ne bascule plus rien : depuis l'alignement sur la charte, `:root`
     // porte déjà le blanc. Il ne sert plus qu'aux îlots clairs des bandes
-    // marine, et à distinguer la police de la vitrine de celle de l'app.
-    <div className="canevas-app vitrine theme-clair flex min-h-screen flex-col bg-background">
+    // marine.
+    //
+    // ⚠ `bricolage.variable` EST POSÉE ICI ET PAS SUR `<html>`, ET C'EST UNE
+    //   QUESTION DE POIDS. Déclarée dans le layout racine, la police partait
+    //   sur TOUTES les pages — 21,8 Ko mesurés sur `/diagnostic` et `/tarifs`,
+    //   qui n'ont pas de hero et ne la dessinent jamais. `next/font` ne joint
+    //   la feuille de la police qu'aux routes dont un module l'importe : la
+    //   déclarer dans cette page suffit à l'y borner.
+    <div
+      className={`${bricolage.variable} canevas-app vitrine theme-clair flex min-h-screen flex-col bg-background`}
+    >
       {/* Navigation */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-4 px-6 lg:px-8">

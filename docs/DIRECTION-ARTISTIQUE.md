@@ -340,6 +340,82 @@ son réglage à trois valeurs. C'était un bon choix dans une charte où la vitr
 avait sa propre typographie ; cette charte n'existe plus. La taille et la
 graisse du titre n'ont pas bougé, seule la famille.
 
+### Bricolage Grotesque — la seule exception de typographie
+
+**Arrêtée le 17 septembre 2026, après l'avoir retirée le matin même.** La règle
+d'ouverture reste « une seule famille ». Elle souffre **une** exception :
+
+> **Bricolage Grotesque est autorisée sur `h1.titre-hero`, le titre du hero de
+> la page d'accueil. Nulle part ailleurs.**
+
+Le motif, et il ne vaut que là : **c'est le premier élément qu'un prospect
+voit, et il a le droit d'avoir une voix à lui.** Tout le reste du site — y
+compris les autres titres de la même page — est en Sora. Un deuxième usage ne
+serait pas une extension de cette exception, ce serait la réouverture de la
+règle.
+
+Trois garde-fous, parce qu'une exception qui n'est pas bornée s'étend toute
+seule :
+
+1. **Le sélecteur exige la balise ET la classe** (`h1.titre-hero`), et la
+   classe n'est posée qu'une fois dans tout `src/`.
+2. **La police est déclarée dans `src/app/page.tsx`, pas dans le layout
+   racine.** `next/font` ne joint la feuille qu'aux routes qui l'importent :
+   une autre page qui voudrait s'en servir devrait d'abord la déclarer, donc
+   passer par ici.
+3. **Une seule graisse**, en fichier statique.
+
+**Ce que l'exception coûte, mesuré sur la construction de production :**
+
+| | `/` | `/diagnostic`, `/tarifs` |
+|---|---|---|
+| Sans Bricolage | 72,4 Ko | 72,4 Ko |
+| Bricolage variable, dans le layout | 112,7 Ko | 112,7 Ko |
+| **Bricolage 600, dans la page** | **94,2 Ko** | **72,4 Ko** |
+
+Deux gaspillages écartés, et les deux étaient invisibles sans la mesure :
+
+- **L'axe variable coûtait 40,3 Ko pour un seul titre.** Il couvre 200 à 800 ;
+  le hero demande 600. Le statique fait **21,8 Ko — 46 % de moins.**
+- **Déclarée dans le layout racine, elle partait sur toutes les pages**, y
+  compris celles qui n'ont pas de hero et ne la dessinent jamais. Déclarée dans
+  la page, elle ne quitte plus `/`.
+
+**Coût net de l'exception : 21,8 Ko, sur la seule page qui l'utilise.**
+
+### L'accent de texte, et pourquoi il avait disparu
+
+`.canevas-app` pose `--accent-text: var(--encre)` — c'est la règle « un bouton
+principal est un aplat d'encre, pas un aplat de marque », et elle ne bouge pas.
+Mais elle a emporté avec elle **les treize endroits où la vitrine colorait du
+texte**, dont deux titres : « boîte mail » dans le hero, « protéger
+durablement » dans le triptyque.
+
+`.canevas-app.vitrine` restaure **`--accent-text` seul**. `--accent` n'est pas
+touché : les boutons restent en encre des deux côtés de la connexion. Les deux
+jetons sont distincts précisément pour permettre ça.
+
+> **Le `<span>` n'avait jamais disparu du code. C'est l'encre qui est venue à
+> la rencontre de l'accent.**
+
+| | luminance accent/encre | écart de teinte | écart de saturation |
+|---|---|---|---|
+| Avant (encre `#101828`) | 1,49:1 | 1° | **22 points** |
+| Après (encre `#0D1F3C`) | 1,38:1 | 2° | **0 point** |
+
+L'ancienne encre était presque neutre ; l'accent `#17356B` s'en détachait par
+sa saturation. La nouvelle encre est **elle-même un marine saturé**, de la même
+teinte : il ne reste qu'un écart de clarté de onze points.
+
+**Vérifié à l'écran, et le chiffre sous-estime l'effet** : à 50 px, onze points
+de clarté se lisent — le contraste WCAG ne mesure que la luminance et ignore
+qu'un mot entier change de ton. Mais l'accent est **objectivement plus faible
+qu'avant**, et ce n'est pas rattrapable avec les jetons existants : `--marine`
+est encore plus proche de l'encre (1,06:1), `--encre-douce` recule au lieu
+d'avancer, et les trois couleurs de risque sont réservées au risque. **Le jour
+où cet accent devra vraiment porter, il faudra une valeur nouvelle et une
+décision — pas un jeton détourné.**
+
 ### Le voyant de la bande de motifs — la seule exception de couleur
 
 Le point rouge qui précède chaque motif de la bande marine **reste vif**, et il
