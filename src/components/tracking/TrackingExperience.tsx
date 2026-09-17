@@ -104,7 +104,16 @@ export function TrackingExperience({ token, cible, questions }: Props) {
   }
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    // ⚠ `canevas-app` SANS `vitrine`. C'est la dernière surface publique
+    //   entrée sous la direction artistique, le 17 septembre 2026, et elle
+    //   devait l'être pour que `--clair-danger` puisse enfin être supprimé :
+    //   tant qu'une page vivait hors du canevas, elle lisait `--danger` hérité
+    //   de `:root`, et retirer le jeton y aurait fait DISPARAÎTRE le rouge au
+    //   lieu de le changer.
+    //
+    //   Pas d'échelle élargie : un salarié qui répond au quiz après avoir
+    //   cliqué n'est pas un prospect qu'on démarche, il lit un écran de travail.
+    <div className="canevas-app min-h-dvh bg-background text-foreground">
       <header className="border-b border-border bg-surface px-4 py-4">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <Logo />

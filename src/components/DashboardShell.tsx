@@ -105,10 +105,14 @@ type AppShellProps = {
  */
 export function AppShell({ companyName, userEmail, children }: AppShellProps) {
   return (
-    /* ⚠ `canevas-app` PORTE TOUTE LA DIRECTION ARTISTIQUE, ET ELLE S'ARRÊTE ICI.
-         La classe redéfinit polices, palette, rayons et échelle sur ce
-         sous-arbre ; la vitrine, qui ne la porte pas, garde Bricolage et Source
-         Serif jusqu'à sa propre passe. Voir `docs/DIRECTION-ARTISTIQUE.md`.
+    /* ⚠ `canevas-app` PORTE TOUTE LA DIRECTION ARTISTIQUE. La classe redéfinit
+         polices, palette, rayons et échelle sur ce sous-arbre.
+
+       ⚠ ELLE NE S'ARRÊTE PLUS ICI, DEPUIS LE 17 SEPTEMBRE 2026. La vitrine, la
+         connexion et l'écran de simulation la portent aussi ; la vitrine y
+         ajoute `vitrine`, qui n'élargit QUE l'échelle. Une modification de ce
+         bloc touche donc tout le produit, plus seulement l'espace connecté.
+         Voir `docs/DIRECTION-ARTISTIQUE.md`.
 
        ⚠ ELLE REMPLACE `canevas-releve`, qui posait un papier chaud et des
          titres en serif. Le document les nomme comme la signature du design

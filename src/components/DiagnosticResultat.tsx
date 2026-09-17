@@ -65,10 +65,34 @@ import { IconArrowRight, IconAlertTriangle, IconCheck } from "@/components/icons
 const RAYON = 88;
 const CIRCONFERENCE = 2 * Math.PI * RAYON;
 
-const TONS_PALIER: Record<Palier, string> = {
-  eleve: "border-danger/25 bg-danger-soft text-danger",
-  significatif: "border-warning/25 bg-warning-soft text-warning",
-  modere: "border-border bg-surface-2 text-muted",
+/**
+ * ⚠ `--eleve` ET PAS `--danger`, ARRÊTÉ LE 17 SEPTEMBRE 2026. Un score
+ *   d'exposition est une DONNÉE de risque, exactement comme un niveau de
+ *   menace dans le tableau de bord — pas une panne du produit. C'est aussi ce
+ *   qui aligne l'écran sur le mail : `diagnostic-email.ts` porte `#9D3F49`
+ *   depuis la passe précédente, et un prospect voyait son résultat d'une
+ *   couleur à l'écran et d'une autre dans sa boîte.
+ *
+ * ⚠ ET C'EST POUR ÇA QU'ON NE DÉCOLORE PAS. L'option « neutre partout » a été
+ *   écartée délibérément : le diagnostic est l'outil de conviction du produit,
+ *   et un dirigeant qui découvre son exposition doit VOIR que le résultat est
+ *   mauvais. Retirer la couleur ici, c'est retirer le signal au seul endroit
+ *   où il travaille.
+ *
+ * ⚠ L'AMBRE, LUI, RESTE DÉSALIGNÉ, ET C'EST UNE LIMITE CONNUE. Dans le mail,
+ *   le palier « significatif » garde `#8F5F00` : `--modere` y serait du TEXTE
+ *   sur fond ambre pâle, à 4,11:1, sous le seuil AA de 4,5:1. Ici il est sur
+ *   fond clair et passe. Une teinte choisie pour un fond ne se transporte pas
+ *   telle quelle sur un autre — même leçon que le voyant de la bande de
+ *   motifs. Voir le document, section « La vitrine suit la direction ».
+ */
+const TONS_PALIER: Record<Palier, { classes: string; bord: string }> = {
+  eleve: { classes: "bg-eleve-soft text-eleve", bord: "var(--eleve)" },
+  significatif: {
+    classes: "bg-warning-soft text-warning",
+    bord: "var(--warning)",
+  },
+  modere: { classes: "bg-surface-2 text-muted", bord: "var(--border)" },
 };
 
 export function DiagnosticResultat({
@@ -237,9 +261,17 @@ function Anneau({
         </div>
       </div>
 
+      {/* ⚠ LE LISERÉ EST EN LIGNE, ET IL DOIT LE RESTER. `border-eleve/25`
+          était écrit ici et ne s'appliquait PAS : la règle balai
+          `* { border-color: var(--border) }` de globals.css n'est dans aucune
+          couche, donc elle bat tous les utilitaires de bordure. La pastille
+          portait un liseré gris depuis toujours, sans que personne le voie —
+          constaté le 17 septembre 2026 en relisant la couleur calculée, pas le
+          code. Le même piège est documenté dans `SecteursOnglets`. */}
       <p
         aria-hidden
-        className={`mt-5 rounded-full border px-3.5 py-1.5 text-[13px] font-medium ${TONS_PALIER[palier]}`}
+        style={{ borderColor: TONS_PALIER[palier].bord }}
+        className={`mt-5 rounded-full border px-3.5 py-1.5 text-[13px] font-medium ${TONS_PALIER[palier].classes}`}
       >
         {LIBELLE_PALIER[palier]}
       </p>

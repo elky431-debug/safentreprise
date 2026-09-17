@@ -41,7 +41,7 @@ export default async function TrackingPage({
 
   if (error || !cible?.token_unique) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-background px-4">
+      <div className="canevas-app flex min-h-dvh items-center justify-center bg-background px-4">
         <div className="max-w-md rounded-xl border border-border bg-surface px-6 py-10 text-center">
           <p className="text-[15px] font-semibold text-foreground">
             Lien invalide ou expiré

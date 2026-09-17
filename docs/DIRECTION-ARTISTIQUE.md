@@ -378,11 +378,76 @@ tentative est grave ». Un exemple pédagogique portait donc l'intensité d'une
 alarme produit. Ces surfaces passent à `--eleve` ; `--danger` reste sur les
 messages d'erreur, qui sont bien des pannes.
 
-### `--clair-danger` meurt à la fin de cette passe, pas avant
+### `--clair-danger` est mort en dernier, et c'était l'ordre à tenir
 
-Tant qu'une page publique lit `--danger` hérité de `:root`, le supprimer fait
-**disparaître** le rouge au lieu de le changer. Il se retire une fois toutes les
-surfaces basculées, et pas une étape plus tôt.
+Tant qu'une page publique lisait `--danger` hérité de `:root`, le supprimer
+aurait fait **disparaître** le rouge au lieu de le changer. Il est donc tombé
+une fois la dernière surface — `/t/[token]`, l'écran que voit un salarié qui a
+cliqué — entrée sous le canevas.
+
+Ce qui reste est plus simple qu'avant : **`--danger` a une seule valeur.** Le
+fichier en portait deux sous le même nom — `#c0392b` à `:root`, `#c8102e` dans
+`.canevas-app` — et laquelle s'appliquait dépendait de l'endroit où l'on se
+trouvait. La redéfinition dans `.canevas-app` a disparu avec.
+
+### Une teinte se transporte avec son rôle, pas avec sa valeur
+
+**C'est la même leçon, rencontrée trois fois dans la même passe**, et elle vaut
+d'être énoncée une fois pour toutes :
+
+| | ce qui marchait | ce qui aurait cassé |
+|---|---|---|
+| Le voyant | `#F2564D` sur marine, 4,58:1 | `--eleve`, 2,39:1 — invisible |
+| L'ambre du diagnostic | `#8F5F00` en texte, 4,90:1 | `--modere`, 4,11:1 — sous AA |
+| Le liseré modéré | `--modere` en objet graphique, 4,32:1 | conforme : seuil 3:1, pas 4,5:1 |
+
+> Les teintes sourdes de cette direction ont été choisies **pour du texte et
+> des aplats sur fond clair**. Posées sur marine, elles perdent leur contraste ;
+> posées en texte sur un fond teinté, elles passent sous le seuil AA. Le même
+> jeton est juste ou faux selon le fond et selon le rôle.
+
+**Conséquence assumée : l'ambre du mail de diagnostic reste désaligné.** Le
+palier « significatif » est `--modere` à l'écran, sur fond clair, et `#8F5F00`
+dans le mail, sur fond ambre pâle. Ce n'est **pas un oubli**, c'est le prix
+d'un texte qui reste lisible. Le rouge, lui, s'aligne aux deux endroits, parce
+que rien ne l'en empêche.
+
+Ne pas « finir l'alignement » sans remesurer sur le fond réel et pour le rôle
+réel. La mesure prend une minute ; elle a déjà évité deux régressions ici.
+
+### Le score du diagnostic se colore, et on ne le décolore pas
+
+`--eleve` à l'écran comme dans le mail. Un score d'exposition est une **donnée
+de risque**, au même titre qu'un niveau de menace dans le tableau de bord.
+
+L'option « neutre partout » a été écartée délibérément, et la raison mérite
+d'être écrite : **le diagnostic est l'outil de conviction du produit.** Un
+dirigeant qui découvre son exposition doit voir que le résultat est mauvais.
+Retirer la couleur ici, c'est retirer le signal au seul endroit où il travaille.
+
+### Deux défauts que seule la couleur calculée pouvait montrer
+
+Vérifier la bascule en **relisant la couleur rendue** plutôt que le code a fait
+sortir deux choses que personne ne cherchait.
+
+**1. Le liseré de la pastille de palier était gris depuis toujours.** Le code
+portait bien `border-eleve/25` — et cette classe ne s'appliquait pas : la règle
+balai `* { border-color: var(--border) }` n'est dans aucune couche, donc elle
+bat tous les utilitaires de bordure. Le liseré est désormais posé en style en
+ligne. Le même piège est documenté dans `SecteursOnglets` ; il a coûté deux
+fois.
+
+**2. `--warning` avait deux valeurs, et la bascule a déplacé le défaut sous
+l'œil.** `:root` portait `#8F5F00`, `.canevas-app` portait `#B5670A`. En
+faisant entrer `/diagnostic` sous le canevas, le bloc « Nous ne couvrons pas
+encore cette messagerie » est passé de l'un à l'autre — **de 5,06:1 à 3,92:1**
+sur son propre fond, sous le seuil AA. Le défaut existait déjà pour tout
+`text-warning` de l'application ; la bascule l'a seulement amené là où on
+regardait. `#8F5F00` est maintenant la seule valeur.
+
+> **Une classe posée n'est pas une propriété appliquée**, et un jeton défini
+> deux fois n'a pas de valeur, il en a deux. Les deux ne se voient qu'en lisant
+> ce que le navigateur calcule.
 
 ---
 

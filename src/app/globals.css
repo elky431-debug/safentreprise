@@ -55,17 +55,28 @@
      ⚠ RÉSERVÉS AUX ALERTES ET AUX NIVEAUX DE RISQUE. Ce ne sont pas des
        couleurs décoratives : élevé en rouge, modéré en ambre, faible en gris.
 
-     ⚠ `--clair-danger` N'EST PAS MORT, MALGRÉ LES APPARENCES. Cherché le
-       17 septembre 2026 pour être supprimé, une fois les deux mails alignés
-       sur `--eleve`. Il sert toujours : `:root` fait `--danger:
-       var(--clair-danger)`, et la VITRINE vit hors de `.canevas-app`, donc
-       hors de la redéfinition `--danger: #c8102e`. Le supprimer rendrait
-       `--danger` indéfini sur `src/app/page.tsx` et `src/app/t/[token]`, où
-       `SecteursOnglets`, `FraudEmailExample`, `DiagnosticResultat` et
-       `TrackingExperience` s'en servent — le rouge y disparaîtrait au lieu de
-       changer. Il mourra avec la passe vitrine, pas avant. */
-  --clair-danger: #c0392b;
-  --clair-danger-soft: rgba(192, 57, 43, 0.08);
+     ⚠ `--clair-danger` A ÉTÉ SUPPRIMÉ LE 17 SEPTEMBRE 2026, EN DERNIER. Il
+       portait `#c0392b`, un rouge que rien dans la direction artistique ne
+       nomme, et `:root` faisait `--danger: var(--clair-danger)`. Tant qu'une
+       page vivait hors de `.canevas-app`, elle lisait ce jeton : le retirer
+       plus tôt aurait fait DISPARAÎTRE le rouge au lieu de le changer. Il est
+       donc tombé une fois la dernière surface publique — `/t/[token]` —
+       entrée sous le canevas, et pas une étape avant.
+
+       Ce qui reste est plus simple qu'avant : `--danger` a UNE valeur, écrite
+       ici, au lieu d'une valeur claire et d'une redéfinition dans
+       `.canevas-app`.
+
+     ⚠ `--warning` A SUIVI, ET ÇA A CORRIGÉ UN DÉFAUT QUE LA BASCULE AVAIT
+       RÉVÉLÉ. `.canevas-app` portait `#b5670a` quand `:root` portait
+       `#8f5f00`. En faisant entrer `/diagnostic` sous le canevas, le bloc
+       « Nous ne couvrons pas encore cette messagerie » est passé de l'un à
+       l'autre — et donc de 5,06:1 à 3,92:1 sur son propre fond, SOUS le seuil
+       AA de 4,5:1. Le défaut existait déjà dans l'application pour tout
+       `text-warning` ; la bascule n'a fait que l'amener là où on l'a vu.
+       `#8f5f00` est la seule valeur, elle tient 5,52:1 sur blanc, et elle
+       reste franchement distincte de `--modere` (#9A6B39), qui est un ambre
+       grisé quand celui-ci est un or pur. */
   --clair-success: #14804a;
   --clair-success-soft: rgba(20, 128, 74, 0.09);
   --clair-warning: #8f5f00;
@@ -129,8 +140,15 @@
   --accent-soft: var(--clair-accent-soft);
   --accent-line: var(--clair-accent-line);
 
-  --danger: var(--clair-danger);
-  --danger-soft: var(--clair-danger-soft);
+  /* ⚠ C'EST LE ROUGE D'UNE PANNE, PAS CELUI D'UN RISQUE, ET LES DEUX NE
+     DOIVENT PAS SE CONFONDRE. `--danger` dit « la surveillance est
+     interrompue » — un geste technique à faire. `--eleve` dit « cette
+     tentative est grave » — une donnée. Même teinte, 92 % de saturation
+     contre 60 %. Ne pas poser `--danger` sur une illustration ni sur un
+     niveau de risque : la vitrine le faisait, et un exemple pédagogique y
+     portait l'intensité d'une alarme produit. */
+  --danger: #c8102e;
+  --danger-soft: rgba(200, 16, 46, 0.07);
   --success: var(--clair-success);
   --success-soft: var(--clair-success-soft);
   --warning: var(--clair-warning);
@@ -252,8 +270,10 @@
   --accent-soft: var(--clair-accent-soft);
   --accent-line: var(--clair-accent-line);
 
-  --danger: var(--clair-danger);
-  --danger-soft: var(--clair-danger-soft);
+  /* Réapplication, pas redéfinition : la valeur et son motif sont en tête de
+     fichier, sur `:root`. */
+  --danger: #c8102e;
+  --danger-soft: rgba(200, 16, 46, 0.07);
   --success: var(--clair-success);
   --success-soft: var(--clair-success-soft);
   --warning: var(--clair-warning);
@@ -350,10 +370,11 @@ body {
      nomme comme la signature du design générique qu'il fallait retirer. Ne pas
      les réintroduire par morceaux.
 
-   ⚠ LA PORTÉE S'ARRÊTE À `.canevas-app`. La vitrine publique garde Bricolage
-     Grotesque et Source Serif jusqu'à sa propre passe — décision du
-     15 septembre, écrite en tête du document. Redéfinir ces jetons dans
-     `:root` repeindrait la landing sans qu'on l'ait regardée.
+   ⚠ LA PORTÉE COUVRE TOUT LE PRODUIT DEPUIS LE 17 SEPTEMBRE 2026. Ce bloc ne
+     servait que l'espace connecté ; la vitrine, la connexion et l'écran de
+     simulation le portent maintenant aussi. Seule la vitrine ajoute `vitrine`,
+     qui n'élargit QUE l'échelle — jamais la police, les couleurs, les rayons
+     ni la casse. Une valeur changée ici se voit désormais sur la landing.
 
    ⚠ TROIS COULEURS, ET ELLES NE SERVENT QU'AU RISQUE. Rouge, ambre, vert
      n'apparaissent nulle part ailleurs : ni bouton, ni lien, ni graphique, ni
@@ -432,11 +453,15 @@ body {
 
      La couleur ne subsiste donc que sur une panne réelle du produit, jamais
      sur une donnée. Et le vert disparaît complètement : un état sain n'a rien
-     à signaler, il se dit en encre douce. */
-  --danger: #c8102e;
-  --danger-soft: rgba(200, 16, 46, 0.07);
-  --warning: #b5670a;
-  --warning-soft: rgba(181, 103, 10, 0.07);
+     à signaler, il se dit en encre douce.
+
+     ⚠ `--danger` N'EST PLUS REDÉFINI ICI, ET C'EST UN GAIN. Ce bloc portait
+       `#c8102e` pendant que `:root` portait `#c0392b` via `--clair-danger` :
+       deux rouges pour un même nom, selon qu'on était dans le canevas ou non.
+       Depuis que `--clair-danger` est supprimé, la valeur de `:root` EST la
+       bonne, et la recopier ici ne ferait que rouvrir l'écart au premier
+       ajustement. Idem pour `--warning` : voir le relevé de contraste en tête
+       de fichier. */
   --success: var(--encre-douce);
   --success-soft: rgba(13, 31, 60, 0.05);
 
