@@ -242,8 +242,8 @@ verifier(
 );
 
 verifier(
-  "modéré : encadré ambre, titre et conseil mesuré",
-  rendu.modere.includes("#d68910") &&
+  "modéré : liseré ambre sourd #9A6B39, titre et conseil mesuré",
+  rendu.modere.includes("#9a6b39") &&
     rendu.modere.includes("Signaux suspects") &&
     rendu.modere.includes("confirmez-le par un autre moyen"),
 );
@@ -253,8 +253,8 @@ verifier(
 );
 
 verifier(
-  "élevé : inchangé — rouge, titre et conseil impératif",
-  rendu.eleve.includes("#c0392b") &&
+  "élevé : liseré rouge sourd #9D3F49, titre et conseil impératif",
+  rendu.eleve.includes("#9d3f49") &&
     rendu.eleve.includes("Risque élevé de fraude") &&
     rendu.eleve.includes("appelez votre interlocuteur"),
 );
