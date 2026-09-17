@@ -349,9 +349,64 @@ différentes. Les liserés reprennent donc les jetons de risque.
 > qu'assourdir une couleur rend de la lisibilité au lieu d'en coûter — la
 > première étant l'ambre des pastilles, passé de 4,28:1 à 4,63:1.
 
-La mention éditeur est en `#63707f` : 4,61:1 sur le fond élevé, 4,72:1 sur
-l'ambre. L'ancien `#8A94A6` tombait à 2,79:1. **Discret ne veut pas dire
-illisible.**
+La mention éditeur est en `#63707f`. **Discret ne veut pas dire illisible** —
+et l'ancien `#8A94A6` l'était, sur les trois niveaux sans exception :
+
+| Fond | `#8A94A6` (avant) | `#63707F` (après) |
+|---|---|---|
+| Élevé `#FDF2F2` | 2,79:1 | 4,61:1 |
+| Modéré `#FEF6EC` | 2,86:1 | 4,72:1 |
+| Faible `#F1F2F4` | 2,73:1 | 4,51:1 |
+
+Seuil AA pour du texte : 4,5:1. Les trois valeurs de gauche sont à peu près la
+moitié du seuil.
+
+### Deux défauts trouvés en chemin, et ce que ça dit de la méthode
+
+Les deux blocs ci-dessus — le liseré ambre à 2,63:1, la mention éditeur sous le
+seuil partout — **n'étaient l'objet d'aucune des deux passes.** La première
+demandait d'aligner deux rouges, la seconde de retirer une image. Les défauts
+sont apparus parce qu'aligner une couleur oblige à mesurer l'ancienne, et que
+retirer une image oblige à regarder ce qui reste.
+
+Ils n'auraient été trouvés par aucune relecture, parce qu'à l'œil les deux
+rendus se ressemblent : un ambre pâle sur un fond pâle *a l'air* d'un choix de
+discrétion, pas d'un texte qu'une partie des lecteurs ne distingue pas. Seul le
+chiffre le dit.
+
+> **La règle qu'on en tire :** quand on touche une couleur, on mesure les deux
+> — celle qui part et celle qui arrive. Le coût est d'une minute, et c'est la
+> seule façon de savoir si on corrige ou si on dégrade. Deux fois sur deux
+> jusqu'ici, la mesure a trouvé quelque chose que personne ne cherchait.
+
+### Le même rouge dans les mails transactionnels
+
+L'argument du liseré — deux rouges pour une même gravité obligent le lecteur à
+se demander si c'est la même chose — **ne s'arrête pas à la bannière.** Un
+dirigeant reçoit son rapport mensuel, puis ouvre son tableau de bord. Ce sont
+deux surfaces, une seule information.
+
+`rapport-mensuel-html.ts` et `diagnostic-email.ts` portent donc `#9D3F49` et
+son fond `#FDF2F2`, comme l'écran et comme la bannière. Ils héritaient de
+`#c0392b`, qui venait de `--clair-danger` — le rouge de la **vitrine**, qui ne
+suit pas cette direction artistique et n'a jamais été choisi pour eux.
+
+**Une exception, mesurée et assumée : l'ambre du diagnostic reste `#8F5F00`.**
+`--modere` a été retenu pour deux rôles — un aplat de pastille sous du texte
+blanc, et un liseré, qui est un objet graphique au seuil de 3:1. Dans le mail
+de diagnostic, la même couleur serait du **texte** sur un fond ambre pâle, où
+le seuil monte à 4,5:1 :
+
+| | sur `#F7F1E4` | verdict |
+|---|---|---|
+| `#9A6B39` (le jeton) | 4,11:1 | sous le seuil |
+| `#8F5F00` (en place) | 4,90:1 | conforme |
+
+Aligner la teinte ferait donc **reculer** un texte aujourd'hui conforme, pour
+une cohérence que personne ne peut constater : le palier « significatif » du
+diagnostic n'a pas d'équivalent à l'écran, puisque ce mail part à un prospect
+qui n'a pas encore de tableau de bord. **Un jeton se transporte avec son rôle,
+pas avec sa valeur.**
 
 ### Pourquoi il n'y a PAS de logo client, ni de nom de client
 

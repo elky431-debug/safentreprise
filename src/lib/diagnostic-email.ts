@@ -67,8 +67,27 @@ const C = {
   secondaire: "#4a5567",
   discret: "#6b7686",
   trait: "#e7e8e8",
-  danger: "#c0392b",
-  dangerDoux: "#faefee",
+  // ⚠ ALIGNÉ SUR `--eleve` DE L'APPLICATION, comme le rapport mensuel.
+  //   Voir l'en-tête de `rapport-mensuel-html.ts` pour le raisonnement.
+  //   5,91:1 sur `dangerDoux`, 6,48:1 sur blanc.
+  danger: "#9d3f49",
+  dangerDoux: "#fdf2f2",
+
+  // ⚠ L'AMBRE NE SUIT PAS `--modere`, ET CE N'EST PAS UN OUBLI. `--modere`
+  //   (`#9A6B39`) a été mesuré pour deux rôles : un aplat de pastille avec du
+  //   texte blanc dessus, et un liseré de bannière — un objet graphique, dont
+  //   le seuil WCAG est 3:1. Ici la couleur est du TEXTE sur un fond ambre
+  //   pâle, et le seuil devient 4,5:1 :
+  //
+  //       #9A6B39 sur #F7F1E4 : 4,11:1   SOUS le seuil
+  //       #9A6B39 sur #FEF6EC : 4,32:1   SOUS le seuil
+  //       #8F5F00 sur #F7F1E4 : 4,90:1   conforme
+  //
+  //   Aligner la teinte ferait donc reculer l'accessibilité d'un texte qui est
+  //   aujourd'hui conforme, pour gagner une cohérence que personne ne peut
+  //   voir : le palier « significatif » du diagnostic n'a pas d'équivalent à
+  //   l'écran, puisque ce mail part à un prospect qui n'a pas encore de
+  //   tableau de bord. Ne pas « finir l'alignement » sans remesurer.
   warning: "#8f5f00",
   warningDoux: "#f7f1e4",
 };

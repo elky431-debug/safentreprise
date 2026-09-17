@@ -53,7 +53,17 @@
 
   /* États — le rouge est celui de la bannière d'alerte du produit.
      ⚠ RÉSERVÉS AUX ALERTES ET AUX NIVEAUX DE RISQUE. Ce ne sont pas des
-       couleurs décoratives : élevé en rouge, modéré en ambre, faible en gris. */
+       couleurs décoratives : élevé en rouge, modéré en ambre, faible en gris.
+
+     ⚠ `--clair-danger` N'EST PAS MORT, MALGRÉ LES APPARENCES. Cherché le
+       17 septembre 2026 pour être supprimé, une fois les deux mails alignés
+       sur `--eleve`. Il sert toujours : `:root` fait `--danger:
+       var(--clair-danger)`, et la VITRINE vit hors de `.canevas-app`, donc
+       hors de la redéfinition `--danger: #c8102e`. Le supprimer rendrait
+       `--danger` indéfini sur `src/app/page.tsx` et `src/app/t/[token]`, où
+       `SecteursOnglets`, `FraudEmailExample`, `DiagnosticResultat` et
+       `TrackingExperience` s'en servent — le rouge y disparaîtrait au lieu de
+       changer. Il mourra avec la passe vitrine, pas avant. */
   --clair-danger: #c0392b;
   --clair-danger-soft: rgba(192, 57, 43, 0.08);
   --clair-success: #14804a;

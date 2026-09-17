@@ -77,6 +77,15 @@ export type ContexteRapport = {
  * ⚠ LE ROUGE EST RÉSERVÉ AUX CHIFFRES D'ALERTE. Ni les variations, ni les
  *   titres, ni les liens. Un rapport dont la moitié est rouge ne signale plus
  *   rien — c'est la même règle que les trois niveaux de bannière.
+ *
+ * ⚠ LE ROUGE EST CELUI DE `--eleve`, PAS UN ROUGE À LUI. `#9D3F49` est le
+ *   jeton du tableau de bord et le liseré de la bannière. Un dirigeant reçoit
+ *   son rapport, ouvre son écran, et les deux doivent parler de la même chose
+ *   avec la même teinte — sinon il lui reste à deviner si deux rouges
+ *   différents veulent dire deux gravités différentes. L'ancien `#c0392b`
+ *   venait de `--clair-danger`, qui sert encore la vitrine et ne suit pas la
+ *   direction artistique de l'application ; le reprendre ici était un
+ *   héritage, pas une décision. 5,91:1 sur `#FDF2F2`, 6,48:1 sur blanc.
  */
 const C = {
   fond: "#f6f7f8",
@@ -88,8 +97,8 @@ const C = {
   secondaire: "#4a5567",
   discret: "#6b7686",
   trait: "#e7e8e8",
-  danger: "#c0392b",
-  dangerDoux: "#faefee",
+  danger: "#9d3f49",
+  dangerDoux: "#fdf2f2",
 };
 
 /* ==========================================================================
