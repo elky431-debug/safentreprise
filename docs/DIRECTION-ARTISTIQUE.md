@@ -298,6 +298,94 @@ l'effet, pas l'accumulation.
 
 ---
 
+## La vitrine suit la direction, à une échelle près
+
+**Arrêté le 17 septembre 2026.** La vitrine porte `canevas-app`, comme
+l'application. La typographie, les couleurs, les rayons et la casse sont les
+mêmes. **La seule différence admise est l'échelle** : titres plus grands,
+respirations plus grandes, et des images — que l'application n'a pas.
+
+Le motif tient en une phrase : **ce sont deux moments, pas deux marques.** Un
+prospect qui voit la page d'accueil puis entre dans le produit doit reconnaître
+le même objet. Et Safentreprise vend de la sécurité : une vitrine plus
+chaleureuse que l'outil serait un décalage de promesse, pas une nuance de ton.
+
+Ce qui change légitimement, c'est la **densité** — on lit une landing debout, de
+loin, une fois ; on lit un tableau de bord assis, de près, tous les jours. D'où
+`.canevas-app.vitrine`, qui ne redéfinit qu'une échelle (l'échelle de l'écran
+× 1,25, les rapports conservés) et deux respirations. Le sélecteur combiné est
+délibéré : `.vitrine` seule ne peut rien redéfinir, donc une page publique qui
+l'oublierait rendrait à l'échelle de l'application, jamais à l'ancienne charte.
+
+### Ce que la bascule a coûté, et ce qu'elle a rapporté
+
+| | avant | après |
+|---|---|---|
+| Familles rendues sur `/` | 4 (Sora : **0**) | 1 (Sora) |
+| Fichiers de police par page | 9 | **2** |
+| Poids des polices | 308 Ko | **72,4 Ko** |
+| Rouges distincts sur `/` | 3, aucun n'étant `--eleve` | 1 (`--eleve`) + le voyant |
+| Rayons distincts sur `/` | 7 | 5 |
+
+**La typo était aussi un sujet de performance.** Neuf familles étaient
+déclarées sur `<html>` et les neuf partaient sur chaque page — `/diagnostic`
+les **préchargeait** toutes en priorité haute alors qu'elle n'en dessine que
+deux. Trois ne rendaient nulle part du tout : Archivo, Instrument Serif et
+Sacramento, zéro référence dans `src/`. **236 Ko de moins sur le premier écran
+que voit un prospect**, soit 77 %.
+
+**Ce qui est tombé avec elles, pour ne pas le rechercher :** le titre du hero
+en Bricolage Grotesque, retenu sur planche comparative contre quatre serifs, et
+son réglage à trois valeurs. C'était un bon choix dans une charte où la vitrine
+avait sa propre typographie ; cette charte n'existe plus. La taille et la
+graisse du titre n'ont pas bougé, seule la famille.
+
+### Le voyant de la bande de motifs — la seule exception de couleur
+
+Le point rouge qui précède chaque motif de la bande marine **reste vif**, et il
+a désormais un jeton : `--voyant: #F2564D`.
+
+> **Un voyant attire l'œil : c'est sa fonction, et ce n'est pas une donnée.** La
+> règle des couleurs sourdes vaut pour ce qui se **lit** comme une information,
+> pas pour un point qui signale qu'une bande vit.
+
+Et la mesure ferme le débat. Sur le marine `#0F2444`, seuil de 3:1 pour un objet
+graphique :
+
+| | contraste | |
+|---|---|---|
+| `--voyant` `#F2564D` | 4,58:1 | conforme |
+| `--eleve` `#9D3F49` | 2,39:1 | sous le seuil |
+| `--danger` `#C8102E` | 2,63:1 | sous le seuil |
+
+**Aligner le voyant sur `--eleve` ne le rendrait pas discret, il le rendrait
+invisible.** Les teintes sourdes ont été choisies pour du texte et des aplats
+sur fond **clair** ; sur marine, elles n'ont plus de contraste. C'est la limite
+de la règle, et elle méritait d'être écrite.
+
+Il porte un jeton parce qu'il en avait besoin : ce rouge vivait en dur dans une
+règle CSS, donc invisible à tout inventaire de couleurs — un rouge de plus dans
+la page, que personne n'avait choisi. **Un écart assumé porte un nom ; un écart
+anonyme est un oubli.**
+
+### `--eleve` n'est pas un synonyme de `--danger`, et la vitrine les confondait
+
+La vitrine posait `text-danger` et `bg-danger` sur ses **illustrations de
+fraude** : les puces de signaux, l'exemple de message, le comparateur. Or
+`--danger` dit « la surveillance est interrompue » — une panne à réparer — et
+il est 32 points de saturation au-dessus de `--eleve`, qui dit « cette
+tentative est grave ». Un exemple pédagogique portait donc l'intensité d'une
+alarme produit. Ces surfaces passent à `--eleve` ; `--danger` reste sur les
+messages d'erreur, qui sont bien des pannes.
+
+### `--clair-danger` meurt à la fin de cette passe, pas avant
+
+Tant qu'une page publique lit `--danger` hérité de `:root`, le supprimer fait
+**disparaître** le rouge au lieu de le changer. Il se retire une fois toutes les
+surfaces basculées, et pas une étape plus tôt.
+
+---
+
 ## La bannière dans Outlook
 
 C'est l'objet le plus vu du produit : chaque salarié la lit dans son courrier.

@@ -257,7 +257,7 @@ export function TrackingExperience({ token, cible, questions }: Props) {
               ))}
 
               {erreur && (
-                <p className="text-[13px] text-danger" role="alert">
+                <p className="text-[13px] text-eleve" role="alert">
                   {erreur}
                 </p>
               )}

@@ -207,7 +207,7 @@ function PhotoBureau() {
     /* `relative` sans `overflow-hidden` : les étiquettes doivent pouvoir
        déborder du cadre. L'arrondi et le rognage vivent sur l'enfant. */
     <div className="rise rise-2 relative">
-      <div className="overflow-hidden rounded-3xl shadow-[0_24px_60px_-28px_rgba(16,20,26,0.35)]">
+      <div className="overflow-hidden rounded-[16px] shadow-[0_24px_60px_-28px_rgba(16,20,26,0.35)]">
         <picture>
           <source
             type="image/avif"

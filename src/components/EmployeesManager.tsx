@@ -265,7 +265,7 @@ export function EmployeesManager({ companyId, initialEmployees }: Props) {
         <PanelHeader
           title="Collaborateurs"
           action={
-            <span className="tabular rounded-[5px] border border-border bg-surface-2 px-2 py-1 text-[12px] text-muted">
+            <span className="tabular rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-[12px] text-muted">
               {employees.length}
             </span>
           }
@@ -336,7 +336,7 @@ export function EmployeesManager({ companyId, initialEmployees }: Props) {
                           type="button"
                           onClick={() => setPendingDelete(emp.id)}
                           aria-label={`Supprimer ${emp.prenom}`}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-[5px] text-faint transition-colors hover:bg-danger-soft hover:text-danger"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-[10px] text-faint transition-colors hover:bg-danger-soft hover:text-danger"
                         >
                           <IconTrash />
                         </button>

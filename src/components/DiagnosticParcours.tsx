@@ -159,7 +159,7 @@ export function DiagnosticParcours() {
                   >
                     <span
                       aria-hidden
-                      className={`mt-px inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] font-medium tabular-nums ${
+                      className={`mt-px inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[10px] text-[11px] font-medium tabular-nums ${
                         choisie
                           ? "bg-accent text-accent-contraste"
                           : "bg-surface-3 text-faint"

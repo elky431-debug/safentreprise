@@ -467,7 +467,7 @@ export function CampaignPreview({
             <PanelHeader
               title="Collaborateurs ciblés"
               action={
-                <span className="tabular rounded-[5px] border border-border bg-surface-2 px-2 py-1 text-[12px] text-muted">
+                <span className="tabular rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-[12px] text-muted">
                   {messages.length}
                 </span>
               }

@@ -15,7 +15,11 @@ type Props = {
  */
 export function AuthShell({ title, subtitle, children, footer }: Props) {
   return (
-    <div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[1.05fr_1fr]">
+    // ⚠ `canevas-app` SANS `vitrine`, ET C'EST DÉLIBÉRÉ. La connexion est la
+    //   porte de l'outil, pas une page qu'on lit debout : elle prend la
+    //   direction artistique, mais à l'échelle de l'application. L'échelle
+    //   élargie est réservée aux pages qui vendent.
+    <div className="canevas-app flex min-h-screen flex-col lg:grid lg:grid-cols-[1.05fr_1fr]">
       {/* Panneau de contexte */}
       {/* ⚠ LES DEUX DÉCORS DE FOND ONT ÉTÉ RETIRÉS AVEC LE THÈME SOMBRE : une
           grille de traits et un halo turquoise, tous deux pensés pour du noir.

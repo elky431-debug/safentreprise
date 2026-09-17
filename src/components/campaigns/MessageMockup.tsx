@@ -97,7 +97,7 @@ export function MessageMockup({
 
   if (edition) {
     return (
-      <div className="rounded-[8px] border border-accent-line bg-surface-2/40 p-4">
+      <div className="rounded-[10px] border border-accent-line bg-surface-2/40 p-4">
         <p className="mb-3 text-[12.5px] text-muted">
           Destinataire : {message.prenom} ({message.email})
         </p>
@@ -146,7 +146,7 @@ export function MessageMockup({
   }
 
   return (
-    <div className="group relative rounded-[8px] border border-border bg-surface-2/40">
+    <div className="group relative rounded-[10px] border border-border bg-surface-2/40">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <span className="flex items-center gap-2 text-[12px] text-faint">
           <span className="text-muted">

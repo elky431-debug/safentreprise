@@ -56,7 +56,7 @@ export function ComparateurBanniere() {
           entrées en collision avec la barre du client de messagerie. */}
       <div className="mb-3 flex items-baseline justify-between text-[12.5px]">
         <span className="text-muted">Sans Safentreprise</span>
-        <span className="font-medium text-danger">Avec Safentreprise</span>
+        <span className="font-medium text-eleve">Avec Safentreprise</span>
       </div>
 
       <div
@@ -160,12 +160,12 @@ function Message({ averti }: { averti: boolean }) {
 
       {/* La bannière d'alerte */}
       <div className={cache}>
-        <div className="border-b border-danger/25 bg-danger-soft px-4 py-4 md:px-5">
+        <div className="border-b border-eleve/25 bg-eleve-soft px-4 py-4 md:px-5">
           <div className="flex gap-3">
-            <IconAlertTriangle className="mt-0.5 shrink-0 text-danger" />
+            <IconAlertTriangle className="mt-0.5 shrink-0 text-eleve" />
 
             <div className="min-w-0">
-              <p className="text-[13.5px] font-bold text-danger">
+              <p className="text-[13.5px] font-bold text-eleve">
                 Expéditeur potentiellement usurpé · Risque élevé
               </p>
 
@@ -180,7 +180,7 @@ function Message({ averti }: { averti: boolean }) {
                 {SIGNAUX.map((signal) => (
                   <li
                     key={signal}
-                    className="rounded-[5px] border border-danger/25 px-2 py-1 text-[11px] text-danger"
+                    className="rounded-[10px] border border-eleve/25 px-2 py-1 text-[11px] text-eleve"
                   >
                     {signal}
                   </li>

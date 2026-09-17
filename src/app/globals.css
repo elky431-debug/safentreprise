@@ -71,6 +71,31 @@
   --clair-warning: #8f5f00;
   --clair-warning-soft: rgba(143, 95, 0, 0.1);
 
+  /* ⚠ LE VOYANT DE LA BANDE DE MOTIFS — UN ROUGE VIF, ET C'EST MESURÉ.
+     Exception arrêtée le 17 septembre 2026, écrite dans le document. Un voyant
+     attire l'œil : c'est sa fonction, et ce n'est pas une donnée. La règle des
+     couleurs sourdes vaut pour ce qui se LIT comme une information, pas pour
+     un point qui signale qu'une bande vit.
+
+     ⚠ ET LE JETON SOURD NE TIENDRAIT PAS ICI. Sur le marine `#0F2444` de la
+       bande, le seuil WCAG d'un objet graphique est 3:1 :
+
+         --voyant  #F2564D   4,58:1   conforme
+         --eleve   #9D3F49   2,39:1   SOUS le seuil
+         --danger  #C8102E   2,63:1   SOUS le seuil
+
+       Aligner le voyant sur `--eleve` ne le rendrait pas discret, il le
+       rendrait invisible. La teinte sourde a été choisie pour du texte et des
+       aplats sur fond CLAIR ; sur marine, elle n'a plus de contraste.
+
+     ⚠ IL A UN NOM PARCE QU'IL EN AVAIT BESOIN. Jusqu'ici ce rouge était écrit
+       en dur dans la règle `.bande-motifs__voyant`, donc invisible à tout
+       inventaire de couleurs : un rouge de plus dans la page, que personne
+       n'avait choisi. Un écart assumé porte un jeton ; un écart anonyme est un
+       oubli. NE PAS s'en servir ailleurs : c'est le voyant, pas « le rouge
+       vif ». */
+  --voyant: #f2564d;
+
   /* Relief — une ombre que l'on devine, pas que l'on voit. */
   --clair-relief: 0 1px 2px rgba(16, 20, 26, 0.06);
   --clair-relief-haut: 0 12px 32px -16px rgba(16, 20, 26, 0.18);
@@ -138,10 +163,24 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
 
-  --font-sans: var(--font-jakarta);
-  --font-serif: var(--font-instrument);
+  /* ⚠ `eleve` N'EST PAS UN SYNONYME DE `danger`, ET LES DEUX DOIVENT RESTER
+     DISTINCTS. `--eleve` dit « cette tentative est grave » — une donnée ;
+     `--danger` dit « la surveillance est interrompue » — une panne à réparer.
+     Même teinte, saturations différentes (60 % contre 92 %). Poser
+     `text-danger` sur une illustration de fraude, comme le faisait la vitrine,
+     donne à un exemple pédagogique l'intensité d'une alarme produit. */
+  --color-eleve: var(--eleve);
+  --color-eleve-soft: var(--eleve-soft);
+  --color-modere: var(--modere);
+  --color-modere-soft: var(--modere-soft);
+
+  /* ⚠ DEUX FAMILLES, ET IL N'Y A PLUS DE `--font-serif` NI DE `--font-script`.
+     Les utilitaires `font-serif` et `font-script` n'étaient posés nulle part
+     (vérifié sur tout `src/`) et leurs deux polices partaient quand même dans
+     chaque page. Les rétablir demanderait d'abord de rouvrir la règle d'une
+     seule famille. */
+  --font-sans: var(--font-sora);
   --font-mono: var(--font-mono-stack);
-  --font-script: var(--font-sacramento);
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -151,64 +190,36 @@
 }
 
 /* ==========================================================================
-   Vitrine publique — police et îlots clairs
-   ========================================================================== */
-/* ⚠ LA POLICE DISTINGUE ENCORE LES DEUX ESPACES, LA COULEUR NON. Depuis que
-     l'application est claire, `.theme-clair` ne change plus la palette d'une
-     page ; il ne reste que la typographie — Inter sur la vitrine, Jakarta dans
-     l'espace connecté. */
-.theme-clair,
-.sur-marine {
-  font-family: var(--font-inter), system-ui, "Segoe UI", Arial, sans-serif;
-}
+   Vitrine publique — îlots clairs
+   ==========================================================================
 
-/* ⚠ POUR UN TITRE SERIF QUI N'EST NI h1 NI h2. La règle ci-dessous ne vise
-     que ces deux niveaux ; un h3 qui doit être en serif — le titre de scénario
-     des onglets par secteur, par exemple — passe par cette classe plutôt que
-     d'élargir le sélecteur, ce qui mettrait en serif tous les h3 de la
-     vitrine, y compris les cartes denses. */
-.serif-vitrine {
-  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
-  letter-spacing: -0.015em;
-}
+   ⚠ LES QUATRE POLICES DE LA VITRINE ONT DISPARU LE 17 SEPTEMBRE 2026, et ce
+     bloc est ce qui reste après. Ce fichier portait ici Inter pour le texte,
+     Source Serif pour les h1/h2, Bricolage Grotesque pour le titre du hero, et
+     `.serif-vitrine` pour les h3 qui voulaient du serif. Mesuré sur la
+     construction de production, `/` servait quatre familles et Sora n'y
+     apparaissait pas une seule fois.
 
-/* Titres de la vitrine : un serif de labeur, pas un serif d'affiche. */
-.theme-clair h1,
-.theme-clair h2,
-.sur-marine h1,
-.sur-marine h2 {
-  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
-  letter-spacing: -0.015em;
-}
+     La vitrine suit désormais la direction artistique : elle porte
+     `canevas-app`, donc Sora, les jetons de risque et les cinq rayons. La
+     seule différence admise est l'ÉCHELLE — voir `.canevas-app.vitrine` plus
+     bas. Le raisonnement est dans le document, section « La vitrine suit la
+     direction, à une échelle près » : ce sont deux moments différents, pas
+     deux marques différentes, et vendre de la sécurité avec une vitrine plus
+     chaleureuse que l'outil est un décalage de promesse.
 
-/* Titre du hero — la seule exception à la serif de labeur.
+   ⚠ CE QUI EST TOMBÉ AVEC ELLES, POUR NE PAS LE RECHERCHER. La règle du titre
+     de hero en Bricolage portait quatre avertissements et un réglage à trois
+     valeurs (600 / -0.03em / la hauteur du pli) : tout cela visait à faire
+     tenir une police que la vitrine n'utilise plus. `.serif-vitrine` n'a plus
+     d'objet non plus, puisqu'il n'y a plus de serif à atteindre. Les deux sont
+     neutralisées dans `.canevas-app` depuis la v2 ; elles n'ont simplement
+     plus rien à neutraliser ici.
 
-   ⚠ SÉLECTEUR PLUS SPÉCIFIQUE QUE `.theme-clair h1`, ET IL DOIT LE RESTER. La
-     règle du dessus vise `h1` sous `.theme-clair` : à spécificité égale, c'est
-     l'ordre d'écriture qui trancherait, ce qui casse au premier déplacement de
-     bloc. `h1.titre-hero` ajoute une classe et gagne franchement.
-
-   ⚠ C'EST UNE SANS DANS UNE CHARTE SERIF, ET C'EST UN CHOIX ASSUMÉ. Bricolage
-     Grotesque a été retenue sur planche comparative, contre quatre serifs. Le
-     titre du hero est donc le seul endroit de la vitrine qui ne suit pas la
-     règle « titres en serif » — ne pas la « corriger » en croyant à un oubli.
-
-   ⚠ LE RESTE DE LA VITRINE NE CHANGE PAS. Source Serif reste sur tous les
-     autres h1 et h2, et `--font-instrument` continue de servir `.font-display`
-     dans l'espace connecté : cette règle ne touche qu'un seul titre.
-
-   ⚠ LES TROIS VALEURS ONT ÉTÉ CHOISIES ENSEMBLE, SUR LA PLANCHE. Le 600 donne
-     la présence que la taille seule ne donne pas à une grotesque ; l'approche
-     serrée à -0.03em resserre un dessin naturellement large, sans quoi le
-     titre gagne une ligne et le hero repasse sous le pli. Changer l'une sans
-     revérifier la hauteur du hero défait le réglage du pli. */
-h1.titre-hero,
-.theme-clair h1.titre-hero,
-.sur-marine h1.titre-hero {
-  font-family: var(--font-bricolage), system-ui, "Segoe UI", Arial, sans-serif;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-}
+   ⚠ NE PAS REMETTRE UNE SECONDE FAMILLE « POUR LES TITRES ». C'est la règle
+     d'ouverture du document : une seule famille, aucune serif, aucune
+     monospace, hors les deux exceptions nommées. Elle vaut maintenant des deux
+     côtés de la connexion. */
 
 /* ⚠ IL NE SERT PLUS QU'À REVENIR AU CLAIR DANS UNE BANDE MARINE. Depuis que
      `:root` porte la charte claire, poser cette classe sur une page ne change
@@ -306,29 +317,24 @@ h1.titre-hero,
   border-color: var(--border);
 }
 
+/* ⚠ SORA SUR `body`, PAS SEULEMENT SUR `.canevas-app`. Les deux espaces
+   portent maintenant le canevas, mais un `body` qui retomberait sur une autre
+   famille rendrait visible, le temps d'un rendu, la police d'avant. */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-family: var(--font-sora), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ⚠ LE SERIF S'ARRÊTE AUX TITRES DE PAGE. C'est la seule serif de l'espace
-     connecté : titres de panneaux, en-têtes de tableaux et corps restent en
-     Jakarta. L'étendre aux h2/h3 rendrait les écrans denses — menaces,
-     collaborateurs — nettement moins lisibles à petite taille. */
-.titre-page {
-  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
-  letter-spacing: -0.015em;
-}
+/* ⚠ `.titre-page` N'EST PLUS QU'UN NOM, ET C'EST VOLONTAIRE. La règle qui lui
+   donnait Source Serif est retirée : `.canevas-app` la neutralisait déjà, et
+   la vitrine porte désormais le canevas, donc cette règle ne rendait plus
+   nulle part. La classe reste posée dans une demi-douzaine de composants, qui
+   portent chacun leur propre taille en utilitaire — la retirer de tous n'aurait
+   rien changé à l'écran et aurait sali le diff.
 
-/* Titres serifs — greetings et titres de widgets */
-.font-display {
-  font-family: var(--font-instrument), Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
+   `.font-display` a été supprimée entièrement : zéro occurrence dans `src/`. */
 
 /* ==========================================================================
    Espace connecté — direction artistique
@@ -384,6 +390,13 @@ body {
        assourdie corrige un défaut d'accessibilité qui traînait. */
   --eleve: #9d3f49;
   --modere: #9a6b39;
+
+  /* ⚠ LES VARIANTES DOUCES SERVENT UN FOND, JAMAIS UN TEXTE. Elles existent
+     depuis la passe vitrine : illustrer une fraude demande un aplat teinté
+     derrière du texte encre, pas un aplat saturé. Le texte posé dessus reste
+     `--foreground` ou `--eleve` — ne pas écrire du blanc sur ces deux-là. */
+  --eleve-soft: rgba(157, 63, 73, 0.08);
+  --modere-soft: rgba(154, 107, 57, 0.09);
   --faible: #e3ede6;
   --faible-texte: #3f6b52;
 
@@ -586,6 +599,62 @@ body {
   letter-spacing: -0.035em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   La vitrine — la même direction, à une échelle près
+   ==========================================================================
+
+   ⚠ CE N'EST PAS UN SECOND SYSTÈME, ET LE SÉLECTEUR LE DIT. `.vitrine` ne
+     s'applique QUE combinée à `.canevas-app` : elle ne peut rien redéfinir
+     toute seule, et une page publique qui l'oublierait rendrait simplement à
+     l'échelle de l'application, jamais à l'ancienne charte. La police, les
+     couleurs, les rayons et la casse ne sont pas redéclarés ici — il n'y a
+     qu'une échelle et des respirations.
+
+   ⚠ POURQUOI UNE ÉCHELLE ET PAS UNE AUTRE IDENTITÉ. Une landing et un outil
+     sont deux MOMENTS, pas deux marques : un prospect qui voit la page
+     d'accueil puis entre dans le produit doit reconnaître le même objet. Ce
+     qui change légitimement, c'est la densité — on lit une landing debout, de
+     loin, une fois ; on lit un tableau de bord assis, de près, tous les jours.
+     D'où des titres plus grands et plus d'air, et rien d'autre.
+
+   ⚠ LES RAPPORTS SONT CONSERVÉS, PAS LES ÉCARTS. Chaque valeur est l'échelle
+     de l'application multipliée par ~1,25 puis arrondie à un demi-pixel : la
+     hiérarchie entre les six niveaux reste exactement celle de l'écran. Ne pas
+     agrandir un seul niveau « parce qu'il manque de présence » — c'est le
+     rapport qui porte la hiérarchie, pas la taille absolue. */
+.canevas-app.vitrine .titre-page-da {
+  font-size: 44px;
+  line-height: 1.02;
+}
+
+.canevas-app.vitrine .titre-section {
+  font-size: 27px;
+}
+
+.canevas-app.vitrine .titre-bloc {
+  font-size: 19px;
+}
+
+.canevas-app.vitrine .texte-courant {
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.canevas-app.vitrine .texte-second {
+  font-size: 15px;
+}
+
+.canevas-app.vitrine .chiffre-accroche {
+  font-size: 68px;
+}
+
+/* Les respirations. Un seul jeton, pour que « plus d'air » soit une valeur
+   qu'on relit et pas une marge ajoutée au jugé dans chaque composant. */
+.canevas-app.vitrine {
+  --respiration-section: 96px;
+  --respiration-bloc: 32px;
 }
 
 /* ---- La pastille de risque ---- */
@@ -827,12 +896,17 @@ h3 {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
+/* ⚠ LES CAPITALES INTÉGRALES ONT ÉTÉ RETIRÉES LE 17 SEPTEMBRE 2026. « Aucune
+   capitale intégrale, nulle part, sans exception » est la règle de casse du
+   document ; les petites capitales espacées de 0,18 em sont même le marqueur
+   générique qu'il nomme en premier. La règle vaut maintenant sur la vitrine
+   aussi, et cet intitulé y échappait parce que personne n'y avait regardé. */
 .bande-motifs__intitule {
   font-size: 11px;
   line-height: 1;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: center;
   color: var(--faint);
 }
@@ -891,7 +965,7 @@ h3 {
   flex-shrink: 0;
   margin-inline-end: var(--espace);
   padding: 9px 17px;
-  border-radius: 999px;
+  border-radius: var(--rayon-pastille, 9999px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.045);
   color: #ffffff;
@@ -906,8 +980,8 @@ h3 {
   width: 5px;
   height: 5px;
   flex-shrink: 0;
-  border-radius: 999px;
-  background: #f2564d;
+  border-radius: var(--rayon-pastille, 9999px);
+  background: var(--voyant);
 }
 
 /* Arrêt au survol.

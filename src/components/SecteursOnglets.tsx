@@ -179,7 +179,10 @@ export function SecteursOnglets() {
           {/* Panneau gauche — le récit, sur marine. `sur-marine` bascule les
               tokens : le texte y devient clair sans rien coder ici. */}
           <div className="sur-marine px-7 py-8 md:px-9 md:py-10">
-            <h3 className="serif-vitrine text-[clamp(1.25rem,2.2vw,1.6rem)] font-semibold leading-snug text-foreground">
+            {/* `serif-vitrine` retirée le 17 septembre 2026 : la vitrine suit
+                la direction artistique, qui n'admet aucune serif. La taille et
+                la graisse ne bougent pas. */}
+            <h3 className="text-[clamp(1.25rem,2.2vw,1.6rem)] font-semibold leading-snug text-foreground">
               {secteur.titre}
             </h3>
 
@@ -222,15 +225,20 @@ export function SecteursOnglets() {
                     key={signal}
                     className="flex items-start gap-2.5 text-[14px] leading-snug text-foreground"
                   >
-                    {/* ⚠ COULEUR EN LIGNE. La règle `* { border-color }` de
+                    {/* ⚠ `--eleve` ET PAS `--danger`, DEPUIS LA PASSE VITRINE.
+                        Ces puces illustrent des signaux de fraude : une
+                        DONNÉE. `--danger` est réservé à une panne du produit —
+                        « la surveillance est interrompue » — et il est 32 points
+                        de saturation plus haut. Une illustration pédagogique
+                        n'a pas à porter l'intensité d'une alarme.
+
+                        ⚠ COULEUR EN LIGNE. La règle `* { border-color }` de
                         globals.css n'est dans aucune couche et bat les
-                        utilitaires de couleur ; pour un fond, `bg-danger`
-                        suffirait, mais on reste explicite pour que le rouge
-                        d'alerte soit repérable d'un coup d'œil dans le code. */}
+                        utilitaires de couleur. */}
                     <span
                       aria-hidden
                       className="mt-[6px] h-[5px] w-[5px] shrink-0 rounded-full"
-                      style={{ background: "var(--danger)" }}
+                      style={{ background: "var(--eleve)" }}
                     />
                     {signal}
                   </li>

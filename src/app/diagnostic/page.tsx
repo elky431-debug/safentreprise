@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function DiagnosticPage() {
   return (
-    <div className="theme-clair flex min-h-screen flex-col bg-background">
+    <div className="canevas-app vitrine theme-clair flex min-h-screen flex-col bg-background">
       <header className="border-b border-border">
         <div className="mx-auto flex h-14 max-w-[760px] items-center justify-between gap-4 px-6">
           <Link href="/" aria-label="Safentreprise — accueil">

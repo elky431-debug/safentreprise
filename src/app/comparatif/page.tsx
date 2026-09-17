@@ -88,7 +88,7 @@ const LIGNES = [
 
 export default function ComparatifPage() {
   return (
-    <div className="theme-clair flex min-h-screen flex-col bg-background">
+    <div className="canevas-app vitrine theme-clair flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-4 px-6 lg:px-8">
           <Link href="/" aria-label="Safentreprise — accueil">

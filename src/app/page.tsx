@@ -46,7 +46,7 @@ export default async function HomePage() {
     // il ne bascule plus rien : depuis l'alignement sur la charte, `:root`
     // porte déjà le blanc. Il ne sert plus qu'aux îlots clairs des bandes
     // marine, et à distinguer la police de la vitrine de celle de l'app.
-    <div className="theme-clair flex min-h-screen flex-col bg-background">
+    <div className="canevas-app vitrine theme-clair flex min-h-screen flex-col bg-background">
       {/* Navigation */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-4 px-6 lg:px-8">

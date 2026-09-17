@@ -596,7 +596,7 @@ export function CampaignForm({
             title="Collaborateurs ciblés"
             action={
               <div className="flex items-center gap-2">
-                <span className="tabular rounded-[5px] border border-border bg-surface-2 px-2 py-1 text-[12px] text-muted">
+                <span className="tabular rounded-[10px] border border-border bg-surface-2 px-2 py-1 text-[12px] text-muted">
                   {cibles.length} / {employees.length}
                 </span>
                 <button

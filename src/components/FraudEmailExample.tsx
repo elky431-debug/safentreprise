@@ -15,7 +15,7 @@ export function FraudEmailExample() {
       <div className="flex items-center justify-between gap-4 border-b border-border bg-surface-2/60 px-4 py-2.5">
         <span className="eyebrow">Exemple de simulation</span>
         <span className="inline-flex items-center gap-1.5 text-[11.5px] text-faint">
-          <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+          <span className="h-1.5 w-1.5 rounded-full bg-modere" />
           Non authentifié
         </span>
       </div>
@@ -54,7 +54,7 @@ export function FraudEmailExample() {
               <li key={signal.label} className="flex items-center gap-2.5">
                 <span
                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                    signal.tone === "danger" ? "bg-danger" : "bg-success"
+                    signal.tone === "danger" ? "bg-eleve" : "bg-success"
                   }`}
                 />
                 <span className="text-muted">{signal.label}</span>
