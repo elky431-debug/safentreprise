@@ -126,18 +126,15 @@ export type ContenuBanniere = {
   score: number;
   signaux: string[];
   /**
-   * URL publique du logo Safentreprise, pour la mention éditeur.
-   * Absente : la mention reste, en texte seul.
+   * ⚠ AUCUNE IMAGE DANS CETTE BANNIÈRE, ET C'EST UNE DÉCISION. Ni logo
+   *   client, ni logo éditeur. Outlook bloque les images distantes par
+   *   défaut : la moitié du soin qu'on met dans une image ne se voit jamais.
+   *   Le texte, lui, arrive toujours, dans tous les clients, du premier coup.
    *
-   * ⚠ IL N'Y A PLUS DE LOGO CLIENT, ET C'EST UNE DÉCISION, PAS UN OUBLI.
-   *   Voir la section « La bannière dans Outlook » de
-   *   `docs/DIRECTION-ARTISTIQUE.md` pour le motif complet. En deux lignes :
-   *   Outlook bloque les images distantes par défaut, donc le logo client
-   *   n'arrivait presque jamais ; et quand il arrivait, il ouvrait une colonne
-   *   qui prenait la place du message au profit d'une image décorative. Ne pas
-   *   le réintroduire sans rouvrir cette section.
+   *   Le type n'a donc plus de champ pour une URL d'image. Si l'envie revient,
+   *   relire la section « La bannière dans Outlook » du document avant
+   *   d'ajouter le champ : le motif y est écrit, et il ne bougera pas.
    */
-  logoEditeur?: string | null;
   /**
    * Identifiant de la ligne `graph_analyses` qui pose cette bannière.
    *
@@ -216,7 +213,15 @@ const APPARENCE: Record<
 > = {
   eleve: {
     fond: "#fdf2f2",
-    bord: "#c0392b",
+    // ⚠ ALIGNÉ SUR `--eleve` DE L'APPLICATION, LE 17 SEPTEMBRE 2026. Le
+    //   lisseré était à #c0392b quand les pastilles du tableau de bord sont
+    //   passées au rouge sourd : un client voyait deux rouges différents pour
+    //   la même gravité selon qu'il regardait son courrier ou son écran, et
+    //   pouvait croire à deux choses différentes.
+    //
+    //   ⚠ ET LE CONTRASTE Y GAGNE : 5,91:1 contre le fond pâle, contre 4,96:1
+    //     pour l'ancien. Le seuil WCAG d'un objet graphique est de 3:1.
+    bord: "#9d3f49",
     texte: "#7b241c",
     titre: "Risque élevé de fraude",
     picto: "⚠",
@@ -224,7 +229,11 @@ const APPARENCE: Record<
   },
   modere: {
     fond: "#fef6ec",
-    bord: "#d68910",
+    // ⚠ ALIGNÉ SUR `--modere`, ET ÇA CORRIGE UN DÉFAUT. L'ancien #d68910 ne
+    //   donnait que 2,63:1 sur son fond — SOUS le seuil de 3:1 exigé pour un
+    //   objet graphique. L'ambre sourd tient 4,32:1. C'est la deuxième fois
+    //   qu'assourdir une couleur rend de la lisibilité au lieu d'en coûter.
+    bord: "#9a6b39",
     texte: "#7e5109",
     titre: "Signaux suspects",
     picto: "▲",
@@ -307,68 +316,28 @@ function resumerMotif(signal?: string): string {
    -------------------------------------------------------------------------- */
 
 /**
- * La mention éditeur, en bas à droite.
+ * La mention éditeur, en bas à droite. Du texte, rien que du texte.
  *
- * ⚠ LE LOGO EST EN MARINE ET NOIR, DONC INVISIBLE SUR FOND SOMBRE. Deux
- *   précautions, parce qu'aucune ne suffit seule :
+ * ⚠ IL N'Y A PLUS DE LOGO, ET C'EST CE QUI REND LA MENTION FIABLE. Une image
+ *   distante est bloquée par défaut dans Outlook : un logo n'arrive qu'après
+ *   un clic sur « Télécharger les images », que la plupart des lecteurs ne
+ *   font jamais. Tout ce qu'on soignait dans l'image — la pastille blanche
+ *   pour survivre au thème sombre, la largeur pour que le mot reste lisible,
+ *   le comportement quand l'image échoue — était du soin invisible.
  *
- *     1. LA MENTION EST DU TEXTE. « Powered by Safentreprise » est écrit, pas
- *        dessiné. Un client de messagerie recolore le texte intelligemment en
- *        thème sombre ; il ne recolore jamais l'intérieur d'un PNG. Si l'image
- *        ne s'affiche pas — bloquée, sombre, cassée — la mention tient.
+ *   Le texte arrive toujours, du premier coup, dans tous les clients. Et il
+ *   est recoloré intelligemment en thème sombre, ce qu'aucun PNG ne fait.
  *
- *     2. LE LOGO EST POSÉ SUR UNE PASTILLE BLANCHE EXPLICITE. `bgcolor` sur la
- *        cellule, plus `background-color` en ligne : c'est la déclaration que
- *        les moteurs de thème sombre respectent le mieux. Un fond forcé sous
- *        le logo garde le marine lisible même si la bannière est assombrie.
- *
- *   ⚠ CE QU'ON N'A PAS FAIT, ET POURQUOI. Une variante claire du logo
- *     basculée par `prefers-color-scheme` aurait été plus élégante. Elle
- *     suppose un `<style>`, qu'Outlook pour Windows ignore complètement et
- *     que Gmail retire dans certains contextes. Toute cette bannière est en
- *     styles en ligne pour cette raison ; une règle @media y serait la seule
- *     chose à ne pas fonctionner là où le produit est le plus utilisé.
+ * ⚠ `#63707f` ET PAS `#8a94a6`. L'ancien gris donnait 2,79:1 sur le fond du
+ *   niveau élevé, donc très au-dessous du seuil AA de 4,5:1. Discret ne veut
+ *   pas dire illisible : celui-ci tient 4,61:1 sur le fond rouge pâle,
+ *   4,72:1 sur l'ambre et 4,51:1 sur le gris du niveau faible.
  */
-/**
- * Largeur d'affichage du logo éditeur.
- *
- * ⚠ 140 px, PAS 120. Le logo est en 4:1 : à 120 px il ne fait que 30 px de
- *   haut, et le mot « Safentreprise » — treize lettres sur les trois quarts
- *   de la largeur, le bouclier occupant le premier quart — tombe à environ
- *   7 px par lettre. Lisible, mais serré. À 140 px la hauteur passe à 35 px et
- *   le mot respire, sans que la mention cesse d'être discrète.
- *
- * ⚠ `width` ET `height:auto` NE ROGNENT JAMAIS L'IMAGE, ILS LA MISENT À
- *   L'ÉCHELLE. Si un jour le logo paraît coupé dans un rendu, c'est le
- *   FICHIER qui est en cause, pas cette balise — c'est exactement ce qui
- *   s'est produit sur la capture du 16 septembre, où l'image de substitution
- *   était mal construite.
- */
-const LARGEUR_LOGO_EDITEUR = 140;
-
-function mentionEditeur(logo: string | null | undefined, police: string): string {
-  const texte =
-    `<span style="${police}font-size:11px;color:#8a94a6;` +
-    `vertical-align:middle;">Powered by</span>`;
-
-  if (!logo) {
-    return (
-      texte +
-      ` <span style="${police}font-size:11px;font-weight:600;` +
-      `color:#8a94a6;vertical-align:middle;">Safentreprise</span>`
-    );
-  }
-
+function mentionEditeur(police: string): string {
   return (
-    texte +
-    ` <span bgcolor="#ffffff" style="background-color:#ffffff;` +
-    `border-radius:10px;padding:3px 8px;display:inline-block;` +
-    `vertical-align:middle;">` +
-    `<img src="${echapper(logo)}" alt="Safentreprise" ` +
-    `width="${LARGEUR_LOGO_EDITEUR}" ` +
-    `style="width:${LARGEUR_LOGO_EDITEUR}px;height:auto;display:block;` +
-    `border:0;" />` +
-    `</span>`
+    `<span style="${police}font-size:11px;color:#63707f;">Powered by </span>` +
+    `<span style="${police}font-size:11px;font-weight:600;color:#63707f;">` +
+    `Safentreprise</span>`
   );
 }
 
@@ -468,7 +437,7 @@ export function construireBanniere(contenu: ContenuBanniere): string {
     `</tr>` +
     `<tr>` +
     `<td align="right" style="padding:10px 0 0 0;">` +
-    mentionEditeur(contenu.logoEditeur, police) +
+    mentionEditeur(police) +
     `</td>` +
     `</tr>` +
     `</table>` +

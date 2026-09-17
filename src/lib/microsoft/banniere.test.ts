@@ -610,63 +610,55 @@ verifier(
 );
 
 /* --------------------------------------------------------------------------
-   La mention éditeur — 16 septembre 2026
+   La mention éditeur, en texte pur — 17 septembre 2026
    -------------------------------------------------------------------------- */
 
 console.log("\n  ── Mention éditeur ──\n");
 
-const AVEC_LOGO = construireBanniere({
-  niveau: "eleve",
-  score: 88,
-  signaux: ["L'adresse ne correspond pas au nom affiché."],
-  logoEditeur: "https://exemple/safentreprise.png",
-});
-
-const SANS_LOGO = construireBanniere({
-  niveau: "eleve",
-  score: 88,
-  signaux: ["L'adresse ne correspond pas au nom affiché."],
-});
-
-verifier(
-  "une seule <div> : l'invariant du retrait tient malgré le tableau",
-  (AVEC_LOGO.match(/<div/g) ?? []).length === 1 &&
-    (AVEC_LOGO.match(/<\/div>/g) ?? []).length === 1,
-  `${(AVEC_LOGO.match(/<div/g) ?? []).length} ouvertures`,
+const TROIS = (["eleve", "modere", "faible"] as const).map((niveau) =>
+  construireBanniere({ niveau, score: 50, signaux: ["Un signal."] }),
 );
 
 verifier(
-  "la mention reste lisible sans image : c'est du texte, pas un dessin",
-  SANS_LOGO.includes("Powered by") &&
-    SANS_LOGO.includes("Safentreprise") &&
-    !SANS_LOGO.includes("<img"),
+  "AUCUNE image, sur aucun des trois niveaux",
+  TROIS.every((b) => !b.includes("<img") && !b.includes("src=")),
 );
 
 verifier(
-  "le logo éditeur est posé sur une pastille blanche explicite",
-  AVEC_LOGO.includes('bgcolor="#ffffff"') &&
-    AVEC_LOGO.includes("background-color:#ffffff"),
+  "la mention est présente sur les deux niveaux encadrés",
+  TROIS[0].includes("Powered by") && TROIS[1].includes("Powered by"),
 );
 
 verifier(
-  "le logo est mis à l'échelle, jamais rogné : width + height:auto",
-  /<img[^>]+width="140"[^>]*>/.test(AVEC_LOGO) &&
-    AVEC_LOGO.includes("height:auto"),
+  "le niveau faible reste une seule ligne, sans mention",
+  !TROIS[2].includes("Powered by"),
 );
 
 verifier(
-  "AUCUNE image distante côté client : la bannière ne porte qu'une image",
-  (AVEC_LOGO.match(/<img/g) ?? []).length === 1,
+  "plus de pastille blanche : elle n'avait de sens que sous une image",
+  TROIS.every((b) => !b.includes("bgcolor")),
 );
 
 verifier(
-  "le niveau faible ne porte aucune image : sa discrétion est sa raison d'être",
-  !construireBanniere({
-    niveau: "faible",
-    score: 20,
-    signaux: ["Expéditeur inhabituel."],
-    logoEditeur: "https://exemple/safentreprise.png",
-  }).includes("<img"),
+  "une seule <div> : l'invariant du retrait tient",
+  TROIS.every(
+    (b) =>
+      (b.match(/<div/g) ?? []).length === 1 &&
+      (b.match(/<\/div>/g) ?? []).length === 1,
+  ),
+);
+
+verifier(
+  "les liserés sont ceux de l'application, pas les anciens",
+  TROIS[0].includes("#9d3f49") &&
+    TROIS[1].includes("#9a6b39") &&
+    !TROIS[0].includes("#c0392b") &&
+    !TROIS[1].includes("#d68910"),
+);
+
+verifier(
+  "la mention est assez contrastée pour être lue : #63707f, pas #8a94a6",
+  TROIS[0].includes("#63707f") && !TROIS[0].includes("#8a94a6"),
 );
 
 verifier(
