@@ -260,7 +260,31 @@ async function getInterne(requete: Request) {
     }
   }
 
-  // 7. Reste les étapes 5 à 7 : choisir les boîtes, restreindre, vérifier.
+  // 7. LE RETOUR N'EST PLUS UN CUL-DE-SAC quand le consentement vient d'un
+  //    lien de raccordement.
+  //
+  // ⚠ C'ÉTAIT LE PIRE ÉCRAN DU PARCOURS. Il disait « si vous n'êtes pas la
+  //   personne qui a lancé ce raccordement, prévenez-la » — c'est-à-dire, à
+  //   l'informaticien qui venait de faire le plus gros : débrouillez-vous.
+  //   Il enchaîne désormais sur l'étape suivante, sur la page qu'il connaît.
+  //
+  // ⚠ LE PARCOURS EN SESSION N'EST PAS TOUCHÉ. `jeton_de_l_etat_consentement`
+  //   rend NULL quand le consentement a été lancé depuis l'espace connecté, et
+  //   la page d'avant est alors servie telle quelle. Les deux voies cohabitent
+  //   sans se connaître.
+  const jetonRetour = await rpcService<string | null>(
+    "jeton_de_l_etat_consentement",
+    { p_etat: etat },
+  ).catch(() => null);
+
+  if (typeof jetonRetour === "string" && /^[0-9a-f]{32}$/.test(jetonRetour)) {
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    return Response.redirect(
+      `${base}/raccordement/${jetonRetour}?accord=ok`,
+      303,
+    );
+  }
+
   return page(
     "Microsoft 365 est autorisé",
     `<p>L'accord de votre administrateur est enregistré, et nous avons vérifié

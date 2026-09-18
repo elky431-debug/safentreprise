@@ -65,3 +65,11 @@ src/app/apercu-*/page.tsx` rend le tableau de bord avec un jeu de
 # et elle divergerait du vrai écran dès la première modification. La source
 # est conservée hors du dépôt et recopiée ici au besoin.
 src/app/apercu-*/
+
+# ⚠ LA ROUTE D'APERÇU DU RACCORDEMENT N'EST PAS VERSIONNÉE, ET ELLE NE PROUVE
+#   PAS TOUT. `src/app/apercu-racc/` sert à regarder les écrans de
+#   l'informaticien avec un jeton fabriqué, sans base ni Microsoft. Elle ne
+#   passe PAS par `/raccordement/[jeton]`, donc elle ne voit rien de ce qui
+#   vient du serveur — une mesure qui y passe ne prouve rien sur la vraie page.
+#   Même piège que pour `Releve.tsx` et la coquille du tableau de bord.
+src/app/apercu-racc/
