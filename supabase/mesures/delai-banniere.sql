@@ -57,6 +57,58 @@
 -- pour le savoir — coûte 0,8 s.
 --
 -- ============================================================================
+-- APRÈS LE RÉVEIL PAR WEBHOOK — 18 SEPTEMBRE 2026
+-- ============================================================================
+--
+--                        avant          après
+--   t1 vers webhook    1,2–4,2 s        1,7 s
+--   t2 attente file   13,9–57,7 s       0,3 s     <-- la loterie a disparu
+--   t3 worker          0,6–1,1 s        0,5 s
+--   t4 bannière        0,8–1,0 s        0,9 s
+--   t5 déplacement       0,8 s          0,6 s
+--   TOTAL VÉCU          17,4 s          4,0 s
+--
+-- Plus aucune étape ne domine. C'est le signe qu'il n'y a plus de gain simple
+-- à prendre : les quatre segments restants sont du travail réel, pas de
+-- l'attente.
+--
+-- ============================================================================
+-- ⚠ CE CHIFFRE EST DEVENU UN ARGUMENT COMMERCIAL. IL DOIT RESTER VRAI.
+-- ============================================================================
+--
+-- « L'alerte apparaît en moins de cinq secondes » est dit aux prospects. Une
+-- promesse de délai qui cesse d'être tenue sans que personne le voie est pire
+-- que pas de promesse du tout : elle se découvre devant un client.
+--
+-- RELANCER CE FICHIER À CHAQUE CHANGEMENT DE LA CHAÎNE, et au moins une fois
+-- par trimestre même sans changement. Le seuil à surveiller est le p90 de
+-- `total_median` de la requête 2 — pas la médiane : la promesse porte sur ce
+-- que vit le client malchanceux.
+--
+-- QUATRE CHOSES PEUVENT LE FAIRE REMONTER, dans l'ordre de probabilité :
+--
+-- 1. LE RÉVEIL CESSE DE PARTIR, en silence. C'est le plus probable et le plus
+--    discret : `t2` remonterait seul à 0–60 s, et tout le reste paraîtrait
+--    normal. Symptôme exact : `t2` redevient une loterie. Contrôle :
+--      SELECT id, created, url, status_code, error_msg
+--        FROM net._http_response ORDER BY created DESC LIMIT 20;
+--
+-- 2. LA CHARGE. Le worker traite par lots de 5, EN SÉRIE. Le cinquième message
+--    d'une rafale attend les quatre autres — son `t3` porte l'attente des
+--    autres. Avec un seul client la question ne se pose pas ; elle se posera
+--    au premier client à gros volume. Ce jour-là, regarder `LOT` dans
+--    `src/app/api/microsoft/worker/route.ts` avant de conclure à une lenteur.
+--
+-- 3. LE DÉMARRAGE À FROID de la fonction Netlify. Symptôme : `t3` très
+--    supérieur à `duree_ms`, qui ne mesure que le travail une fois la fonction
+--    chaude.
+--
+-- 4. MICROSOFT. `t1` ne dépend pas de nous. S'il domine, il n'y a rien à
+--    corriger de notre côté — mais il faut le savoir avant de chercher
+--    ailleurs, et le dire au client plutôt que de promettre ce qu'on ne tient
+--    plus.
+--
+-- ============================================================================
 -- TROIS RÉSERVES, À LIRE AVANT DE CONCLURE
 -- ============================================================================
 --
