@@ -34,6 +34,29 @@
 --   reconstituée — l'instant n'a jamais été écrit.
 --
 -- ============================================================================
+-- LA MESURE DE RÉFÉRENCE — 17 SEPTEMBRE 2026, AVANT LE RÉVEIL PAR WEBHOOK
+-- ============================================================================
+--
+-- Trois trajets réels, en secondes. À comparer après chaque changement.
+--
+--   t1  réception Microsoft -> webhook        1,2  1,6  4,2
+--   t2  attente en file                      13,9 24,7 57,7   <-- 80 % du délai
+--   t3  worker (Graph + analyse)              0,6  1,1  0,9
+--   t4  écriture de la bannière               1,0  1,0  0,8
+--   t5  déplacement, retour en boîte          0,8    –    –
+--   total vécu                               17,4
+--
+-- ⚠ `t2` N'EST PAS UNE LENTEUR, C'EST UNE LOTERIE. Entre 0 et 60 s selon
+--   l'instant où le message tombe dans la minute de cron. Le 57,7 s d'un des
+--   trajets n'est pas une anomalie : c'est un message arrivé juste après un
+--   tour. C'est ce qui explique qu'un même produit paraisse tantôt réactif,
+--   tantôt lent, sans que rien n'ait changé. Ne pas moyenner ces trois-là.
+--
+-- Le reste ne laisse rien à gagner : Microsoft notifie en 1,2 s, l'analyse
+-- complète tient sous la seconde, et le déplacement — le trou qu'on a bouché
+-- pour le savoir — coûte 0,8 s.
+--
+-- ============================================================================
 -- TROIS RÉSERVES, À LIRE AVANT DE CONCLURE
 -- ============================================================================
 --
