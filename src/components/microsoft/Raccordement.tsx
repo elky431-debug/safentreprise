@@ -26,10 +26,12 @@ import { ChoixBoites } from "./ChoixBoites";
 import { EcranRestriction } from "./EcranRestriction";
 import { EtatSurveillance } from "./EtatSurveillance";
 import { Encadre, Progression } from "./commun";
+import { CoquilleDirigeant } from "@/components/raccordement/CoquilleDirigeant";
 
 export function Raccordement({ etat }: { etat: Etat }) {
   const router = useRouter();
   const [detour, setDetour] = useState<EtapeRaccordement | null>(null);
+  const [detourAdmin, setDetourAdmin] = useState(false);
 
   const etape = detour ?? etat.etape;
 
@@ -42,7 +44,18 @@ export function Raccordement({ etat }: { etat: Etat }) {
     <div className="space-y-5">
       <Progression etape={etape} />
 
-      {etape === "non-raccorde" && <EtapeAutoriser etat={etat} />}
+      {/* ⚠ LE PARCOURS À DEUX ACTEURS S'INTERCALE ICI, ET SEULEMENT ICI. Un
+          raccordement déjà engagé — boîtes choisies, restriction, actif —
+          garde l'ancien parcours intact : c'est la règle de compatibilité du
+          document. `detourAdmin` est la sortie pour le dirigeant qui EST
+          l'administrateur ; elle ne survit pas au rechargement, comme les
+          autres détours de cet écran. */}
+      {etape === "non-raccorde" &&
+        (detourAdmin ? (
+          <EtapeAutoriser etat={etat} />
+        ) : (
+          <CoquilleDirigeant onInstallerMoiMeme={() => setDetourAdmin(true)} />
+        ))}
 
       {etape === "boites" && etat.tenant_uid && (
         <ChoixBoites
