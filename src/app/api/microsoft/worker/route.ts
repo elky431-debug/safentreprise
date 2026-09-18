@@ -49,6 +49,7 @@ import {
   type ResumeANotifier,
 } from "@/lib/microsoft/alerte-dirigeant";
 import { erreurExpediteur, expediteurVerifie } from "@/lib/send/expediteur";
+import { envoyerEmail } from "@/lib/send/email";
 import {
   envoyerRapportMensuel,
   rapportFictif,
@@ -1303,6 +1304,109 @@ async function notifierAlertes(): Promise<Notification[]> {
 }
 
 /* ==========================================================================
+   Alertes du parcours de raccordement
+   ========================================================================== */
+
+/**
+ * Les trois signalements du parcours de raccordement, par email.
+ *
+ * ⚠ PAS DE PLANIFICATEUR, COMME LE RAPPORT MENSUEL. Le worker tourne déjà
+ *   toutes les minutes ; lui greffer cette passe évite un second endroit où la
+ *   panne peut se loger silencieusement.
+ *
+ * ⚠ ELLE NE LÈVE JAMAIS. Une alerte qui ne part pas est un incident de
+ *   communication ; elle ne doit pas arrêter l'analyse des messages. Et la
+ *   LIGNE est déjà écrite en base : le mail est un confort d'exploitation, pas
+ *   la trace.
+ *
+ * ⚠ LA BASE MARQUE AVANT QU'ON ENVOIE, ET C'EST LE BON SENS. L'inverse —
+ *   envoyer puis marquer — renverrait la même alerte à chaque tour si le
+ *   marquage échouait, soit une alerte par minute. Perdre une alerte sur un
+ *   incident réseau est moins grave que d'en envoyer mille.
+ */
+type AlerteRaccordement = {
+  type: "blocage" | "inertie" | "propagation";
+  societe_nom: string | null;
+  dirigeant_email: string | null;
+  destinataire_email: string | null;
+  jeton: string | null;
+  detail: string | null;
+  depuis: string | null;
+};
+
+const SUJET: Record<string, string> = {
+  blocage: "Blocage signalé pendant un raccordement",
+  inertie: "Raccordement ouvert mais sans suite depuis 48 h",
+  propagation: "Restriction jamais constatée depuis 4 h",
+};
+
+async function alerterRaccordements(): Promise<{
+  envoyees: number;
+  echecs: number;
+}> {
+  const destinataire = process.env.VEILLE_DESTINATAIRE;
+  const from = process.env.VEILLE_FROM_EMAIL;
+
+  if (!destinataire || !from) {
+    // ⚠ ON NE CONSOMME PAS LES ALERTES SI ON NE PEUT PAS LES ENVOYER. Appeler
+    //   la fonction les marquerait comme signalées et elles seraient perdues
+    //   pour de bon. Mieux vaut ne rien faire et le dire.
+    console.warn(
+      "[raccordement] VEILLE_DESTINATAIRE ou VEILLE_FROM_EMAIL absent : " +
+        "aucune alerte n'est relevée, pour ne pas les consommer.",
+    );
+    return { envoyees: 0, echecs: 0 };
+  }
+
+  let lignes: AlerteRaccordement[] = [];
+  try {
+    lignes =
+      (await rpc<AlerteRaccordement[]>("alertes_raccordement_a_envoyer", {})) ??
+      [];
+  } catch (erreur) {
+    console.error("[raccordement] alertes_raccordement_a_envoyer :", messageDe(erreur));
+    return { envoyees: 0, echecs: 0 };
+  }
+
+  let envoyees = 0;
+  let echecs = 0;
+
+  for (const a of lignes) {
+    const corps =
+      `<p><strong>${echapperHtml(a.societe_nom ?? "Société inconnue")}</strong></p>` +
+      `<p>${echapperHtml(a.detail ?? "")}</p>` +
+      `<ul>` +
+      `<li>Dirigeant : ${echapperHtml(a.dirigeant_email ?? "—")}</li>` +
+      `<li>Informaticien : ${echapperHtml(a.destinataire_email ?? "—")}</li>` +
+      `<li>Depuis : ${echapperHtml(a.depuis ?? "—")}</li>` +
+      `</ul>`;
+
+    const r = await envoyerEmail({
+      from: `Safentreprise <${from}>`,
+      to: destinataire,
+      subject: `${SUJET[a.type] ?? "Raccordement"} — ${a.societe_nom ?? ""}`,
+      html: corps,
+    });
+
+    if (r.ok) envoyees += 1;
+    else {
+      echecs += 1;
+      console.error(`[raccordement] alerte ${a.type} non envoyée : ${r.erreur}`);
+    }
+  }
+
+  return { envoyees, echecs };
+}
+
+function echapperHtml(t: string): string {
+  return t
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* ==========================================================================
    Rapport mensuel
    ========================================================================== */
 
@@ -1427,6 +1531,10 @@ async function executer(): Promise<Response> {
       // Le 1er du mois, la file des messages est vide comme n'importe quel
       // autre jour : le rapport ne peut pas dépendre de ce qu'elle contient.
       rapports: await rapporterMensuel(),
+      // ⚠ DANS LA BRANCHE « FILE VIDE », comme les notifications et le rapport.
+      //   Quand il y a des messages à analyser, ils passent d'abord : une
+      //   alerte de raccordement peut attendre une minute, un message non.
+      raccordement: await alerterRaccordements(),
     });
   }
 
