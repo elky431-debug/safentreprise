@@ -298,6 +298,33 @@ d'adresses côté dirigeant.
 
 ---
 
+## La dette à solder, et sa condition de sortie
+
+**Ouverte le 18 septembre 2026, lot 2.** Elle n'est pas un oubli : elle a été
+prise volontairement, et elle doit être refermée.
+
+> **`choisir_boites_par_jeton` recopie le corps de `choisir_boites_graph`.**
+
+La version en session résout la société par `get_my_company_id()`, qui rend
+`NULL` pour un appelant anonyme : elle ne peut pas servir l'informaticien.
+Deux sorties existaient — extraire le corps commun dans une fonction interne,
+ou dupliquer. Extraire aurait **modifié une fonction dont dépend le
+raccordement en production, au milieu d'une refonte**. Le principe tenu depuis
+le lot 1 l'a emporté : rien d'existant ne bouge tant que le nouveau parcours
+n'est pas validé de bout en bout.
+
+**Tant que les deux existent :** toute correction apportée à l'une doit être
+reportée à l'autre. C'est exactement le genre de chose qu'on oublie, et deux
+copies qui dérivent valent pire que l'une ou l'autre.
+
+**Condition de sortie, à ne pas reporter au-delà :** le jour où le nouveau
+parcours aura raccordé un client réel de bout en bout, supprimer
+`choisir_boites_graph(UUID, JSONB)` et l'écran qui l'appelle — ou, si le
+parcours en session doit survivre, extraire le corps commun. À ce moment-là le
+risque aura disparu : il n'y aura plus de refonte en cours.
+
+---
+
 ## Ce que l'architecture avait déjà bon
 
 **`Raccordement.tsx` lisait déjà son étape depuis la BASE, jamais depuis le

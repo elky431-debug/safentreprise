@@ -77,18 +77,42 @@ const ISSUES: Record<Resultat["cause"], { titre: string; ton: Ton }> = {
 };
 
 type Props = {
-  tenantUid: string;
+  /**
+   * Le locataire, pour le parcours EN SESSION.
+   *
+   * ⚠ EXCLUSIF AVEC `jeton`. Cet écran sert les deux parcours : le dirigeant
+   *   qui installe lui-même, et l'informaticien qui n'a pas de compte. Ce qui
+   *   change entre les deux est l'identité de l'appelant, donc les deux URL
+   *   appelées — rien d'autre. Le dupliquer pour le jeton aurait donné deux
+   *   copies de six cents lignes à maintenir en parallèle.
+   */
+  tenantUid?: string;
+  /** Le lien de raccordement, pour le parcours de l'informaticien. */
+  jeton?: string;
   /** Appelé quand la restriction est vérifiée : la page se recharge. */
   onVerifie: () => void;
-  /** Sortie de secours : revenir modifier la sélection de boîtes. */
-  onModifierSelection: () => void;
+  /**
+   * Sortie de secours : revenir modifier la sélection de boîtes.
+   *
+   * ⚠ FACULTATIVE. Dans le parcours par jeton, le retour au périmètre passe
+   *   par l'étape précédente de la page, pas par un bouton d'ici.
+   */
+  onModifierSelection?: () => void;
 };
 
 export function EcranRestriction({
   tenantUid,
+  jeton,
   onVerifie,
   onModifierSelection,
 }: Props) {
+  // ⚠ UNE SEULE CONSTRUCTION D'URL, POUR LES DEUX VERBES. Les laisser
+  //   diverger ferait produire le script sur une voie et le vérifier sur
+  //   l'autre — la vérification porterait alors sur un périmètre qui n'est pas
+  //   celui du script affiché.
+  const adresse = jeton
+    ? `/api/microsoft/restriction?jeton=${encodeURIComponent(jeton)}`
+    : `/api/microsoft/restriction?tenant=${encodeURIComponent(tenantUid ?? "")}`;
   const [script, setScript] = useState<Script | null>(null);
   const [chargement, setChargement] = useState(true);
   const [erreurScript, setErreurScript] = useState<string | null>(null);
@@ -104,15 +128,21 @@ export function EcranRestriction({
 
     void (async () => {
       try {
-        const reponse = await fetch(
-          `/api/microsoft/restriction?tenant=${encodeURIComponent(tenantUid)}`,
-          { cache: "no-store" },
-        );
+        const reponse = await fetch(adresse, { cache: "no-store" });
         const corps = await reponse.json();
         if (annule) return;
 
         if (!reponse.ok) {
-          setErreurScript(corps.erreur ?? "Le script n'a pas pu être produit.");
+          // ⚠ ON NE MONTRE PAS LE DÉTAIL TECHNIQUE À UN TIERS. La route rend
+          //   des messages d'exploitation — noms de variables d'environnement
+          //   comprises — utiles au dirigeant qui peut agir, inutiles et
+          //   indiscrets pour un prestataire extérieur. Le détail reste dans
+          //   le journal serveur, où il sert vraiment.
+          setErreurScript(
+            jeton
+              ? "Le script n'a pas pu être produit. L'erreur vient de notre côté, pas du vôtre — elle nous est signalée. Réessayez dans un instant."
+              : (corps.erreur ?? "Le script n'a pas pu être produit."),
+          );
           setScript(null);
           return;
         }
@@ -131,7 +161,7 @@ export function EcranRestriction({
     return () => {
       annule = true;
     };
-  }, [tenantUid, cle]);
+  }, [adresse, cle]);
 
   function recharger() {
     setChargement(true);
@@ -172,10 +202,7 @@ export function EcranRestriction({
     setVerification(true);
     setResultat(null);
     try {
-      const reponse = await fetch(
-        `/api/microsoft/restriction?tenant=${encodeURIComponent(tenantUid)}`,
-        { method: "POST" },
-      );
+      const reponse = await fetch(adresse, { method: "POST" });
       const corps = (await reponse.json()) as Resultat;
       setResultat(corps);
       if (corps.verifie) {
@@ -198,6 +225,16 @@ export function EcranRestriction({
 
   return (
     <div className="space-y-4">
+      {jeton && <TexteDifferenciation />}
+
+      {/* ⚠ CE BLOC ET CELUI DU DESSUS DISENT LA MÊME CHOSE, D'OÙ L'EXCLUSION.
+          Constaté à la capture du 18 septembre : les deux se suivaient et
+          répétaient l'un après l'autre que l'accord porte sur toutes les
+          boîtes et qu'aucun message n'est analysé avant le script. Deux fois
+          le même argument à dix lignes d'intervalle le rend moins crédible,
+          pas plus. Le parcours par jeton garde la formulation arrêtée ; le
+          parcours en session garde celle-ci, écrite pour le dirigeant. */}
+      {!jeton && (
       <Encadre ton="info" titre="Pourquoi ce script est indispensable">
         <p>
           Quand votre administrateur a autorisé Safentreprise, Microsoft nous a
@@ -224,6 +261,7 @@ export function EcranRestriction({
           .
         </p>
       </Encadre>
+      )}
 
       <Prerequis />
 
@@ -500,7 +538,8 @@ function ResultatVerification({
 }: {
   resultat: Resultat;
   onRelancer: () => void;
-  onModifierSelection: () => void;
+  /** Absente dans le parcours par jeton : le retour passe par la page. */
+  onModifierSelection?: () => void;
 }) {
   const { titre, ton } = ISSUES[resultat.cause] ?? ISSUES.indetermine;
 
@@ -550,15 +589,21 @@ function ResultatVerification({
                 {issue.explication}
               </p>
               {issue.commande && <Commande texte={issue.commande} />}
-              {resultat.cause === "aucun-temoin" && index === 1 && (
-                <button
-                  type="button"
-                  onClick={onModifierSelection}
-                  className={`${buttonSecondary} mt-3`}
-                >
-                  Modifier la sélection
-                </button>
-              )}
+              {/* ⚠ LE BOUTON DISPARAÎT SI LA SORTIE N'EXISTE PAS, plutôt que
+                  de rester cliquable sans rien faire. Un bouton qui ne réagit
+                  pas est pire qu'un bouton absent : on le clique deux fois,
+                  puis on conclut que la page est cassée. */}
+              {resultat.cause === "aucun-temoin" &&
+                index === 1 &&
+                onModifierSelection && (
+                  <button
+                    type="button"
+                    onClick={onModifierSelection}
+                    className={`${buttonSecondary} mt-3`}
+                  >
+                    Modifier la sélection
+                  </button>
+                )}
             </li>
           ))}
         </ol>
@@ -621,6 +666,42 @@ function Commande({ texte }: { texte: string }) {
         <IconCopy />
         {copie ? "Copié" : "Copier la commande"}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Le texte de différenciation, pour l'informaticien.
+ *
+ * ⚠ ARRÊTÉ MOT POUR MOT LE 18 SEPTEMBRE 2026. NE PAS LE RÉÉCRIRE, NE PAS LE
+ *   RACCOURCIR « POUR ALLÉGER L'ÉCRAN ». C'est la formulation retenue de la
+ *   différenciation du produit, et la seule phrase de tout le parcours qui
+ *   explique à un informaticien pourquoi il travaille pour nous plutôt que de
+ *   subir une corvée de plus. Voir docs/PARCOURS-RACCORDEMENT.md, écran I4.
+ *
+ * ⚠ IL NE S'AFFICHE QUE SUR LE PARCOURS PAR JETON. Le dirigeant qui installe
+ *   lui-même a déjà lu l'argument avant d'acheter ; le lui resservir ici
+ *   allongerait son écran sans rien lui apprendre.
+ */
+function TexteDifferenciation() {
+  return (
+    <div className="rounded-[16px] border border-accent-line bg-accent-soft px-5 py-4">
+      <p className="titre-bloc text-foreground">
+        Ce script retire des droits, il n&apos;en donne pas.
+      </p>
+      <p className="texte-courant mt-2 text-muted">
+        L&apos;accord que vous venez de donner porte techniquement sur toutes
+        les boîtes du locataire — c&apos;est ainsi que Microsoft délivre les
+        autorisations, et c&apos;est ce que font nos concurrents. Ce script{" "}
+        <strong className="font-semibold text-foreground">
+          borne Safentreprise aux boîtes ci-dessus
+        </strong>
+        . Tant qu&apos;il n&apos;est pas exécuté,{" "}
+        <strong className="font-semibold text-foreground">
+          aucun message n&apos;est analysé
+        </strong>{" "}
+        : nous refusons de démarrer sur une autorisation trop large.
+      </p>
     </div>
   );
 }

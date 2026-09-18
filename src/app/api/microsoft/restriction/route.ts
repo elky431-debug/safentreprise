@@ -58,6 +58,91 @@ function messageDe(erreur: unknown): string {
   return erreur instanceof Error ? erreur.message : String(erreur);
 }
 
+/**
+ * Le contexte, résolu depuis un lien de raccordement plutôt qu'une session.
+ *
+ * ⚠ LE LOCATAIRE VIENT DE LA BASE, JAMAIS DE LA REQUÊTE. La fonction SQL part
+ *   du jeton et remonte à la société puis au locataire ; rien de ce que
+ *   l'appelant envoie ne désigne le locataire. Accepter un `tenant` à côté du
+ *   jeton rouvrirait exactement la porte que le jeton ferme.
+ */
+async function contexteParJeton(jeton: string): Promise<
+  | {
+      ok: true;
+      locataire: Locataire;
+      choisies: Choisie[];
+      societe: string;
+      societeId: string | null;
+    }
+  | { ok: false; statut: number; erreur: string }
+> {
+  if (!/^[0-9a-f]{32}$/.test(jeton)) {
+    return { ok: false, statut: 400, erreur: "Lien de raccordement invalide." };
+  }
+
+  let ligne:
+    | {
+        tenant_uid: string;
+        tenant_id: string;
+        temoin_graph_user_id: string | null;
+        temoin_upn: string | null;
+        sp_object_id: string | null;
+        societe_id: string | null;
+        societe_nom: string | null;
+      }
+    | undefined;
+
+  try {
+    const lignes = await rpcService<(typeof ligne)[]>(
+      "contexte_restriction_par_jeton",
+      { p_jeton: jeton },
+    );
+    ligne = Array.isArray(lignes) ? lignes[0] : undefined;
+  } catch (erreur) {
+    console.error("[restriction] contexte_restriction_par_jeton :", erreur);
+    return { ok: false, statut: 500, erreur: messageDe(erreur) };
+  }
+
+  if (!ligne) {
+    return {
+      ok: false,
+      statut: 404,
+      erreur:
+        "Lien de raccordement invalide, expiré, ou accord Microsoft pas encore donné.",
+    };
+  }
+
+  const choisies =
+    (await rpcService<Choisie[]>("boites_choisies_graph", {
+      p_tenant_uid: ligne.tenant_uid,
+    }).catch(() => [])) ?? [];
+
+  if (choisies.length === 0) {
+    return {
+      ok: false,
+      statut: 409,
+      erreur:
+        "Aucune boîte sélectionnée. Revenez à l'étape précédente pour fixer le périmètre.",
+    };
+  }
+
+  return {
+    ok: true,
+    locataire: {
+      id: ligne.tenant_uid,
+      tenant_id: ligne.tenant_id,
+      temoin_graph_user_id: ligne.temoin_graph_user_id,
+      temoin_upn: ligne.temoin_upn,
+      sp_object_id: ligne.sp_object_id,
+    } as Locataire,
+    choisies,
+    societe: ligne.societe_nom ?? "Client",
+    // ⚠ L'IDENTIFIANT, PAS LE NOM, NOMME LE PÉRIMÈTRE. Même raison que dans la
+    //   voie en session : `nom` est un champ libre que le client modifie.
+    societeId: ligne.societe_id,
+  };
+}
+
 async function contexte(requete: Request): Promise<
   | {
       ok: true;
@@ -68,7 +153,25 @@ async function contexte(requete: Request): Promise<
     }
   | { ok: false; statut: number; erreur: string }
 > {
-  const tenantUid = new URL(requete.url).searchParams.get("tenant");
+  // ⚠ DEUX VOIES D'ENTRÉE, UN SEUL CORPS DE ROUTE. Le parcours en session
+  //   passe `?tenant=` ; celui de l'informaticien passe `?jeton=`. Tout ce qui
+  //   suit — production du script, recherche du témoin, sondage, conclusion —
+  //   est identique et tourne déjà en `service_role`.
+  //
+  //   ⚠ NE PAS DUPLIQUER CETTE ROUTE POUR LE JETON. Elle fait 600 lignes ; la
+  //     dette ouverte au lot 2 sur `choisir_boites_par_jeton` était tolérable
+  //     pour trente lignes, elle ne le serait pas ici. Voir
+  //     `docs/PARCOURS-RACCORDEMENT.md`, section « La dette à solder ».
+  //
+  //   ⚠ QUAND `jeton` EST ABSENT, LE COMPORTEMENT EST CELUI D'AVANT, AU
+  //     CARACTÈRE PRÈS. C'est ce qui permet d'ajouter la voie sans remettre en
+  //     jeu un raccordement en production.
+  const parametres = new URL(requete.url).searchParams;
+  const jeton = parametres.get("jeton");
+
+  if (jeton) return await contexteParJeton(jeton);
+
+  const tenantUid = parametres.get("tenant");
   if (!tenantUid) {
     return { ok: false, statut: 400, erreur: "Paramètre « tenant » manquant." };
   }

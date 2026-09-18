@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Le parcours de l'informaticien : I0 à I3.
+ * Le parcours de l'informaticien : I0 à I6.
  *
  * Référence : docs/PARCOURS-RACCORDEMENT.md
  *
@@ -17,6 +17,8 @@ import { Encadre } from "@/components/microsoft/commun";
 import { Annonce } from "./Annonce";
 import { EcranAccord } from "./EcranAccord";
 import { EcranPerimetre } from "./EcranPerimetre";
+import { EcranRestriction } from "@/components/microsoft/EcranRestriction";
+import { Termine } from "./Termine";
 import { FilEtapes } from "./FilEtapes";
 import { BoutonBloque } from "./BoutonBloque";
 
@@ -98,6 +100,11 @@ export function ParcoursInformaticien(props: Props) {
     );
   }
 
+  // ⚠ L'ÉTAPE SE DÉDUIT DE LA BASE, DANS CET ORDRE. Pas d'accord → 1. Accord
+  //   mais aucun périmètre → 2. Périmètre fixé → 3. Restriction constatée →
+  //   fini. Aucun compteur local : quelqu'un qui revient le lendemain retombe
+  //   au bon endroit.
+  const fini = Boolean(etat?.restriction_verifiee_at && etat.boites_actives > 0);
   const etape: 1 | 2 | 3 = !etat?.accord_donne
     ? 1
     : etat.boites_choisies > 0
@@ -131,18 +138,22 @@ export function ParcoursInformaticien(props: Props) {
 
       {chargement && !etat ? (
         <p className="texte-second">Lecture de l’état…</p>
+      ) : fini ? (
+        <Termine jeton={jeton} dirigeant={dirigeant} boites={etat?.boites_actives ?? 0} />
       ) : !etat?.accord_donne ? (
         <EcranAccord jeton={jeton} societe={societe} />
-      ) : (
+      ) : etat.boites_choisies === 0 ? (
         <EcranPerimetre
           jeton={jeton}
           adresses={adresses}
           etat={etat}
           onEnregistre={() => void relire()}
         />
+      ) : (
+        <EcranRestriction jeton={jeton} onVerifie={() => void relire()} />
       )}
 
-      <BoutonBloque jeton={jeton} etape={`I${etape}`} />
+      {!fini && <BoutonBloque jeton={jeton} etape={`I${etape}`} />}
     </div>
   );
 }
