@@ -71,8 +71,9 @@ CREATE TABLE journal_acces (
   tache        TEXT,            -- 'analyse-message', 'restauration', …
 
   -- POUR QUI. Des références, jamais un nom ni une adresse.
-  company_id   UUID REFERENCES companies(id) ON DELETE SET NULL,
-  tenant_uid   UUID REFERENCES microsoft_tenants(id) ON DELETE SET NULL,
+  -- Sans clé étrangère, volontairement : voir § 2.4.
+  company_id   UUID,
+  tenant_uid   UUID,
 
   -- QUOI.
   ressource    TEXT NOT NULL,   -- 'message' | 'corps' | 'annuaire'
@@ -154,6 +155,50 @@ Même traitement que `graph_corps_originaux`, **étendu à `service_role`** :
 - **suppression** : uniquement par `purger_journal_acces()`, qui journalise
   sa propre exécution — une purge hors fenêtre laisse donc une trace ;
 - `UPDATE` : accordé à personne. Le journal ne se corrige pas.
+
+### 2.4 Pourquoi le journal n'a pas de clé étrangère
+
+`company_id` et `tenant_uid` ont d'abord été déclarés
+`REFERENCES … ON DELETE SET NULL`, par réflexe d'intégrité référentielle. C'est
+une erreur, et elle est sérieuse : **ces deux colonnes entrent dans l'empreinte
+du sceau quotidien.**
+
+Supprimer un locataire Microsoft — ou une société — passait donc ces colonnes à
+NULL sur des lignes **déjà scellées**. `verifier_sceaux_journal()` rendait alors
+« JOURNAL ALTÉRÉ » sur tous les jours concernés, sans recours possible : un
+sceau ne se recalcule pas, et supprimer `journal_sceaux` romprait la chaîne.
+
+> Le défaut se serait révélé au pire moment : **au premier départ d'un client.**
+> Celui qui exerce son droit à l'effacement aurait détruit du même geste la
+> preuve que nous avons tenu nos obligations sur les onze mois précédents.
+
+Corrigé par `20260918f_journal_garde_le_locataire.sql`, qui retire les deux
+contraintes. Le raisonnement tient en une phrase : **un journal d'accès
+consigne ce qui s'est passé.** La ligne « le worker a lu telle boîte du
+locataire X » reste vraie après la suppression du locataire X. C'est la clé
+étrangère qui avait tort de vouloir la corriger.
+
+Deux objections, et leurs réponses :
+
+- **« On peut désormais écrire n'importe quel UUID. »** Non. `journaliser()`
+  résout `tenant_uid` en interrogeant `microsoft_tenants` au moment de
+  l'écriture, et ramène à NULL une société absente de `companies` (défense 1 de
+  `20260918_journal_resilient.sql`). Ces deux protections restent en place et
+  restent nécessaires : aucune valeur inventée n'entre. La seule façon
+  d'obtenir une référence sans cible est la suppression ultérieure de la cible
+  — soit exactement le fait à conserver.
+- **« C'est un relâchement d'intégrité. »** Il est circonscrit au journal.
+  Toutes les autres clés étrangères vers `microsoft_tenants` et `companies`
+  restent en CASCADE : supprimer un locataire emporte toujours ses boîtes, ses
+  abonnements, sa file d'attente et ses analyses.
+
+**Contrôle permanent.** Cette requête doit rendre zéro ligne ; si elle en rend
+une, une suppression de client casserait les sceaux :
+
+```sql
+SELECT conname FROM pg_constraint
+ WHERE conrelid = 'journal_acces'::regclass AND contype = 'f';
+```
 
 ---
 
