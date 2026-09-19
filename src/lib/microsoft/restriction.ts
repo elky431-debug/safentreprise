@@ -204,6 +204,12 @@ export function construireScript(
 
   const liste = adresses.map((a) => `#     ${a}`).join("\n");
 
+  // Les mêmes adresses, en tableau PowerShell : le script relit le périmètre
+  // après l'avoir écrit et vérifie qu'il les couvre toutes.
+  const tableauAdresses = adresses
+    .map((a) => `'${doublerApostrophes(a)}'`)
+    .join(", ");
+
   // La boîte témoin : une boîte HORS périmètre, que Microsoft doit refuser.
   // Sans elle, la restriction ne peut pas être démontrée.
   //
@@ -487,6 +493,7 @@ if (-not $Sp) {
 # Ce nom n'est qu'un DEFAUT : il ne sert que si aucun perimetre n'existe deja.
 $NomPerimetre = '${doublerApostrophes(nomPerimetre)}'
 $Filtre = "${filtre}"
+$Adresses = @(${tableauAdresses})
 
 # ATTENTION : ce qui fait autorite, c'est le perimetre DEJA attribue a ce
 # principal de service, quel que soit son nom. Une version precedente de ce
@@ -517,13 +524,91 @@ if ($Existante.Count -gt 0) {
 }
 
 $Perimetre = Get-ManagementScope -Identity $NomPerimetre -ErrorAction SilentlyContinue
-if ($Perimetre) {
-    # Le filtre est remis a jour : c'est ce qui suit l'ajout ou le retrait
-    # d'une boite surveillee, sans jamais creer un second perimetre.
-    Set-ManagementScope -Identity $NomPerimetre -RecipientRestrictionFilter $Filtre
-} else {
-    $Perimetre = New-ManagementScope -Name $NomPerimetre -RecipientRestrictionFilter $Filtre
+
+# ATTENTION : -ErrorAction Stop sur les DEUX. Sans lui, une ecriture refusee
+# n'est qu'une erreur non bloquante : le script continuait, attribuait le role
+# et affichait "Termine" sur un perimetre qui n'avait jamais ete ecrit.
+try {
+    if ($Perimetre) {
+        # Le filtre est remis a jour : c'est ce qui suit l'ajout ou le retrait
+        # d'une boite surveillee, sans jamais creer un second perimetre.
+        Set-ManagementScope -Identity $NomPerimetre -RecipientRestrictionFilter $Filtre -ErrorAction Stop
+    } else {
+        $Perimetre = New-ManagementScope -Name $NomPerimetre -RecipientRestrictionFilter $Filtre -ErrorAction Stop
+    }
+} catch {
+    Write-Host ""
+    Write-Host "ARRET : le perimetre n'a pas pu etre ecrit." -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Aucun role n'a ete attribue, rien n'est active." -ForegroundColor Yellow
+    Write-Host "Corrigez la cause ci-dessus et relancez ce script." -ForegroundColor Yellow
+    return
 }
+
+# ------------------------------------------------------------
+# 8 bis. Relire ce qui a REELLEMENT ete ecrit
+# ------------------------------------------------------------
+# Sans cette relecture, ce script affirmait "Perimetre applique" sans jamais
+# avoir regarde son propre resultat. Safentreprise ne pouvait pas le rattraper :
+# de son cote, un perimetre absent, un filtre vide et un filtre correct non
+# encore propage donnent le MEME refus de Microsoft. La distinction ne peut se
+# faire qu'ici, ou l'information existe.
+
+# ATTENTION, PIEGE VERIFIE : Exchange accepte -RecipientRestrictionFilter en
+# ECRITURE, mais range la valeur sous RecipientFilter en LECTURE. Relire sous
+# le nom d'ecriture rendrait TOUJOURS vide, et ce script s'arreterait sur un
+# perimetre parfaitement correct. Constate le 19 septembre 2026 :
+#
+#     Name            : Safentreprise-f2381ef4
+#     RecipientFilter : PrimarySmtpAddress -eq 'admin@...onmicrosoft.com'
+#
+$Relu = Get-ManagementScope -Identity $NomPerimetre -ErrorAction SilentlyContinue
+
+if (-not $Relu) {
+    Write-Host ""
+    Write-Host "ARRET : le perimetre $NomPerimetre est introuvable apres ecriture." -ForegroundColor Red
+    Write-Host "Aucun role n'a ete attribue. Relancez ce script." -ForegroundColor Yellow
+    return
+}
+
+$FiltreRelu = [string]$Relu.RecipientFilter
+
+if ([string]::IsNullOrWhiteSpace($FiltreRelu)) {
+    Write-Host ""
+    Write-Host "ARRET : le perimetre existe mais son filtre est VIDE." -ForegroundColor Red
+    Write-Host "Attribuer le role sur un perimetre vide donnerait acces a TOUTES" -ForegroundColor Yellow
+    Write-Host "les boites du locataire. C'est exactement ce que ce script existe" -ForegroundColor Yellow
+    Write-Host "pour empecher : on s'arrete ici." -ForegroundColor Yellow
+    return
+}
+
+# ATTENTION : on cherche chaque adresse, on ne compare pas les deux chaines.
+# Exchange renormalise le filtre qu'il range — espaces, ordre, guillemets
+# peuvent differer de ce qu'on a ecrit. Une egalite stricte arreterait le
+# script sur un perimetre juste, soit le faux negatif qu'on veut eviter.
+$FiltreCompare = $FiltreRelu.ToLower()
+$Absentes = @($Adresses | Where-Object {
+    $Cherche = $_.ToLower()
+    -not ($FiltreCompare.Contains($Cherche) -or
+          $FiltreCompare.Contains($Cherche.Replace("'", "''")))
+})
+
+if ($Absentes.Count -gt 0) {
+    Write-Host ""
+    Write-Host "ARRET : le perimetre ne couvre pas toutes les boites choisies." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Manquantes :" -ForegroundColor Yellow
+    $Absentes | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+    Write-Host ""
+    Write-Host "Filtre reellement enregistre par Exchange :" -ForegroundColor Yellow
+    Write-Host "    $FiltreRelu" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Aucun role n'a ete attribue. Transmettez ces lignes a Safentreprise." -ForegroundColor Yellow
+    return
+}
+
+Write-Host "Perimetre relu et verifie : $($Adresses.Count) boite(s) couverte(s)." -ForegroundColor Green
 
 # ------------------------------------------------------------
 # 9. Attribuer le role, limite a ce perimetre
@@ -545,7 +630,11 @@ Get-ManagementRoleAssignment -Identity $NomAttribution |
     Format-List Name, Role, CustomResourceScope
 Write-Host ""
 Write-Host "Retournez sur Safentreprise et lancez la verification." -ForegroundColor Cyan
-Write-Host "La prise en compte par Exchange peut demander quelques minutes." -ForegroundColor Yellow
+# ATTENTION : "jusqu'a une heure", comme partout ailleurs dans ce script. Cette
+# ligne disait "quelques minutes" et se contredisait donc avec les trois
+# avertissements ci-dessus — celui qui la lisait en dernier concluait a une
+# panne au bout de cinq minutes.
+Write-Host "La prise en compte par Exchange peut demander jusqu'a une heure." -ForegroundColor Yellow
 
 }
 

@@ -39,6 +39,7 @@ type Resultat = {
     | "restriction-active"
     | "acces-non-restreint"
     | "perimetre-trop-restrictif"
+    | "propagation-en-cours"
     | "aucun-temoin"
     | "indetermine";
   message: string;
@@ -62,9 +63,20 @@ const ISSUES: Record<Resultat["cause"], { titre: string; ton: Ton }> = {
     titre: "L'accès n'est pas restreint",
     ton: "danger",
   },
+  // ⚠ CE TITRE NE S'AFFICHE PLUS QU'APRÈS UNE HEURE D'ÉCHEC. Dans l'heure qui
+  //   suit le script, le même refus Microsoft donne « propagation-en-cours ».
+  //   La distinction se fait au serveur, sur la date du premier échec : lui
+  //   seul sait depuis quand. Ne pas rapatrier ce choix ici.
   "perimetre-trop-restrictif": {
-    titre: "Le périmètre ne contient pas les bonnes adresses",
+    titre: "Le périmètre ne couvre pas les boîtes choisies",
     ton: "danger",
+  },
+  // ⚠ « attention » ET PAS « danger ». Rien n'est cassé, il n'y a rien à
+  //   faire, et un écran rouge pousse à réparer ce qui n'a pas besoin de
+  //   l'être — c'est exactement ce qui s'est produit lors de l'essai réel.
+  "propagation-en-cours": {
+    titre: "Microsoft n'a pas encore pris en compte le périmètre",
+    ton: "attention",
   },
   "aucun-temoin": {
     titre: "Il manque une boîte de contrôle",

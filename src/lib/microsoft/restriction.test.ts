@@ -581,3 +581,150 @@ test("sans identifiant, le repli sur la raison sociale reste sûr", () => {
   );
   assert.match(nomPerimetre, /^Safentreprise-[A-Za-z0-9]*$/);
 });
+
+/* ==========================================================================
+   Le script vérifie son propre résultat — 19 septembre 2026
+   ========================================================================== */
+
+test("le périmètre est relu sous RecipientFilter, jamais sous le nom d'écriture", () => {
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+  );
+
+  // ⚠ LE PIÈGE QUE CE TEST EXISTE POUR TENIR FERMÉ. Exchange accepte
+  //   -RecipientRestrictionFilter en ÉCRITURE et range la valeur sous
+  //   RecipientFilter en LECTURE. Relire sous le nom d'écriture rendrait
+  //   toujours vide, et le script s'arrêterait sur un périmètre correct.
+  assert.ok(
+    script.includes("$Relu.RecipientFilter"),
+    "la relecture doit porter sur RecipientFilter",
+  );
+  assert.ok(
+    !/\.\s*RecipientRestrictionFilter/.test(script),
+    "RecipientRestrictionFilter ne doit jamais être lu comme propriété",
+  );
+
+  // Il reste le nom d'écriture, et seulement en position de paramètre.
+  // ⚠ ON COMPTE LE PARAMÈTRE AVEC SA VALEUR, PAS LE MOT. Le script explique le
+  //   piège en commentaire, et compter le mot nu faisait échouer ce test sur
+  //   sa propre explication.
+  const ecritures = script.match(/-RecipientRestrictionFilter \$Filtre/g) ?? [];
+  assert.equal(
+    ecritures.length,
+    2,
+    "il doit rester exactement deux écritures : Set- et New-ManagementScope",
+  );
+});
+
+test("une écriture de périmètre refusée arrête le script", () => {
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+  );
+
+  // ⚠ SANS -ErrorAction Stop, UNE ÉCRITURE REFUSÉE N'EST PAS BLOQUANTE : le
+  //   script poursuivait, attribuait le rôle et concluait « Terminé » sur un
+  //   périmètre jamais écrit.
+  assert.match(
+    script,
+    /Set-ManagementScope -Identity \$NomPerimetre -RecipientRestrictionFilter \$Filtre -ErrorAction Stop/,
+  );
+  assert.match(
+    script,
+    /New-ManagementScope -Name \$NomPerimetre -RecipientRestrictionFilter \$Filtre -ErrorAction Stop/,
+  );
+});
+
+test("les trois refus du périmètre s'arrêtent avant d'attribuer le rôle", () => {
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+  );
+
+  const posRelecture = script.indexOf("$Relu = Get-ManagementScope");
+  const posAttribution = script.indexOf("New-ManagementRoleAssignment -Name");
+
+  assert.ok(posRelecture > 0, "la relecture doit exister");
+  assert.ok(posAttribution > 0, "l'attribution doit exister");
+  assert.ok(
+    posRelecture < posAttribution,
+    "la relecture doit précéder l'attribution : un périmètre vide attribué " +
+      "donnerait accès à TOUTES les boîtes",
+  );
+
+  // Les trois cas distingués, chacun avec sa sortie.
+  assert.ok(script.includes("introuvable apres ecriture"));
+  assert.ok(script.includes("son filtre est VIDE"));
+  assert.ok(script.includes("ne couvre pas toutes les boites choisies"));
+});
+
+test("la relecture cherche chaque adresse, y compris avec une apostrophe", () => {
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [
+      { graph_user_id: "1", upn: "dg@essai.fr" },
+      { graph_user_id: "2", upn: "o'brien@essai.fr" },
+    ],
+    "Essai",
+  );
+
+  // Le tableau porte les adresses échappées à la mode PowerShell.
+  assert.ok(
+    script.includes("$Adresses = @('dg@essai.fr', 'o''brien@essai.fr')"),
+    "les adresses doivent être injectées échappées",
+  );
+
+  // ⚠ ON NE COMPARE PAS LES DEUX CHAÎNES. Exchange renormalise le filtre
+  //   qu'il range ; une égalité stricte arrêterait le script sur un périmètre
+  //   juste — le faux négatif qu'on cherche précisément à éviter.
+  assert.ok(
+    script.includes("$FiltreCompare.Contains($Cherche)"),
+    "la comparaison doit se faire adresse par adresse",
+  );
+  assert.ok(
+    script.includes(`$Cherche.Replace("'", "''")`),
+    "les deux écritures d'une apostrophe doivent être cherchées",
+  );
+});
+
+test("le script annonce le même délai partout : une heure, jamais quelques minutes", () => {
+  const { script } = construireScript(
+    CLIENT_ID,
+    SP_ID,
+    [{ graph_user_id: "1", upn: "dg@essai.fr" }],
+    "Essai",
+    { etat: "aucun" },
+    "essai.fr",
+  );
+
+  // ⚠ LA CONCLUSION DISAIT « QUELQUES MINUTES » PENDANT QUE TROIS
+  //   AVERTISSEMENTS PLUS HAUT DISAIENT « UNE HEURE ». Celui qui lisait la
+  //   dernière ligne concluait à une panne au bout de cinq minutes.
+  assert.ok(
+    script.includes(
+      "La prise en compte par Exchange peut demander jusqu'a une heure.",
+    ),
+    "la conclusion doit annoncer une heure",
+  );
+
+  // La seule mention restante de « quelques minutes » porte sur la visibilité
+  // d'une boîte partagée nouvellement créée — un autre délai, réellement court.
+  // ⚠ ON NE COMPTE QUE CE QUE L'ADMINISTRATEUR VOIT. Les commentaires du
+  //   script expliquent la correction et citent forcément l'ancienne formule ;
+  //   les compter faisait échouer ce test sur sa propre trace.
+  const minutes = script.match(/Write-Host "[^"]*quelques minutes/g) ?? [];
+  assert.equal(
+    minutes.length,
+    1,
+    "une seule mention de « quelques minutes » doit subsister : la boîte témoin",
+  );
+  assert.match(script, /avant d'etre visible/);
+});

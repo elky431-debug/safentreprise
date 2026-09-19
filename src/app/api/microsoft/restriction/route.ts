@@ -22,6 +22,7 @@
 import {
   listerBoites,
   obtenirServicePrincipal,
+  oublierJeton,
   sonderBoite,
   type BoiteCandidate,
   type Sondage,
@@ -345,6 +346,7 @@ type Resultat = {
     | "restriction-active"
     | "acces-non-restreint"
     | "perimetre-trop-restrictif"
+    | "propagation-en-cours"
     | "aucun-temoin"
     | "indetermine";
   message: string;
@@ -353,25 +355,105 @@ type Resultat = {
   issues?: { titre: string; explication: string; commande?: string }[];
 };
 
+/**
+ * Le temps qu'Exchange se donne pour propager une attribution de rôle.
+ *
+ * ⚠ UNE HEURE, PARCE QUE C'EST LE CHIFFRE QUE LE DÉPÔT TIENT DÉJÀ. Le script
+ *   l'annonce à trois endroits, et la sonde de santé a mesuré le sens inverse
+ *   sur le locataire Safentreprise le 15 septembre 2026 : Exchange continue de
+ *   servir l'accès une trentaine de minutes APRÈS un retrait. Descendre ce
+ *   seuil ferait accuser le client d'un périmètre faux pendant que Microsoft
+ *   n'a simplement pas fini son travail.
+ */
+const PROPAGATION_MS = 60 * 60 * 1000;
+
 /** Ce qu'on dit au client, selon ce que les deux sondages ont donné. */
 function conclure(
   temoin: { upn: string; sondage: Sondage } | null,
   choisie: { upn: string; sondage: Sondage },
   domaine: string | null,
+  premierEchecAt: string | null,
 ): Resultat {
   // 1. La boîte choisie doit rester lisible. Si elle ne l'est pas, inutile
   //    d'aller plus loin : la surveillance ne fonctionnerait pas.
   if (choisie.sondage.etat === "refuse") {
+    // ⚠ TROIS CAUSES DONNENT LE MÊME 403, ET CETTE ROUTE N'EN DISTINGUE
+    //   AUCUNE : périmètre absent, filtre vide, filtre correct non encore
+    //   propagé. Elle ne lit pas Exchange — c'est une décision de produit, pas
+    //   un oubli : la permission qui le permettrait nous laisserait modifier
+    //   tout le contrôle d'accès du client (docs/RESTRICTION-SANS-SCRIPT.md).
+    //
+    //   Ce qu'elle sait, en revanche, c'est DEPUIS QUAND elle échoue. Et dans
+    //   la première heure, la propagation est de très loin la cause la plus
+    //   probable — c'est même la seule qui se règle en ne faisant rien.
+    //
+    // ⚠ CE MESSAGE A ENVOYÉ QUELQU'UN RÉPARER CE QUI N'ÉTAIT PAS CASSÉ. Il
+    //   affirmait « le périmètre ne contient pas les bonnes adresses » et
+    //   proposait de relancer le script et de modifier la sélection, sur un
+    //   locataire où `Get-ManagementScope` montrait le bon filtre. Ne pas y
+    //   remettre une cause qu'on n'a pas constatée.
+    const depuis = premierEchecAt ? Date.now() - Date.parse(premierEchecAt) : 0;
+
+    // ⚠ UNE DATE ILLISIBLE VAUT « ÇA VIENT DE COMMENCER ». Date.parse rend NaN
+    //   sur une valeur inattendue, et NaN >= X est faux : on retombe donc sur
+    //   le message d'attente. C'est le bon défaut — le pire qu'il puisse faire
+    //   est de demander de patienter à quelqu'un dont le périmètre est
+    //   réellement faux, jamais l'inverse.
+    if (!(depuis >= PROPAGATION_MS)) {
+      return {
+        verifie: false,
+        cause: "propagation-en-cours",
+        message:
+          `Microsoft refuse encore l'accès à ${choisie.upn}, que vous avez ` +
+          `choisie. Si le script vient d'être exécuté, c'est normal et il n'y ` +
+          `a rien à corriger : Exchange met jusqu'à une heure à prendre en ` +
+          `compte un périmètre. Attendez, puis relancez la vérification. Si ` +
+          `le refus persiste au-delà, cet écran vous proposera quoi regarder.`,
+        detail: choisie.sondage.message,
+      };
+    }
+
     return {
       verifie: false,
       cause: "perimetre-trop-restrictif",
       message:
-        `Le script a bien restreint l'accès, mais TROP : la boîte ` +
-        `${choisie.upn}, que vous avez choisie, est elle aussi refusée. ` +
-        `Le périmètre ne contient pas les bonnes adresses. Vérifiez que le ` +
-        `filtre reprend exactement les adresses principales des boîtes ` +
-        `choisies, puis relancez la vérification.`,
+        `Microsoft refuse toujours l'accès à ${choisie.upn} plus d'une heure ` +
+        `après le premier échec. Ce n'est plus un délai de propagation. ` +
+        `Trois causes possibles, à vérifier dans cet ordre.`,
       detail: choisie.sondage.message,
+      issues: [
+        {
+          // ⚠ EN PREMIER PARCE QUE C'EST LA SEULE QUI SE CONSTATE D'UN SEUL
+          //   COUP, ET QU'ELLE TRANCHE LES DEUX AUTRES. InScope True dit que
+          //   le périmètre couvre la boîte : le problème est alors ailleurs.
+          //   InScope False dit qu'il ne la couvre pas, et les deux causes
+          //   suivantes deviennent les seules à examiner.
+          titre: "Demander à votre administrateur ce que dit Exchange",
+          explication:
+            "Cette commande répond InScope True si le périmètre couvre bien " +
+            "cette boîte. Si elle répond True alors que la lecture échoue, " +
+            "ne touchez à rien et transmettez-nous le résultat : la cause " +
+            "n'est pas chez vous.",
+          commande: `Test-ServicePrincipalAuthorization -Identity 'Safentreprise' -Resource '${choisie.upn}'`,
+        },
+        {
+          titre: "Le script ne s'est pas exécuté jusqu'au bout",
+          explication:
+            "Un périmètre absent ou au filtre vide donne exactement le même " +
+            "refus. Le script s'arrête désormais de lui-même dans ces deux " +
+            "cas, en le disant — mais une exécution antérieure a pu se " +
+            "terminer sur un « Terminé » qui ne vérifiait rien. Relancez-le " +
+            "et lisez ses dernières lignes.",
+        },
+        {
+          titre: "Cette boîte n'est pas celle que vous croyez",
+          explication:
+            "Le périmètre porte sur l'adresse principale. Si la boîte a été " +
+            "renommée, ou si vous l'avez désignée par un alias, le filtre ne " +
+            "la reconnaît pas. Vérifiez son adresse principale, puis " +
+            "reprenez la sélection des boîtes à surveiller.",
+        },
+      ],
     };
   }
 
@@ -529,6 +611,22 @@ async function postInterne(requete: Request) {
     return Response.json({ erreur: ctx.erreur }, { status: ctx.statut });
   }
 
+  // ⚠ LE JETON EN CACHE MENT PENDANT UNE HEURE, ET CETTE ROUTE EST CELLE QUI
+  //   S'EST FAIT AVOIR. `oublierJeton` a été écrite pour ce cas précis —
+  //   « la vérification lisait toujours la boîte témoin », graph.ts — puis
+  //   n'a été appelée que par la sonde de santé. Deux sondes posaient la même
+  //   question à Microsoft, une seule prenait la précaution.
+  //
+  //   Sans cet oubli, la vérification ne mesure pas l'état des autorisations :
+  //   elle mesure celui d'il y a une heure. Dans un sens elle refuse une
+  //   restriction correctement posée ; dans l'autre — le grave — elle
+  //   déclarerait la restriction en place sur la foi d'un jeton périmé, et le
+  //   produit activerait la surveillance en promettant un cloisonnement qu'il
+  //   n'a pas constaté.
+  //
+  //   Ici et pas dans le GET : le GET produit un script, il ne mesure rien.
+  oublierJeton(ctx.locataire.tenant_id);
+
   // Le client peut désigner lui-même la boîte à laisser hors surveillance.
   let designee: string | null = null;
   try {
@@ -603,10 +701,33 @@ async function postInterne(requete: Request) {
     if (sondage.etat === "refuse" || sondage.etat === "lisible") break;
   }
 
+  // ⚠ ON DATE LE PREMIER ÉCHEC AVANT DE CONCLURE, PAS APRÈS. C'est cette date
+  //   qui décide du message : dans l'heure, une propagation ; au-delà, les
+  //   causes à examiner. La fonction rend la PREMIÈRE date, pas celle-ci.
+  let premierEchecAt: string | null = null;
+  if (surChoisie.etat === "refuse") {
+    try {
+      premierEchecAt = await rpcService<string | null>(
+        "signaler_echec_restriction",
+        { p_tenant_uid: ctx.locataire.id },
+      );
+    } catch (erreur) {
+      // ⚠ NE PAS SAVOIR DEPUIS QUAND N'AUTORISE PAS À ACCUSER. Une date
+      //   absente vaut « ça vient de commencer » : le client sera invité à
+      //   patienter au lieu d'être envoyé corriger un périmètre peut-être
+      //   correct. L'erreur reste dans le journal du serveur.
+      console.error(
+        "[restriction] signaler_echec_restriction :",
+        messageDe(erreur),
+      );
+    }
+  }
+
   const resultat = conclure(
     retenu ? { upn: retenu.boite.upn, sondage: retenu.sondage } : null,
     { upn: premiere.upn, sondage: surChoisie },
     domaineDe(ctx.choisies),
+    premierEchecAt,
   );
 
   if (!resultat.verifie) {

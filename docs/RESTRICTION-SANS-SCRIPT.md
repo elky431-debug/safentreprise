@@ -55,6 +55,35 @@ C'est **RBAC for Applications**. À ne pas confondre avec
 `New-ApplicationAccessPolicy`, l'ancien mécanisme, que Microsoft a déclaré
 hérité — nous ne nous en servons pas.
 
+### Le filtre ne se relit pas sous le nom qui l'écrit
+
+Exchange accepte `-RecipientRestrictionFilter` **en écriture** et range la
+valeur sous `RecipientFilter` **en lecture**. Constaté le 19 septembre 2026 sur
+le locataire Safentreprise :
+
+```
+Name            : Safentreprise-f2381ef4
+RecipientFilter : PrimarySmtpAddress -eq 'admin@safentreprisefr.onmicrosoft.com'
+```
+
+> Relire sous le nom d'écriture rend **toujours vide**. Un contrôle écrit par
+> symétrie avec l'écriture — le réflexe naturel — arrêterait donc le script sur
+> un périmètre parfaitement correct.
+
+L'asymétrie était déjà visible dans ce document sans que personne ne la nomme :
+la représentation Graph de la voie A, deux sections plus bas, appelle
+l'attribut `RecipientFilter`, pas `RecipientRestrictionFilter`. Les deux noms
+désignent la même chose.
+
+Le script relit désormais le périmètre après l'avoir écrit et s'arrête si le
+filtre ne couvre pas les boîtes choisies (`restriction.ts`, section 8 bis). Un
+test le tient fermé : `restriction.test.ts`, « le périmètre est relu sous
+RecipientFilter ».
+
+**Si la voie A est un jour implémentée**, le même piège s'y présentera à
+l'envers : on y écrit `RecipientFilter` dans `customAttributes`, et c'est le
+nom PowerShell qui devient le faux ami.
+
 ---
 
 ## 2. Voie A — tout piloter par Graph
